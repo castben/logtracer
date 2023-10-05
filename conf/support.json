@@ -1,0 +1,103 @@
+{
+  "CONFIG": {
+    "VERSION": "3.0-RC1",
+    "PIXEL_RATIO": 10,
+    "APP_URL": "https://Omega-x/support",
+    "UPLOAD_PATH": "/home/r3support/www/uploads/customers",
+    "ROOT_APP_PATH": "/home/r3support/www/cgi-bin/support",
+    "CUSTOMER_DATA": "/home/r3support/www/cgi-bin/support/data/customers",
+    "RULES_FILE": "/home/r3support/www/cgi-bin/support/conf/logwatcher_rules.json",
+    "FILE_REGISTRY": "/home/r3support/www/cgi-bin/support/data/file_registry.json",
+    "CUSTOMER_REGISTRY": "/home/r3support/www/cgi-bin/support/data/customers/customer_registry.json",
+    "HTML_START_TABLE": {
+      "GLOBAL_SETTING": "<table border=1 cellpadding=10 cellspacing=0>",
+      "File information": "<table width=\"90%\" border=1 cellpadding=2 cellspacing=0>",
+      "Details for": "<table class=\"details\" width=\"90%\" border=1 cellpadding=10 cellspacing=0>",
+      "Actual alerts": "<table class=\"screenboard\" border=1 cellpadding=10 cellspacing=0>",
+      "Log Viewer": "<table class=\"logviewer\" width=\"85%\" border=1 cellpadding=10 cellspacing=0>",
+      "Log Summary for": "<table class=\"logsummary\" id=\"logsummary\" width=\"85%\" border=1 cellpadding=10 cellspacing=0>"
+    },
+    "FILE_FORMATS": {
+      "gzip compressed data": "UNPACK",
+      "tar": "UNPACK",
+      "Zip archive data": "UNPACK",
+      "7-zip archive data": "UNPACK",
+      "ASCII text": "ANALYSE",
+      "UTF-8 Unicode": "ANALYSE",
+      "CSV text": "ANALYSE"
+    },
+    "FILE_ENCODES": [
+      {
+        "encoding": "utf-8",
+        "option": "surrogateescape"
+      },
+      {
+        "encoding": "latin-1",
+        "option": "surrogateescape"
+      },
+      {
+        "encoding": "ascii",
+        "option": "surrogateescape"
+      }
+    ],
+    "HIDE_FROM_INFO_DETAILS": [
+      "errors",
+      "summary",
+      "error_filename",
+      "FILTERS"
+    ],
+    "ALERT_TYPE_LIST": [
+      "info",
+      "warning",
+      "error",
+      "ignore"
+    ],
+    "SHOW_ERROR_MAX_LINES": 50,
+    "MAX_PAGES_TABS": 20,
+    "TABLE_AUTO_NUMBERING_CONFIG": {
+      "No": [
+        5,
+        "^",
+        "^"
+      ]
+    },
+    "TABLE_CONFIG": {
+      "Tracer for": {
+        "Timestamp": [
+          25,
+          "^",
+          "^"
+        ],
+        "Line number": [
+          11,
+          "^",
+          "^"
+        ],
+        "Stage": [
+          50,
+          "^",
+          "<"
+        ]
+      },
+      "References": {
+        "HIGHLIGHT": {
+          "Severity": {
+            "INFO": "#3cb371",
+            "WARN": "#ffa500",
+            "ERROR": "#ff0000/#ffffff"
+          }
+        }
+      },
+      "Last imported files": {
+        "ORDERING_METHOD": "DATABASE",
+        "ORDER_BY": {
+          "Uploaded on": {
+            "SOURCE": "TABLE",
+            "TABLE_FIELD_NAME": "timestamp"
+          }
+        }
+      }
+    }
+  }
+}
+

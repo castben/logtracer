@@ -1,0 +1,1050 @@
+#!/usr/bin/python3
+# showlog:
+# Support team tool to re-format Corda5 logs into a more easy readable format, program will reformat standard
+# corda5 format that come, which is:
+#      {POD_NAME_ID} {JSON formatted log fields}
+# This is only format program recognises, this also can be modified, or add more templates to help program to recognise
+# other formats, until now it only read what is on `standard-format` field. (I will add support for more templates
+# later)
+# Majority program behaviour can be changed with proper configuration.
+#
+# Dependencies:
+#   Python 3.6 or higher
+#   Libraries:
+#     - Pyalm : To be able to handle yaml files -- required for configuration
+#
+# Last modified: 04/05/2023 -- 11:53 am
+# Author: Larry Castro
+#
+#
+import argparse
+# import datetime
+import json
+import re
+import sys
+
+import yaml
+import os
+
+
+def config_file():
+    """
+    Added config file into program to do not have lingering files
+    :return:
+    """
+    global log_config, config
+
+    config = """
+# Log field definition
+# this file will contain which fields we require attention to.
+configuration:
+  corda:
+    log:
+      # Actual format of logs to expect
+      expect:
+         standard-format: (^\[[a-zA-Z0-9-\/]+\])?\s*(?P<log_line>.*)
+      fields:
+        - pod_id
+        - log_line
+  # Define which fields from `log-line`(Actual Corda5 log format) we are interested on
+  log-line-fields:
+    instant:
+      "-Description": Represents timestamp where event occurred
+      epochSecond: represent timestamp in seconds
+    level:
+      "-Description": Specify severity level of message being shown
+    message:
+      "-Description": Represent message
+    thrown:
+      "-Description": Represent class that exposed such message, it is a dictionary
+      message: user a custom message
+      name: Represents actual error being thrown
+      extendedStackTrace: Full stacktrace representing the captured error
+    contextMap:
+      "-Description": It contains information related to actual flow id, and vnode where
+        is being executed
+      client_id: unique id for flow identification
+      flow_id: standard flow Id
+      vnode_id: Actual vnode where flow is being executed
+
+  format:
+    layout:
+      # All fields need to be enclosed between {}
+      # if it exists on current line, otherwise will be blank
+      # Any subfield can be accessed using `.` example: contextMap.flow_id
+      # If no subfield is specified, whole dictionary is posted (ex. {contextMap} will post all fields within it)
+
+      default: '{instant.epochSecond} {level} {message} {contextMap} {thrown} {thread}'
+      test1: '{instant.epochSecond} {level} {message} flow_id: {contextMap.flow_id} vnode_id: {contextMap.vnode_id} {thrown.extendedStackTrace} '
+      test2: '{instant.epochSecond} {level} {message} flow_id: {contextMap.flow_id} vnode_id: {contextMap.vnode_id} {thrown}'
+      test3: '{instant.epochSecond}|{level}|{message} flow_id: {contextMap.flow_id} vnode_id: {contextMap.vnode_id} {thrown}'
+    conversions:
+      # This will help to convert epochSecond into a readable human format, below line is `python executable` commands
+      # Any required library to use conversion exec statement need to be added into `libraries` field, these libraries
+      # will be automatically imported *before* executing statement
+
+      instant.epochSecond: 
+        execute: datetime.datetime.fromtimestamp(instant.epochSecond).strftime('%Y-%m-%d %H:%M:%S')
+        libraries:
+           - import datetime
+
+    # This define which output is being used from `layout` list by default
+    default-layout: default       
+    """
+    try:
+        log_config = yaml.safe_load(config)
+    except BaseException as be:
+        print(f"{program_name}: There's an error on default configuration: {be} unable to continue")
+        exit(0)
+
+
+def load_config():
+    """
+    Load fields of interest list
+    :return:
+    """
+    global log_config
+
+    if os.path.exists(f"./{program_config}"):
+        try:
+            with open(f"./{program_config}", "r") as rfh:
+                log_config = yaml.safe_load(rfh.read())
+            print(f"Reading configuration from {program_config}")
+        except BaseException as be:
+            print(f"{program_name}: I'm sorry but I'm not able to properly read config file ./{program_config} "
+                  f"due to {be}")
+            exit(0)
+    else:
+        config_file()
+
+    # define what part of line is actual `log_line` this will help to identify which is the part of line
+    # that will need to be analysed -- this is very important to define.
+
+    try:
+        if 'expect' in log_config['configuration']['corda']['log']:
+            if 'standard-format' in log_config['configuration']['corda']['log']['expect']:
+                # print(log_config['configuration']['corda']['log']['expect']['standard-format'])
+                regex = re.compile(log_config['configuration']['corda']['log']['expect']['standard-format'])
+                # This will indicate which group we are intereste in
+                log_config['configuration']['corda']['log']['group'] = regex.groupindex['log_line']
+            else:
+                print("Unable to analyse give file, as no regular expression has been provided")
+                print("You can try using --parse-json option instead if you do not want to modify actual config")
+    except BaseException as be:
+        print("Program will require you to define what is the actual `log_line` to be able to parse it correctly")
+        print("Make sure you add Placeholder for `log_line` into your regex, this is how program identify what to analyse")
+        print("It seems actual regex expression is missing `log_line` label for right group, below is actual regex found")
+        exit(0)
+
+def read_file(filename):
+    """
+    Read given file
+    :param filename:
+    :return:
+    """
+    wfh = None
+    line_counter = 1
+    group = log_config['configuration']['corda']['log']['group']
+    try:
+        with open(filename, "r+") as rfh:
+
+            for each_line in rfh:
+                if args.show_line_number:
+                    sline_counter = f"{line_counter:>5} "
+                else:
+                    sline_counter = ""
+
+                if not args.line_detail:
+                    result_line = parse(each_line)
+
+                    if each_line == result_line:
+                        print(f"{sline_counter}{result_line}", end="")
+                    else:
+                        print(f"{sline_counter}{result_line}")
+                else:
+                    parse_line = re.search(log_config['configuration']['corda']['log']['expect']['standard-format'],
+                                           each_line)
+                    for each_conversion in conversions:
+                        if parse_line:
+                            try:
+                                convert_into_dict = json.loads(parse_line.group(group))
+                                test1, test2 = generate_internal_access(convert_into_dict,  each_conversion)
+                                if args.run_conversions and (test1 and test2):
+                                    variable_access, \
+                                        value_to_convert = generate_internal_access(convert_into_dict, each_conversion)
+                                    converted_value = check_conversions(each_conversion, value_to_convert)
+                                    exec(f'convert_into_dict{variable_access}="{converted_value}"')
+                                if args.json_pretty:
+                                    try:
+                                        if sline_counter:
+                                            print(f"==== {sline_counter} ==== ")
+                                        pretty(convert_into_dict)
+                                    except BaseException as be:
+                                        print(f"forced termination")
+                                else:
+                                    try:
+                                        if sline_counter:
+                                            print(f"==== {sline_counter} ==== ")
+                                        print(json.dumps(convert_into_dict, indent=2))
+                                    except BaseException as be:
+                                        print(f"forced termination")
+                            except json.decoder.JSONDecodeError as je:
+                                print(f"{sline_counter} {each_line}", end="")
+                line_counter += 1
+    except IOError as io:
+        print(f"{program_name}: unable to open {filename} due to: {io}")
+        exit(1)
+
+
+def parse(log_line):
+    """
+    Will try to parse given line
+    :param log_line: original line from logs
+    :return: a parsed version of this original line
+    """
+    global log_config
+    # Will parse current line to match expected log format
+    extract_fields = re.match(rf"{expected_log_format['standard-format']}", log_line)
+    # final_output = log_line
+    # Analyse desired log format output:
+    output_layout = re.findall(r"\{([a-zA-Z_.?-]+)\}", desired_output_format)
+    final_output_values = {}
+    labels = []
+    if extract_fields:
+        # Detected a valid line
+        # Detect if line message contains a json format
+        line_groups = extract_fields.groupdict()
+        try:
+            log_scan = json.loads(line_groups['log_line'])
+        except json.decoder.JSONDecodeError as jsonError:
+            # Is not a on Json format, then return same line no further parsing will be performed
+            return log_line
+
+        # This will restrict fields that can be shown, I think will be better approach for this tool
+        # to allows all fields, and it is up to user to decide what to see.
+        #
+        # for each_field in fields_of_interest:
+        #     # if field of interest exist on current line gather its value
+        #     if each_field in log_scan:
+        #         line_values[each_field] = log_scan[each_field]
+
+        # This will allow to see al fields found on each line.
+        #
+        line_values = log_scan
+        final_output = ""
+
+        for each_field in output_layout:
+            # in the case we are dealing with a dictionary, instead of printing full dictionary as string
+            # this will build a variable required to pull sub-values
+            # for example 'instant.epochSeconds'  will pull it like log_scan['instant']['epochSeconds']
+            if '.' in each_field:
+                variables = each_field.split('.')
+                final_variable = "log_scan"
+                for each_var in variables:
+                    final_variable = final_variable + f'["{each_var}"]'
+
+                try:
+                    final_variable = eval(final_variable)
+                    final_output = final_output + f"{variables[len(variables) - 1]}: {final_variable} "
+
+                    final_output_values[each_field] = final_variable
+                except BaseException as be:
+                    pass
+                    # print(f"Unable to access {final_variable} from this line: {log_line}")
+
+            else:
+                if each_field in line_values:
+                    if line_values[each_field]:
+                        final_output = final_output + f"{line_values[each_field]} "
+                        final_output_values[each_field] = line_values[each_field]
+
+    final_log_output = desired_output_format
+    # This will delete any label corresponding to a field, if field is not found in current line, it will be deleted
+    # this is done to be better visibility, for example if you have a layout like:
+    # {timestamp} {severity} flow_id: {flow_id} {message}
+    # and in current line field "flow_id" is not found, no value will be shown (ie blank) in such case,
+    # previous label(if exist) will be also deleted to prevent confusion and save space
+    #
+    fixed_messages = re.findall(r"([a-zA-Z_:-]{2,} )?\{([a-zA-Z?_.-]+)\}", desired_output_format)
+
+    for each_field in output_layout:
+        if each_field in final_output_values:
+            # Check for any required conversion on this field.
+            #
+            if conversions:
+                for check_field in conversions:
+                    if check_field == each_field:
+                        # User require a conversion on this field
+                        try:
+                            #  we need to replace actual value for this field on convert method
+                            #
+                            convert_exec = check_conversions(check_field, final_output_values[each_field])
+                            # line_to_exec = conversions[check_field].replace(check_field, "%s" % final_output_values[each_field])
+                            # #
+                            # # Run conversion
+                            # convert_exec = eval(line_to_exec)
+                            final_output_values[each_field] = convert_exec
+                        except BaseException as be:
+                            print(f"Unable to convert {each_field} conversion method failed due to : {be}")
+
+            final_log_output = final_log_output.replace('{' + each_field + '}', "%s" % final_output_values[each_field])
+        else:
+            if fixed_messages:
+                for label in fixed_messages:
+                    test_label = label[0].strip(' ').strip(':')
+                    if test_label and test_label in each_field:
+                        final_log_output = final_log_output.replace(label[0], '')
+
+            final_log_output = final_log_output.replace('{' + each_field + '}', '')
+
+    if not final_log_output.strip():
+        return log_line
+
+    return final_log_output.strip(" ")
+
+
+def generate_internal_access(variable_dict, variable_to_get):
+    """
+    This method will try to generate internal access to given variable
+    :param variable:
+    :return:
+    """
+
+    if '.' in variable_to_get:
+        variables = variable_to_get.split('.')
+        fvariable = ""
+        for each_var in variables:
+            fvariable = fvariable + f"['{each_var}']"
+
+        try:
+            fvariable_value = eval(f"variable_dict{fvariable}")
+            # final_output = final_output + f"{variables[len(variables)-1]}: {final_variable} "
+            return fvariable, fvariable_value
+        except BaseException as be:
+
+            # print(f"Unable to access variable_dict{fvariable} from this line: {variable_dict}")
+            return None, None
+
+
+def check_conversions(variable_to_convert, value):
+    """
+    Check for a valid conversion
+    """
+
+    # User require a conversion on this field
+    try:
+        #  we need to replace actual value for this field on convert method
+        #
+        line_to_exec = conversions[variable_to_convert]['execute'].replace(variable_to_convert, "%s" % value)
+        # Check if there's any required library:
+        if 'libraries' in conversions[variable_to_convert]:
+            # import given libraries:
+            for each_library in conversions[variable_to_convert]['libraries']:
+                exec(each_library)
+        #
+        # Run conversion
+        convert_exec = eval(line_to_exec)
+        return convert_exec
+    except BaseException as be:
+        print(f"Unable to convert {variable_to_convert} conversion method failed due to : {be}")
+        exit(0)
+
+
+def create_output(filename):
+    """
+    Open a new file called filename and will dump all converted lines into it
+    :param filename: name of new file
+    :return: file handler
+    """
+    wfh = open(filename, "w+")
+
+    return wfh
+
+
+def list_layouts():
+    """
+    Print current supported layouts
+    :return:
+    """
+    print("\nBelow are defined layouts:")
+    print("\nLayout name\t Produced output\n")
+    for each_layout in layouts:
+        print(f"{each_layout:10}: {layouts[each_layout]}")
+
+
+def pretty(keyvals, indent='  '):
+    # ANSI color terminal escape sequences
+    OKBLUE = '\033[94m'
+    ENDC = '\033[0m'
+
+    print('{')
+    for key, val in keyvals.items():
+        print('{}  {}"{}"{}: '.format(indent, OKBLUE, key, ENDC), end="")
+        if isinstance(val, dict):
+            pretty(val, indent + '  ')
+        elif isinstance(val, str):
+            print('"{}",'.format(val))
+        else:
+            print('{},'.format(val))
+    print(indent + '},')
+
+
+def list_conversions():
+    """
+    List defined conversions
+    :return:
+    """
+    print("\nFollowing conversion will be performed on defined variables, if variable is being found associated"
+          " conversion will be executed\n")
+
+    print("Variable associated\t\tPython code for conversion")
+    print("===================\t\t================================================")
+    for each_conversion in conversions:
+        print(f"{each_conversion:30}: {conversions[each_conversion]}")
+
+    print("\n\nBe aware program uses `eval` to execute this code, you will need to be sure proper libraries are present"
+          " within program context to be able to run this successfully.\n"
+          "This default conversion has required libraries present already.")
+    print("\nIf want to ignore these conversions, please run with the flag `--ignore-conversions` then original value "
+          "will be shown")
+
+
+def show_config():
+    """
+    Show current config used
+    :return:
+    """
+
+    print(yaml.safe_dump(log_config))
+
+
+def export_default():
+    """
+    Export default configuration into a file
+    :return:
+    """
+    global config
+    with open(f"{program_config}", "w") as wcf:
+        wcf.write(config)
+
+    print(f"{program_name}: Configuration file has been exported as {program_config}")
+
+
+def parse_json(file_to_process=None):
+    """
+    Try to parse given file using json
+    :return:
+    """
+    global fields_found, file
+    if file_to_process:
+        parse_file = file_to_process
+        load_index(file_to_process)
+    else:
+        load_index(file_to_process)
+        parse_file = args.log_file
+
+    tl = file['total-lines']
+    cpi = 0
+    cl = 0
+    if not args.fields and not fields_found:
+        if not args.interactive:
+            print("Json parsing require an analysis of what are current fields; attempting to create an index file with this info")
+        generate_field_index(parse_file)
+        list_log_file_fields()
+        return
+
+    if not args.fields and fields_found:
+        if not args.interactive:
+            print("Please select desired fields to be shown:")
+            print("By using argument '--fields 1,2,3...' and selecting which fields to show")
+            for pos, each_field_found in enumerate(fields_found):
+                print(f"{pos:3} - {each_field_found.strip()}")
+        return fields_found
+    else:
+        with open(f"{parse_file}", "r") as lghr:
+            for each_line in lghr:
+                print_line(each_line, args.fields)
+                if args.output:
+                    cl += 1
+                    cp = (cl * 100) / tl
+                    if cp >= cpi:
+                        cpi = cpi + 10
+                        print("Finished... %.2f%s" % (cp, '%'), file=sys.stderr)
+
+
+def print_line(line, fields_to_print):
+    """
+    Print each line -- this is only running on mode `parse-json`
+    :param line: original line
+    :param fields_to_print: desired fields to print
+    :return:
+    """
+    global fields_found
+    final_line = ""
+    value = None
+    try:
+        line_fields = json.loads(line)
+        for each_field in args.fields.split(","):
+            fld = fields_found[int(each_field)].strip()
+            if fld in line_fields:
+                value = line_fields[fld]
+            else:
+                result = generate_internal_access(line_fields, fld)
+                if result:
+                    value = result[1]
+
+            if value:
+                value = expand(value)
+                final_line = final_line + f" {value}"
+
+        if final_line:
+            print(final_line.strip())
+        else:
+            print(line.strip())
+
+    except json.JSONDecodeError as jde:
+        print(line.strip())
+
+
+def expand(value):
+    """
+    Will force to interpret some special chars
+    :param value:
+    :return:
+    """
+    if not value:
+        return
+    expand_chars = {
+        '\\n': '\n',
+        '\\"': '"',
+        '\\t': '\t'
+    }
+
+    for each_char in expand_chars:
+        if isinstance(value, str) and each_char in value:
+            value = value.replace(each_char, expand_chars[each_char])
+
+    return value
+
+
+def load_index(file_to_process=None):
+    """
+
+    :return:
+    """
+    global fields_found, file
+
+    if file_to_process:
+        parse_file = file_to_process
+    else:
+        parse_file = args.log_file
+
+    if os.path.exists(f"{parse_file}.jidx"):
+        with open(f"{parse_file}.jidx") as lhfidx:
+            file = yaml.safe_load(lhfidx)
+            fields_found = file['fields']
+    else:
+        # if index file is not found, it will be generated automatically
+        generate_field_index(parse_file)
+    return
+
+
+def generate_field_index(file_to_process=None):
+    """
+    Will generate a field index for given file, and also will save file with found fields, for future usage.
+    :return:
+    """
+    global fields_found, file
+
+    if file_to_process:
+        parse_file = file_to_process
+    else:
+        parse_file = args.log_file
+
+    tl = 0
+    print("You will need to select which fields you want to see")
+    try:
+        print("Analysing file, please wait...")
+        with open(parse_file, "r") as lfh:
+            for each_line in lfh:
+                tl += 1
+                try:
+                    line_fields = json.loads(each_line)
+                    if line_fields:
+                        getKeys(line_fields, "")
+                except json.JSONDecodeError as jde:
+                    pass
+                    # print(each_line.strip())
+        file = {
+            "file-name": parse_file,
+            "total-lines": tl,
+            "fields": fields_found
+        }
+
+        try:
+            with open(f"{parse_file}.jidx", "w") as lfhidx:
+                yaml.safe_dump(file, lfhidx)
+        except IOError as iow:
+            print(f"Unable to write file index {args.log_file}.jidx due to {iow}")
+            print("Without this file I'll be not able to extract desired fields, using --parse-json option")
+
+    except IOError as io:
+        print(f"Unable to open {parse_file} due to {io}")
+        return
+
+
+def getKeys(val, old="$"):
+    global fields_found
+    if isinstance(val, dict):
+        for k in val.keys():
+            getKeys(val[k], old + "." + str(k))
+    elif isinstance(val, list):
+        for i, k in enumerate(val):
+            getKeys(k, old + "." + str(i))
+    else:
+        # print("{} : {}".format(old, str(val)))
+        old = old.lstrip(".")
+        if old not in fields_found:
+            fields_found.append(old)
+
+
+def getKeysx(val,  listofkeys, old="$"):
+
+    if isinstance(val, dict):
+        for k in val.keys():
+            getKeysx(val[k], listofkeys, old + "." + str(k))
+    # elif isinstance(val, list):
+    #     for i, k in enumerate(val):
+    #         getKeysx(k, listofkeys, old + "." + str(i))
+    else:
+        # print("{} : {}".format(old, str(val)))
+        old = old.lstrip(".")
+        if old not in listofkeys:
+            listofkeys.append(old)
+
+    return listofkeys
+
+
+def list_log_file_fields(interactive=False):
+    """
+    List actual found fields.
+    :return:
+
+    """
+
+    global fields_found
+
+    if not fields_found:
+        load_index()
+
+    if not interactive:
+        print("\n\nFollowing fields were found:")
+        for pos, each_field_found in enumerate(fields_found):
+            print(f"{pos:3} - {each_field_found}")
+
+    return fields_found
+
+
+def setup():
+    """
+    This is an interactive way to setup program
+    :return:
+    """
+
+    if os.path.exists("showlog.yaml"):
+        print("A configuration file was found")
+        print("Loading configuration file")
+        print("==========================")
+        listofkeys = getKeysx(log_config, [], "")
+        config_keys = [
+            'configuration.corda.log.expect.standard-format',
+            'configuration.format.layout',
+            'configuration.format.default-layout'
+        ]
+        #
+        # print("Following is a definition of what should I expect to recognise line from log (Regex format):")
+        # print("Actual value:")
+        # print(f"{log_config['configuration']['corda']['log']['expect']['standard-format']}")
+        # response = input("To keep same press enter, or type in new regex expression below:\n] ")
+        # if not response:
+        #     print("Keeping default")
+        # else:
+        #     log_config['configuration']['corda']['log']['expect']['standard-format'] = response
+
+        for i, each_conf in enumerate(config_keys):
+            default = generate_internal_access(log_config, each_conf)
+            print(f"{each_conf}")
+            if default:
+                if isinstance(default[1], list):
+                    print("Actual values:")
+                    for each_item in default[1]:
+                        print(f"  - {each_item}")
+
+                    response_yn = input("Yo")
+                    response = input(f"Press enter to keep default [{each_item}]:") or each_item
+                else:
+                    response = input(f"Press enter to keep default [{default[1]}]:") or default[1]
+
+
+def interactive_work():
+    """
+    Launch TUI interface
+    :return:
+    """
+    global wordWrap_value
+    import TermTk
+    import yaml
+    import textwrap
+    import TermTk as ttk
+    from TermTk.TTkCore.signal import pyTTkSlot
+    from TermTk import TTkUtil, TTkUiLoader, TTk
+
+    root = ttk.TTk()
+    # Data generated using ttkDesigner
+    # widget = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
+    #     "eJx9kk1v0zAYx5M1bZqVlwFiDCZNOfZUlTMvB6QBmtsxQQQHhJCXmD4Wjl0lNqxIkzj24KP5QnwqtBOPk3T0RCTLz4vt///n+Gf0689O0HyXbmzjb6yquZLO9h9PppOp" +
+    #     "sz1tuPOtfi5oXTubZNnXD7xYMO3sYEkrWtZNPzqlJXN2d0653PSHZ6rm2p/3yY1JQAJmo3f8B2vSK3LFbDLnMsXlGhwJcDNmrxlfgPZpMqcXXfMkCELfx0LXbyvxGS0K" +
+    #     "LhcbgVZkMKMrZXRrdhPH73nNzwVzaxsfS4pR4cNMKZHxpbPR4cdp6YwdiHYDQkEf9iG+RJBXTJVMV6tOBb1rV9thDlwUFfN8zfLudmShvju/cQyJvXVd+izUonYw8l5D" +
+    #     "EjK46aMv5IjBbRLAHo47DRbcbad721RwH808WMPBGh7CIzt4oaqCVYjQz7hGLLvnAfyYoUwDY2+0wulLQVH5JPgdDA0cbpHBUSuAJhAI0g3HCE1n7EIfF1xfk+xvFT1L" +
+    #     "rqRmUndEOyTqiHJysCEK/0v0j2Y045Klp6Y8b5CSt4wW6RspVpjszo3QPPUr3NrYXoWXi6+jlyvh5xjzekmlI6GNsdbFhhp4gh6e4niGPp43JWNH6Fqy3L/KGn+bmfwF" +
+    #     "Np8DIA=="))
+    #
+    # TTKTextEdit_logcontent = widget.getWidgetByName("TTkTextEdit_logcontent")
+    # TTkWindow_logs = widget.getWidgetByName("TTkWindow_logs")
+
+    TTkWindow_logs = ttk.TTkWindow(parent=root,
+                                   pos=(26, 4), size=(120, 35),
+                                   title=ttk.TTkString("Logs reader", ttk.TTkColor.ITALIC),
+                                   border=True,
+                                   layout=ttk.TTkGridLayout())
+    TTKTextEdit_logcontent = ttk.TTkTextEdit(parent=TTkWindow_logs)
+
+    @pyTTkSlot()
+    def load_file(file):
+        """
+        Load given file
+        :return:
+        """
+        global loaded_file
+        with open(file, 'r') as logfile:
+            TTKTextEdit_logcontent.setText(logfile.read())
+        loaded_file = file
+        TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{file}]", ttk.TTkColor.ITALIC))
+
+    def _close():
+        """
+        Close actual loaded file
+        :return:
+        """
+        TTKTextEdit_logcontent.setText("")
+
+        TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader", ttk.TTkColor.ITALIC))
+
+    def _lineNumber():
+        """
+
+        :return:
+        """
+        global line_number
+
+        line_number ^= True
+        TTKTextEdit_logcontent.setLineNumber(line_number)
+        if line_number:
+            lineNumber_option.setText("Line number-[Disable]")
+        else:
+            lineNumber_option.setText("Line number-[Enable]")
+
+    @pyTTkSlot()
+    def resize_logcontent(h, w):
+        """
+        Try to keep size of parent window...
+        :param h: parent window
+        :param w: parent window
+        :return:
+        """
+
+        TTKTextEdit_logcontent.resize(h-4, w-4)
+
+    def _showDialog():
+        filePicker = ttk.TTkFileDialogPicker(pos=(1, 1), size=(75, 24), caption="Select a file",
+                                             path=".",
+                                             fileMode=ttk.TTkK.FileMode.AnyFile,
+                                             filter="All Files (*);;logs files (*.log)")
+        ttk.TTkHelper.overlay(TTkWindow_logs, filePicker, 4, 8, True)
+        filePicker.pathPicked.connect(load_file)
+
+    def _exit():
+        """
+        Exit app
+        :return:
+        """
+        TTkWindow_logs.close()
+        root.quit()
+
+    @pyTTkSlot()
+    def _wordWrap_menu(selection):
+        """
+        Will setup word wrap for editor
+        :param selection: selection to be done
+        :return: void
+        """
+
+        def _setWrap():
+            """
+
+            :return:
+            """
+            global wordWrap_value
+            TTKTextEdit_logcontent.setWrapWidth(width_value.value())
+            TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.FixedWidth)
+            wordWrap_value = width_value.value()
+            fixedWidth_option.setText(f"Fi&xed width [{wordWrap_value}]")
+            wrap_width.close()
+
+        if selection == 'NoWordWrap':
+            TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.NoWrap)
+        if selection == 'WordWrapFitWin':
+            # TTKTextEdit_logcontent.setWrapWidth(250)
+            TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.WidgetWidth)
+        if selection == 'WordWrapFixed':
+            wrap_width = ttk.TTkWindow(pos=(3, 2), size=(20, 7),
+                                       title=ttk.TTkString("Desired width", ttk.TTkColor.ITALIC),
+                                       border=True,
+                                       layout=ttk.TTkVBoxLayout())
+            width_value = ttk.TTkSpinBox(value=wordWrap_value, maximum=250, minimum=80)
+            wrap_width.addWidget(width_value)
+            ok_button = ttk.TTkButton(text="OK")
+            cancel_button = ttk.TTkButton(text="Cancel")
+            wrap_width.addWidget(ok_button)
+            wrap_width.addWidget(cancel_button)
+            cancel_button.clicked.connect(lambda: wrap_width.close())
+            ok_button.clicked.connect(_setWrap)
+
+            ttk.TTkHelper.overlay(TTKTextEdit_logcontent, wrap_width, 10, 4, True )
+
+    def _parseJson():
+        """
+        Try to analyse given log to see if it is possible to gather information from json format
+        :return:
+        """
+        fields_found = parse_json(loaded_file)
+
+        def transfer_to_show():
+            """
+            Transfer selected fields to show list
+            :return:
+            """
+            items = fieldsList.selectedItems()
+            if fieldsList.selectedLabels():
+                for s in fieldsList.selectedItems():
+                    fieldlist_toshow.addItem(str(s.text()))
+                    items.remove(s)
+            fieldsList.items()
+
+        if fields_found:
+            listlayout = ttk.TTkGridLayout()
+            fieldsFoundWindow = ttk.TTkWindow(parent=root, pos=(3, 2),
+                                              size=(57, 18),
+                                              title=ttk.TTkString("Fields found", ttk.TTkColor.ITALIC),
+                                              border=True,
+                                              layout=listlayout)
+
+            frame_fieldlist = ttk.TTkFrame(layout=ttk.TTkHBoxLayout(),
+                                           border=1,
+                                           title="Available fields",
+                                           maxSize=(30, 15),
+                                           selectionMode=ttk.TTkK.MultiSelection)
+            frame_fieldlist_toshow = ttk.TTkFrame(layout=ttk.TTkHBoxLayout(),
+                                                  border=1,
+                                                  title="Fields to show",
+                                                  maxSize=(30, 15))
+            frame_middle_buttons = ttk.TTkFrame(layout=ttk.TTkVBoxLayout(), border=0, maxSize=(5, 5))
+            frame_sort_buttons = ttk.TTkFrame(layout=ttk.TTkVBoxLayout(), border=0, maxSize=(8, 6))
+            button_add = ttk.TTkButton(text=">>")
+            button_del = ttk.TTkButton(text="<<")
+            button_up = ttk.TTkButton(text="Up")
+            button_dn = ttk.TTkButton(text="Down")
+            button_ok = ttk.TTkButton(text="OK")
+            button_cn = ttk.TTkButton(text="Cancel")
+            fieldsList = ttk.TTkList(parent=frame_fieldlist)
+            fieldlist_toshow = ttk.TTkList(parent=frame_fieldlist_toshow)
+            frame_middle_buttons.addWidget(button_add)
+            frame_middle_buttons.addWidget(button_del)
+            frame_sort_buttons.addWidget(button_up)
+            frame_sort_buttons.addWidget(button_dn)
+            listlayout.addWidget(frame_fieldlist, 0, 0, 3, 1)
+            listlayout.addWidget(frame_middle_buttons, row=1, col=1, rowspan=1, colspan=1)
+            listlayout.addWidget(frame_fieldlist_toshow, 0, 3, 3, 1)
+            listlayout.addWidget(frame_sort_buttons, 1, 4, 1, 1)
+            listlayout.addWidget(button_ok, 3, 3, 1, 1)
+            listlayout.addWidget(button_cn, 3, 4, 1, 1)
+
+            # Actions
+            button_add.clicked.connect(transfer_to_show)
+
+            for each_field in fields_found:
+                # ttkItem = ttk.TTkCheckbox(each_field)
+                fieldsList.addItem(each_field)
+
+            #fieldsFoundWindow.addWidget(listlayout)
+
+    fileMenu = TTkWindow_logs.newMenubarTop().addMenu("&File")
+    viewMenu = TTkWindow_logs.newMenubarTop().addMenu("&View")
+    fileMenu.addMenu("Open").menuButtonClicked.connect(_showDialog)
+    fileMenu.addMenu("Close").menuButtonClicked.connect(_close)
+    fileMenu.addMenu("Exit").menuButtonClicked.connect(_exit)
+    lineNumber_option = viewMenu.addMenu("Line number-[Enable]")
+    lineNumber_option.menuButtonClicked.connect(_lineNumber)
+    viewMenu.addMenu("Parse Json").menuButtonClicked.connect(_parseJson)
+    wordWrap_menu = viewMenu.addMenu("&Word wrap")
+    wordWrap_menu.addMenu("&No Word wrap").menuButtonClicked.connect(lambda: _wordWrap_menu("NoWordWrap"))
+    wordWrap_menu.addMenu("&Fit Window width").menuButtonClicked.connect(lambda: _wordWrap_menu("WordWrapFitWin"))
+    fixedWidth_option = wordWrap_menu.addMenu(f"Fi&xed width [{wordWrap_value}]")
+    fixedWidth_option.menuButtonClicked.connect(lambda: _wordWrap_menu("WordWrapFixed"))
+
+    TTkWindow_logs.sizeChanged.connect(resize_logcontent)
+    # TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.WordWrap)
+    TTKTextEdit_logcontent.setWrapWidth(250)
+    TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.FixedWidth)
+
+    root.layout().addWidget(TTkWindow_logs)
+    root.mainloop()
+    # root.setLayout(ttk.TTkGridLayout())
+    #
+    # show_log_window = ttk.TTkWindow(parent=root,
+    #                                 pos=(1, 2),
+    #                                 size=(100, 30),
+    #                                 title="Showlog",
+    #                                 border=True, layout=ttk.TTkVBoxLayout())
+    #
+    # # btnCreate = ttk.TTkButton(parent=menu_window, text="Create a new Lab", border=True)
+    # # btnLoad = ttk.TTkButton(parent=menu_window, text="Load a lab plan", border=True)
+    # # btnPlugins = ttk.TTkButton(parent=menu_window, text="Plugins setup", border=True)
+    # # btnConfig = ttk.TTkButton(parent=menu_window, text="Settings", border=True)
+    # # btnQuit = ttk.TTkButton(parent=menu_window, text="Quit", border=True)
+    #
+    # rootWindow.mainloop()
+
+
+if __name__ == "__main__":
+    line_number = False
+    wordWrap_value = 250
+    loaded_file = None
+    file = None
+    fields_found = []
+    program_name = os.path.basename(__file__)
+    if len(os.path.splitext(program_name)) > 1:
+        tmpname = os.path.splitext(program_name)
+        program_config = f"{tmpname[0]}.yaml"
+    else:
+        program_config = f"{program_name}.yaml"
+
+    log_config = None
+    config = None
+    load_config()
+    # Initialization global variable usage
+    # Corda 5, expected log format
+    expected_log_format = log_config["configuration"]["corda"]["log"]["expect"]
+    # log format expected fields:
+    # expected_log_fields = log_config["configuration"]["corda"]["log"]["fields"]
+    # Get all defined layouts
+    layouts = log_config["configuration"]["format"]["layout"]
+    # set up default layout
+    default_layout = log_config["configuration"]["format"]["default-layout"]
+    # # Load required fields
+    # fields_of_interest = log_config["configuration"]["log-line-fields"]
+    # Desired log output format
+    desired_output_format = layouts[default_layout]
+    # Collect any required conversion
+    conversions = log_config['configuration']['format']['conversions']
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-l', '--log-file',
+                        help='Give actual log file to pre-format')
+    parser.add_argument('-o', '--output',
+                        help='Give name of file you want to write converted output')
+    parser.add_argument('--line-detail', help='A detailed format, which only parses json c5 file into nice-to-see'
+                                              ' format, it will include all fields.', action='store_true')
+    parser.add_argument('--json-pretty', help='print json with colors to identify key values --experimental--',
+                        action='store_true')
+    parser.add_argument('--list-conversions', help='Print all available conversions defined', action='store_true')
+    parser.add_argument('--run-conversions', help='Will instruct parser to run all conversion found at'
+                                                  ' `configuration.format.conversions`', action='store_true')
+    parser.add_argument('--list-layouts', help='Will print current supported layouts for output', action='store_true')
+    parser.add_argument('--use-layout', help='Specify which layout you want output looks like, use `--list-layout` '
+                                             'to list all available layouts.')
+    # parser.add_argument('--field-of-interest', help='Will give actual fields that will be scanned from original logs',
+    #                     action='store_true')
+    parser.add_argument('--show-config', help='Show current used config', action='store_true')
+    parser.add_argument('--export-default-config', help='Create a file with default configuration, if this file exist'
+                                                        ' program will load config from this file and will overwrite '
+                                                        'all internal default, use it to modify default configuration',
+                        action='store_true')
+    parser.add_argument('--show-line-number', help='Will print line numbers', action='store_true')
+    parser.add_argument('--parse-json', help='Will try to parse given file to JSON, and extract data',
+                        action='store_true')
+    parser.add_argument('--fields', help="a comma separated field numbers to print")
+    parser.add_argument('--list-fields', help='If given log has a json format, program will attempt to extract and'
+                                              ' show all fields found on it and will generate special "index" file'
+                                              ' which will include all these fields for future usages',
+                        action='store_true')
+    parser.add_argument('--setup', help='An interactive way to setup program default options', action='store_true')
+    parser.add_argument('--interactive', help='Launch an text tui interface to interact with all options',
+                        action='store_true')
+    args = parser.parse_args()
+
+    if args.interactive:
+        interactive_work()
+        exit(0)
+
+    if args.setup:
+        setup()
+        exit(0)
+
+    if args.list_fields and args.log_file:
+        list_log_file_fields()
+        exit(0)
+    else:
+        if args.list_fields and not args.log_file:
+            print("This option must be used together with a log file it can't work alone")
+            exit(0)
+
+    if args.parse_json:
+        parse_json()
+        exit(0)
+
+    if args.export_default_config:
+        export_default()
+        exit(0)
+
+    if args.show_config:
+        show_config()
+        exit(0)
+
+    if args.list_conversions:
+        list_conversions()
+        exit(0)
+
+    if args.list_layouts:
+        list_layouts()
+        exit(0)
+
+    if args.use_layout:
+        if args.use_layout not in layouts:
+            print(f"{args.use_layout} is not defined, please add it into program configuration to use it, "
+                  f"you can use --list-layouts to see which ones are available to use")
+            exit(0)
+
+        default_layout = args.use_layout
+        # default layout changed, need to re-configurate desired output
+        # Desired log output format
+        desired_output_format = layouts[default_layout]
+
+    if args.log_file:
+        read_file(args.log_file)
+    else:
+        parser.print_help()
+
+
+
+

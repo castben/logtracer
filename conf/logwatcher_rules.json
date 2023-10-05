@@ -1,0 +1,1391 @@
+{
+  "INFO": {
+    "CONFIGURATION_VERSION": "3.0"
+  },
+  "VERSION": {
+    "IDENTITY_FORMAT": {
+      "CORDA DEFAULT": {
+        "EXPECT": "\\[([A-Z]+)+\\s*\\] (\\d{2}:\\d{2}:\\d{2}\\+[0-9]{4}) (.*)",
+        "FIELDS": [
+          "error_level",
+          "timestamp",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-<>_.:]+ - ([0-9a-zA-Z. \\\"(),]+)\\s?(.*)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_nexi01": {
+        "EXPECT": "([0-9-T:,]*)\\s\\|\\s([A-Z]*)\\s*[\\| ]*\\|.*\\|(.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-<>_.:]+ - ([0-9a-zA-Z. \\\"(),]+)\\s?(.*)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },      
+      "CUSTOM_DTCC": {
+        "EXPECT": "\\[TIME=\\'([0-9-: GMT.]*)\\'\\] \\[LEVEL=\\'([A-Z ]*)\\'.*\\[MESSAGE=\\'(.*)\\'] \\[EVENTNAME",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-<>_.:]+ - ([0-9a-zA-Z. \\\"(),]+)\\s?(.*)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },      
+      "CUSTOM_00a": {
+        "EXPECT": "\\[([A-Z]+)\\s*\\] ([0-9-:TZ]+) (.*)",
+        "FIELDS": [
+          "error_level",
+          "timestamp",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-<>_.:]+ - ([0-9a-zA-Z. \\\"(),]+)\\s?(.*)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_00b": {
+        "EXPECT": "([0-9-:T.-]*Z)\\sstdout\\sF\\s([A-Z ])\\s(.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-<>_.:]+ - ([0-9a-zA-Z. \\\"(),]+)\\s?(.*)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_01": {
+        "EXPECT": "\\[([A-Z]+)\\s*\\] ([0-9-:TZ]+) (.*)",
+        "FIELDS": [
+          "error_level",
+          "timestamp",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-<>_.:]+ - ([0-9a-zA-Z. \\\"(),]+)\\s?(.*)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "Kinana_1": {
+        "EXPECT": "{.@timestamp.:.([0-9-T:,]+).,.traceId.*severity.:.([A-Z]+).*,.message.:.(.*)}",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ],
+          "SHOW_ORIGINAL_MESSAGE_LINE": false
+        }
+      },
+      "Kibana_2": {
+        "EXPECT": "..@timestamp.:.([0-9-T:,]+).*severity.:.([A-Z0-9a-z]+)..*message.:.(.*).,",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_CSV2": {
+        "EXPECT": "\\{.@timestamp.:.([0-9-TZ:,.]+).,\"level\":\"([A-Z0-9a-z]+)\",\"message\":\"(.*?\")",
+        "FILE_CHECK":{
+          "CSV" : {
+            "FIELD_OF_INTEREST":["log"]
+          }
+        },
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_CSV3": {
+        "EXPECT": "--(\\d+),.\\[([A-Z]+)\\s*\\]\\s*(.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_CSV5": {
+        "EXPECT": "([0-9-T:,. ]+),\\[([A-Za-z ]+)\\](.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_CSV_HQLAx": {
+        "EXPECT": "^.([0-9-TZ:.]+).,.*,\\\"(.*)\\\"$",
+        "FIELDS": [
+          "timestamp",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_1": {
+        "EXPECT": "([0-9-.: ]+) ([A-Z]+ )\\[,\\]\\s\\d+\\s---\\s(.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_2": {
+        "EXPECT": "..@timestamp..:..([0-9-T:,]+).*severity..:\"\"([A-Z0-9a-z]+).*message..:\"\"(.*)..,",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_3": {
+        "EXPECT": "(\\d{2}:\\d{2}:\\d{2}\\.[0-9]+) \\[[A-Za-z0-9- ]+\\] ([A-Z ]+) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_4": {
+        "EXPECT": "(\\d{2}:\\d{2}:\\d{2}\\.[0-9]+) ([\\[\\] A-Z]+) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_5": {
+        "EXPECT": "([\\[\\]A-Z]+) (\\d{2}:\\d{2}:\\d{2}\\,[0-9]+) (.*)",
+        "FIELDS": [
+          "error_level",
+          "timestamp",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_6": {
+        "EXPECT": "([0-9:.]+) \\[main\\] ([A-Z]+) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [A-Z]+ [a-zA-Z0-9. ]+ - ([A-Za-z-_ .]+): (.*)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_7": {
+        "EXPECT": "(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2} [0-9]+):\\s*\\[([A-Z0-9a-z- ]+)+\\s*\\](.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_8": {
+        "EXPECT": "(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d+)\\s*([A-Z ]+) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CSV 1": {
+        "EXPECT": "..@timestamp..:..([0-9-T:,]+).*severity..:\"\"([A-Z0-9a-z]+).*message..:\"\"(.*)..,",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "TLS": {
+        "EXPECT": "\\[([A-Z]+)+\\s*\\] (\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},[0-9Z]+) (.*)\\n\\]\\n\\[.",
+        "FIELDS": [
+          "error_level",
+          "timestamp",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CORDA 4.x": {
+        "EXPECT": "\\[([A-Z]+)+\\s*\\] (\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},[0-9Z]+) (.*)",
+        "FIELDS": [
+          "error_level",
+          "timestamp",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CORDA_3.x": {
+        "EXPECT": "(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},[0-9]+) \\[([A-Z]+)+\\s*\\](.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CORDA_4.x1": {
+        "EXPECT": "(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},[0-9]+) ([A-Z]+) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "SDX-test": {
+        "EXPECT": "severityLevel.:\\\"([A-Z0-9a-z]+).}.*eventTimestamp.:.([0-9-TZ.:]+).*message.:.(.*)}}",
+        "FIELDS": [
+          "error_level",
+          "timestamp",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "TRACER": {
+        "EXPECT": "(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}) ([A-Za-z]+) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "TRACER-1": {
+        "EXPECT": "([0-9-:.ZT ]*) ([A-Za-z]+) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CORDA5-STD": {
+        "EXPECT": " (^\\[[a-zA-Z0-9-\\/]+\\]) (.*)",
+        "FIELDS": [
+          "pod_id",
+          "message"
+        ],
+        "PREFORMAT": true,
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      }
+    }
+  },
+  "WATCH_FOR": {
+    "networkmap": {
+      "PublishingNodeIssue": {
+        "error_strings": [
+	    "Network Map signing took a long time to finish. Discarding progress"
+        ],
+        "alert_type": "error",
+        "report_only_to": []
+      },
+      "UnableToProcess": {
+        "error_strings": [
+          "Unable to process [a-zA-Z-]+"
+        ],
+        "alert_type": "warning",
+        "report_only_to": []
+      }
+    },
+    "checkFlowInLog": {
+      "InstantiateErrors": {
+        "error_strings": [
+          "failed to instantiate"
+        ],
+        "alert_type": "error",
+        "report_only_to": []
+      },
+      "ExecuteTransitions": {
+        "error_strings": [
+          "interceptors.DumpHistoryOnErrorInterceptor.executeTransition"
+        ],
+        "alert_type": "error",
+        "report_only_to": []
+      },
+      "DoubleInsert": {
+        "error_strings": [
+          "Double insert in net.corda.node.utilities.AppendOnlyPersistentMap"
+        ],
+        "alert_type": "warning",
+        "report_only_to": []
+      },
+      "Exceptions": {
+        "error_strings": [
+          "exception",
+          "ConnectException"
+        ],
+        "ignore_messages_with": [
+	       "flow hospital"
+        ],
+        "alert_type": "error",
+        "report_only_to": []
+      },
+	"FlowHospitalDischarged": {
+	  "error_strings": [
+	    "Flow error discharged from hospital"
+	  ],
+	  "report_only_to": [],
+	  "alert_type": "warning"
+	},
+	"StaffedFlowHospital": {
+	  "error_strings": [
+	    "There are \\d+ flows kept for overnight observation"
+	  ],
+	  "report_only_to": [],
+	  "alert_type": "warning"
+	},
+	"FlowError": {
+	  "error_strings": [
+	    "Flow raised an error"
+	  ],
+	  "report_only_to": [],
+	  "alert_type": "error"
+	},
+	"CommitTransaction": {
+	  "error_strings": [
+	    "Error while executing CommitTransaction,"
+	  ],
+	  "report_only_to": [],
+	  "alert_type": "warning"
+	},
+      "AMQPDisconnections": {
+        "error_strings": [
+          "Stopping Artemis"
+        ],
+        "report_only_to": [],
+        "alert_type": "error",
+        "ignore": false
+      },
+      "PropagatingErrors": {
+        "error_strings": [
+          "Propagating error"
+        ],
+        "report_only_to": [],
+        "ignore": false
+      },
+      "LongWaitingForErrors": {
+        "error_strings": [
+          "has been waiting for [0-9]+"
+        ],
+        "conditions": {
+          "expect": {
+            "def1": "([a-z0-9-]+) has been waiting for ([0-9]+)"
+          },
+          "fields": {
+            "def1" : [
+              "flow-id",
+              "seconds"
+            ]
+          },
+          "compute": {
+            "results_1": ""
+          }
+        },
+        "report_only_to": [
+          "NotaryDelay"
+        ],
+        "alert_type": "warning"
+      },
+      "ConnectionFailureErrors": {
+        "error_strings": [
+          "Connection failure"
+        ],
+        "report_only_to": []
+      },
+      "AMQMessages": {
+        "error_strings": [
+          "AMQ[0-9]+.*"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "SendToFlowHospitalErrors": {
+        "error_strings": [
+          "sending it to flow hospital"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "ClosingConnectionErrors": {
+        "error_strings": [
+          "Closing connection"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "OutOfMemory Errors": {
+        "error_strings": [
+          "\bOutOfMemory\b|\bout of memory\b"
+        ],
+        "report_only_to": [],
+        "alert_type": "error"
+      },
+      "Validation Errors": {
+        "error_strings": [
+          "due to validation error"
+        ],
+        "ignore_messages_with": [
+          "liquibase.info"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "Liquibase Messages": {
+        "error_strings": [
+          "liquibase.*error.*"
+        ],
+        "report_only_to": [],
+        "alert_type": "info",
+        "ignore_messages_with": [
+          "internal.Node.logStartupInfo",
+          "liquibase.info"
+        ]
+      },
+      "SoftLock Errors": {
+        "error_strings": [
+          "soft lock"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "CertificateErrors": {
+        "error_strings": [
+          "Error encountered while publishing node info"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "URL Errors": {
+        "error_strings": [
+          "Response Code 4[0-9]+" 
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "UnableToNotariseErrors": {
+        "error_strings": [
+          "Unable to notarise"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "DoubleSpendErrors": {
+        "error_strings": [
+          "Conflict notarising transaction.*Input states have been used in another transaction"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      }
+    },
+    "Bridge": {
+      "RPCErrors": {
+        "error_strings": [
+          "RPCServer [-] Failed to send message|Cannot start new flows through RPC|Error during RPC invocation"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      }
+    },
+    "NodeCheckpoints": {
+      "UnrestorableCheckpoints": {
+        "error_strings": [
+          "unrestorable checkpoint"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      }
+    },
+    "NodeFlowPerformance": {
+      "LongTimedFlow": {
+        "error_strings": [
+          "has been asked to wait for an additional [PT0-9MHS]+"
+        ],
+        "trigger": {
+          "alert_on_occurrence": "6 times within 3m at same location"
+        },
+        "report_only_to": [],
+        "alert_type": "warning"
+      }
+    },
+    "Node": {
+      "NodeShuttingDown": {
+        "error_strings": [
+          "Connection to the broker was lost. Node is shutting down"
+        ],
+        "report_only_to": [],
+        "alert_type": "error"
+      },
+      "SQLErrors": {
+        "error_strings": [
+          "Error pinging mysqld",
+	  "SQL Error: [0-9]+"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "DeadLocks": {
+        "error_strings": [
+          "deadlock"
+        ],
+        "alert_type": "warning",
+        "report_only_to": []
+      },
+      "Rejections": {
+        "error_strings": [
+          "\b[Rr]ejection\b"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "AMQExecutionIgnored": {
+        "error_strings": [
+          "Execution ignored due to too many simultaneous"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "NodeRestart": {
+        "error_strings": [
+          "Release:"
+        ],
+        "report_only_to": [],
+        "alert_type": "warning"
+      },
+      "BlockingAttempts": {
+       "error_strings": [
+         "Blocking future connection attempts"
+       ],
+       "report_only_to": [],
+       "alert_type": "error"
+     },
+      "ArtemisBroker Login": {
+        "error_strings": [
+          "javax.security.auth.login.FailedLoginException",
+          "SASL Login failed"
+        ],
+        "report_only_to": [],
+        "alert_type": "error"
+      }
+    }
+  },
+  "UML_SETUP": {
+    "UML_CONFIG": {
+      "DESCRIPTION": "Setup initial configuration for UML representation",
+      "title": {
+        "DESCRIPTION": "Setting up overall look and feel",
+        "CONTENT": [
+          "skinparam titleBorderRoundCorner 15",
+          "skinparam titleBorderThickness 2",
+          "skinparam titleBorderColor red",
+          "skinparam titleBackgroundColor Aqua-CadetBlue"
+        ]
+      },
+      "X500_FIELD_ORDER": {
+        "DESCRIPTION": "This is order of how fields will be expected, this is order is not mandatory, it also establish which fields are expected",
+        "CONTENT": [
+          "CN",
+          "OU",
+          "O",
+          "L",
+          "ST",
+          "C"
+        ]
+      }
+    },
+    "UML_DEFINITIONS": {
+      "log_owner": {
+        "DESCRIPTION": "This specify who is the owner of the log that is being processed",
+        "EXPECT": [
+          "__participant__"
+        ],
+        "FIELDS": [
+          "participant:participant"
+        ],
+        "OPTIONS": "SINGLE_DEFINITION",
+        "MAX_LEN": 35
+      },
+      "notary": {
+        "DESCRIPTION": "This will designate who is the Notary in a list of participants",
+        "EXPECT": [
+          "__participant__"
+        ],
+        "FIELDS": [
+          "participant:notary"
+        ],
+        "OPTIONS": "SINGLE_DEFINITION",
+        "MAX_LEN": 35
+      },
+      "participant": {
+        "DESCRIPTION": "This represent a party in the log",
+        "EXPECT": [
+          "__participant__"
+        ],
+        "FIELDS": [
+          "participant:participant"
+        ],
+        "OPTIONS": "SINGLE_DEFINITION",
+        "RULES": {
+          "OU": "1:=:O",
+          "O": "1:=:M",
+          "L": "1:=:M",
+          "C": "1:=:M",
+          "S": "1:=:O",
+          "CN": "1:=:O",
+          "ST": "1:=:O"
+        },
+        "MAX_LEN": 35
+      },
+      "actor-source": {
+        "DESCRIPTION": "This represent a node in the log",
+        "EXPECT": [
+          "allowedRemoteLegalNames=__participant__.*remoteAddress=\\/__actor-source__"
+        ],
+        "FIELDS": [
+          "actor:actor-source",
+          "participant:participant"
+        ],
+        "OPTIONS": "SINGLE_DEFINITION",
+        "MAX_LEN": 35
+      },
+      "control": {
+        "COMMAND": "This will represent a control node, like hospital",
+        "EXPECT": [
+          "statemachine.Staffed(?P<message>FlowHospital)"
+        ],
+        "FIELDS": [
+          "control"
+        ],
+        "OPTIONS": "SINGLE_DEFINITION"
+      },
+      "database": {
+        "DESCRIPTION": "This represent Node Vault",
+        "EXPECT": [
+          "Sending it to the (?P<database>vault) for processing",
+          "persistence.DBCheckpointStorage\\.addCheckpoint - (?P<database>Checkpoint) __source__"
+        ],
+        "FIELDS": [
+          "database:database",
+          "participant:source"
+        ],
+        "OPTIONS": "SINGLE_DEFINITION"
+      },
+      "->": {
+        "COMMAND": "This represent a sent message",
+        "EXPECT": [
+          "(?P<message>Requesting all membership transactions from __destination__)",
+          "(?P<message>Sending transaction to [a-zA-Z0-9]*)",
+          "(?P<message>Sending it to the (?P<destination>vault))",
+          "(?P<message>Recording transaction locally)",
+          "(?P<message>.*[Ss]ending it to flow hospital)",
+          "(?P<message>Flow error allowed to propagate)",
+          "(?P<message>Flow error discharged from hospital).*,\\sactor_owning_identity=__destination__",
+          "(?P<message>Flow error discharged from hospital).*",
+          "(?P<message>Transaction \\[__tx_id__\\] successfully notarised, sending signature back to \\[__destination__\\])",
+          "(?P<message>services.FilterService. - DAG)\\(root=__tx_id__.*(?P<isConsumed>isConsumed=[a-z]+).*actor_owning_identity=__source__.*flow-id=__flow_id__",
+          ".*ERROR.*flow-id=__flow_id__\\s*tx-id=__tx_id__.*(?P<message>SqlExceptionHelper.*)",
+          ".*WARN.*(?P<message>Order state is already in use).*actor_owning_identity=__destination__.*flow-id=.*tx_id=.*",
+          "flow-id=__flow_id__ tx-id=__tx_id__.*(?P<message>flow - Flow.*responding with ReceiveFinalityFlow) to __destination__",
+          "flow-id=__flow_id__.*(?P<message>flow - Flow.*responding with ReceiveFinalityFlow) to __destination__"
+        ],
+        "FIELDS": [
+          "participant:source",
+          "participant:destination",
+          "annotation:flow_id",
+          "annotation:tx_id",
+          "annotation:isConsumed",
+          "note over:message",
+          "note over:message_1"
+        ],
+        "MAX_LEN": 50
+      },
+      "<-": {
+        "COMMAND": "This represent a receiving message",
+        "EXPECT": [
+          "(?P<message>Notary responded)",
+          "(?P<message>Received transaction acknowledgement request from party __source__)",
+          "(?P<message>Recorded transaction locally successfully)",
+          "(?P<message>Flow error discharged from hospital.*origin=__destination__)",
+          "(?P<message>Flow \\[__flow_id__\\] error allowed to propagate)",
+          "(?P<message>Error notarising transaction) __tx_id__.*, __flow-id__.*, origin=__destination__",
+          "(?P<message>Unable to notarise transaction)",
+          "(?P<message>Received a notarisation request for Tx \\[__tx_id__\\] from \\[__source__\\])",
+          "(?P<message>Successfully recorded received transaction locally)",
+          "The following (?P<message>parties received the transaction): \\[__source__\\]",
+          "__source__ (?P<message>received the transaction)",
+          "Received a notarisation request for Tx\\[__tx_id__\\] from \\[__destination__\\]",
+          "(?P<message>successfully notarised, sending signature back to \\[__destination__\\])",
+          "Party __destination__ (?P<message>received the transaction).*actor_owning_identity=__source__.*flow-id=__flow_id__.*tx_id=__tx_id__",
+          "(?P<message>Caching flow sandbox for __destination__).*, __flow_id__, __vnode_id__"
+        ],
+        "FIELDS": [
+          "participant:destination",
+          "participant:source",
+          "annotation:flow_id",
+          "annotation:tx_id",
+          "annotation:vnode_id",
+          "note over:message"
+        ],
+        "MAX_LEN": 50
+      },
+      "note left": {
+        "EXPECT": [
+	      "(?P<message>admitted to hospital in state StateMachineState)",
+          "(?P<message>received token vault update with \\d+ consumed states and: \\d+ produced states).*flow-id=__flow_id__.*origin=__source__",
+          ".*WARN.*flow-id=__flow_id__\\s*tx-id=__tx_id__.*(?P<message>SqlExceptionHelper.*)",
+          "(?P<message>Transaction dependencies resolution completed)",
+          "(?P<message>All parties received the transaction)",
+          "(?P<message>Receive finality flow sub flow)",
+          "(?P<message>Flow \\[__flow_id__\\] admitted to hospital) in",
+          "(?P<message>No need to notarise this transaction.)",
+          "(?P<message>Flow error kept for overnight observation)",
+          "Flow\\((?P<message>action=[a-z_]+);",
+          "(?P<message>Stored new attachment)",
+          "(?P<message>Flow \\[__flow_id__\\] failed to be finalised\\..*\\.\\s)"
+        ],
+        "FIELDS": [
+          "note over:message",
+          "annotation:flow_id",
+          "annotation:tx_id",
+          "participant:source"
+        ],
+        "IGNORE": [
+          "responded",
+          "Received",
+          "Successfully recorded received transaction locally",
+          "Recording transaction locally",
+          "Recorded transaction locally",
+          "Sending transaction",
+          "Sending it to",
+          "received the transaction.",
+          "Sending it to flow hospital to be triaged",
+          "sending it to flow hospital",
+          "allowed to propagate"
+        ],
+        "MAX_LEN": 64
+      },
+      "note right": {
+        "EXPECT": [
+          ".*WARN.*(?P<message>Propagating error).*flow-id=__flow_id__.*tx_id=__tx_id__"
+        ],
+        "FIELDS": [
+          "note over:message",
+          "annotation:flow_id",
+          "annotation:tx_id",
+          "participant:source"
+        ],
+        "IGNORE": [
+          "responded",
+          "Received",
+          "Successfully recorded received transaction locally",
+          "Recording transaction locally",
+          "Recorded transaction locally",
+          "Sending transaction",
+          "Sending it to",
+          "received the transaction.",
+          "Sending it to flow hospital to be triaged",
+          "sending it to flow hospital",
+          "allowed to propagate"
+        ],
+        "MAX_LEN": 64
+      }
+    },
+    "UML_ENTITY": {
+      "OBJECTS": {
+        "log_owner": {
+          "DESCRIPTION": "This section is intended to identify automatically where it is possible owner of actual log being scanned, when is not expressively given",
+          "ACTIVATE_ROLE": true,
+          "EXPECT": [
+            "Node ready, info.*legalIdentitiesAndCerts=\\[__participant__\\]*",
+            "Setting status to [A-Z]+ for.*legalIdentitiesAndCerts=\\[__participant__\\]",
+            "ourIdentity:__participant__",
+            "\"myLegalName\": \"__participant__\""
+          ],
+          "USAGES": {
+            "default_source": {
+              "EXPECT": [
+                "Successfully received fully signed tx. Sending it to the vault for processing",
+                "Creating session and consumer",
+                "admitted to hospital in state StateMachineState",
+                "[fF]low - Flow raised an error:.*",
+                "Requesting all membership transactions from",
+                "Sending transaction to notary",
+                "Recording transaction locally",
+                "Received a notarisation request for Tx",
+                "Sending it to flow hospital to be triaged",
+                "responding with ReceiveFinalityFlow to"
+              ],
+              "RETURN_OBJECT": [
+                "participant",
+                "participant"
+              ],
+              "IGNORE": [
+                "Flow error allowed to propagate"
+              ]
+            },
+            "default_destination": {
+              "EXPECT": [
+                "Error notarising transaction",
+                "received the transaction",
+                "Unable to notarise transaction",
+                "Received transaction acknowledgement request from party",
+                "Successfully recorded received transaction locally",
+                "Flow .*error allowed to propagate",
+                "Flow error allowed to propagate",
+                "Recorded transaction locally successfully",
+                "Flow error discharged from hospital",
+                "Notary responded",
+                ".*SqlExceptionHelper.*",
+                "DAG\\(root=",
+                "Unable to notarise transaction"
+              ],
+              "RETURN_OBJECT": [
+                "participant",
+                "participant",
+                "participant",
+                "participant"
+              ]
+            }
+          }
+        },
+        "notary": {
+          "DESCRIPTION": "This will define if actual object is acting as a Notary",
+          "ACTIVATE_ROLE": true,
+          "EXPECT": [
+            "Sending transaction to notary:\\s*__notary__",
+            "notaries=\\[NotaryInfo\\(identity=__notary__"
+          ],
+          "USAGES": {
+            "default_destination": {
+              "EXPECT": [
+                "Sending transaction to notary:",
+                "Received a notarisation request for Tx"
+              ],
+              "RETURN_OBJECT": [
+                "notary",
+                "notary"
+              ]
+            },
+            "default_source": {
+              "EXPECT": [
+                "Error notarising transaction",
+                "Unable to notarise transaction",
+                "Notary responded",
+                "successfully notarised, sending signature back to",
+                ".*WARN.*Order state is already in use.*flow-id=.*tx_id=.*"
+              ],
+              "RETURN_OBJECT": [
+                "notary",
+                "notary",
+                "notary"
+              ]
+            }
+          }
+        },
+        "vnode": {
+          "DESCRIPTION": "This a reference to actual sandbox where flows are being executed",
+          "USAGES": {
+            "default_source": {
+              "EXPECT": [
+                "Caching flow sandbox for __participant__"
+              ],
+              "RETURN_OBJECT": [
+                "vnode"
+              ]
+            },
+            "default_destination": {
+              "EXPECT": [],
+              "RETURN_OBJECT": [
+                "vnode"
+              ]
+            }
+
+          }
+        },
+        "vault": {
+          "DESCRIPTION": "This section define database entity (Node Vault)",
+          "USAGES": {
+            "default_source": {
+              "EXPECT": [
+                "Successfully recorded received transaction locally",
+                "Recorded transaction locally successfully",
+                ".*SqlExceptionHelper.*"
+              ],
+              "RETURN_OBJECT": [
+                "vault",
+                "vault"
+              ]
+            },
+            "default_destination": {
+              "EXPECT": [
+                "Recording transaction locally"
+              ],
+              "RETURN_OBJECT": [
+                "vault"
+              ]
+            }
+          }
+        },
+        "FlowHospital": {
+          "DESCRIPTION": "Define Flow hospital control entity",
+          "USAGES": {
+            "default_destination": {
+              "EXPECT": [
+                "Flow error kept for overnight observation",
+                "[Ss]ending it to flow hospital"
+              ],
+              "RETURN_OBJECT": [
+                "FlowHospital",
+                "FlowHospital"
+              ]
+            },
+            "default_source": {
+              "EXPECT": [
+                "Flow error discharged from hospital",
+                "Flow error allowed to propagate",
+                "Flow .*error allowed to propagate"
+              ],
+              "RETURN_OBJECT": [
+                "FlowHospital",
+                "FlowHospital"
+              ]
+            }
+          },
+          "REGISTER_REFERENCE": {
+            "DESCRIPTION": "This section was created to know all flows (in this case) that go into hospital, additionally I will also count all flows going in and out of it",
+            "STATE": "error",
+            "APPLY_TO": "FLOW",
+            "REGISTER": {
+              "default_destination": "IN",
+              "default_source": "OUT"
+            }
+          }
+        },
+        "actor-source": {
+          "DESCRIPTION": "A test to identify nodes",
+          "USAGES": {
+            "default_destination": {
+              "EXPECT": [
+              ],
+              "RETURN_OBJECT": [
+                "actor"
+              ]
+            },
+            "default_source": {
+              "EXPECT": [
+              ],
+              "RETURN_OBJECT": [
+                "actor"
+              ]
+            }
+          }
+        },
+        "actor-destination": {
+          "DESCRIPTION": "A test to identify nodes",
+          "USAGES": {
+            "default_destination": {
+              "EXPECT": [
+              ],
+              "RETURN_OBJECT": [
+                "actor"
+              ]
+            },
+            "default_source": {
+              "EXPECT": [
+              ],
+              "RETURN_OBJECT": [
+                "actor"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "CORDA_OBJECT_DEFINITIONS": {
+      "DESCRIPTION": "This section is a single place to define objects that will potentially be used on different regex this is made to bring some consistency on regex",
+      "OBJECTS": {
+        "participant": {
+          "EXPECT": [
+            "([OLUNCST]{1,2}=[a-zA-Z &.\",-=]+,\\s*C=[A-Z]{2})"
+          ],
+          "APPLY_TO": [
+            "source",
+            "destination",
+            "participant",
+            "log_owner",
+            "notary"
+          ]
+        },
+        "actor": {
+          "EXPECT": [
+            "([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}[0-9:]+)"
+          ],
+          "APPLY_TO": [
+            "actor-source",
+            "actor-destination"
+          ]
+        },
+        "notary": {
+          "EXPECT": [
+            "([OLUNCST]{1,2}=[a-zA-Z &.\",-=]+,\\s*C=[A-Z]{2})"
+          ],
+          "APPLY_TO": [
+            "source",
+            "destination",
+            "participant",
+            "log_owner",
+            "notary"
+          ],
+          "ACTIVATE_ROLE": true
+        },
+        "flow_id": {
+          "EXPECT": [
+            "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9-]{12}"
+          ],
+          "APPLY_TO": [
+            "flow_id"
+          ]
+        },
+        "tx_id": {
+          "EXPECT": [
+            "[A-Z0-9]{64}"
+          ],
+          "APPLY_TO": [
+            "tx_id"
+          ]
+        },
+        "source": {
+          "EXPECT": [
+            "Notary responded \\(__participant__\\)",
+            "actor_owning_identity=__participant__",
+            "Received transaction acknowledgement request from party __participant__",
+            "origin=__participant__"
+          ],
+          "APPLY_TO": [
+            "participant"
+          ]
+        },
+        "destination": {
+          "EXPECT": [
+            "vault",
+            "to notary: __participant__",
+            ", actor_owning_identity=__participant__"
+          ],
+          "APPLY_TO": [
+            "participant"
+          ],
+          "IGNORE": [
+            "Recording transaction locally",
+            "[Ss]ending it to flow hospital"
+          ]
+        },
+        "message": {
+          "EXPECT": [
+            "Creating session and consumer"
+          ],
+          "APPLY_TO": [
+            "note over"
+          ]
+        },
+        "message_1": {
+          "EXPECT": [
+            "Creating session and consumer"
+          ],
+          "APPLY_TO": [
+            "note over"
+          ]
+        },
+        "isConsumed": {
+          "EXPECT": [
+            "([A-Z0-9]{64}.*isConsumed=[a-z]+)"
+          ],
+          "APPLY_TO": [
+            "note over"
+          ]
+        },
+        "vnode_id": {
+          "EXPECT": [
+            "[A-Z0-9]{12}"
+          ],
+          "APPLY_TO": [
+            "note over"
+          ]
+        }
+      }
+    },
+    "CORDA_OBJECTS": {
+      "TRANSACTION": {
+        "DESCRIPTION": "This will define how to extract a 'TRANSACTION' and how to recognize it, 'EXPECT' will specify how to actually identify it",
+        "EXPECT": [
+          "tx_id=__tx_id__",
+          "tx-id=__tx_id__",
+          "TxId: __tx_id__",
+          "txId=__tx_id__",
+          "inputTxns=.__tx_id__,?",
+          "root=__tx_id__",
+          "refTxns=\\[__tx_id__,?\\]",
+          "unspentOutputs=\\[__tx_id__,?\\]",
+          "spentOutputs=\\[__tx_id__,?\\]",
+          "NotaryException: Unable to notarise transaction __tx_id__ :",
+          "hashOfTransactionId=__tx_id__",
+          "__tx_id__\\([0-9]+\\)\\s+->\\sStateConsumptionDetails\\(hashOfTransactionId=",
+          "The duplicate key value is\\s*\\(__tx_id__\\)",
+          "ref=__tx_id__",
+          "Tx \\[__tx_id__\\]",
+          "Transaction \\[__tx_id__\\]"
+        ],
+        "ANALYSIS": {
+          "DESCRIPTION": "This section specify how to extract actual status message from the log for transaction found RegEx will keep pattern to match(can add more than one) and its values represent fields to extract",
+          "EXPECT": {
+            " - ([a-zA-Z =,:\\.]+)\\.": [
+              "Stage"
+            ],
+            "- ([a-zA-Z0-9- =,[\\]]+ admitted to hospital in state)": [
+              "Stage"
+            ],
+            "- (Notary responded) \\([A-Za-z0-9= ,]+\\)": [
+              "Stage"
+            ],
+            "\\|([a-zA-Z0-9- \\(\\)_;.,=:]+)": [
+              "Stage"
+            ],
+            "([A-Z0-9]{64}.*isConsumed=[a-z]+)": [
+              "Stage"
+            ]
+          }
+        }
+      },
+      "FLOW": {
+        "DESCRIPTION": "This will define how to extract a 'FLOW' and how to recognize it, 'EXPECT' will specify how to actually identify it",
+        "EXPECT": [
+          "flow-id=__flow_id__",
+          "[Ff]low \\[__flow_id__\\]",
+          "PersistCheckpoint\\(id=\\[__flow_id__\\]",
+          "Flow with id __flow_id__ has been waiting ",
+          "flowId=\\[__flow_id__",
+          "flowId=__flow_id__",
+          "'flow_id': '__flow_id__'"
+        ],
+        "ANALYSIS": {
+          "DESCRIPTION": "This section specify how to extract actual status message from the log for transaction found RegEx will keep pattern to match(can add more than one) and its values represent fields to extract",
+          "EXPECT": {
+            " - ([a-zA-Z =,:\\.]+)\\.": [
+              "Stage"
+            ],
+            "- ([a-zA-Z0-9- =,[\\]]+ admitted to hospital in state)": [
+              "Stage"
+            ],
+            "- (Notary responded) \\([A-Za-z0-9= ,]+\\)": [
+              "Stage"
+            ],
+            "\\|([a-zA-Z0-9- \\(\\)_;.,=:]+)": [
+              "Stage"
+            ],
+            "(Caching flow sandbox for.*) \\(cache size": [
+              "Stage"
+            ]
+          }
+        }
+      },
+      "VNODE": {
+        "DESCRIPTION": "Represents a VNODE",
+        "EXPECT": [
+          "\"vnode_id\":\"__vnode_id__\""
+        ],
+        "ANALYSIS": {
+          "DESCRIPTION": "This section specify how to extract actual status message from the log for transaction found RegEx will keep pattern to match(can add more than one) and its values represent fields to extract",
+          "EXPECT": {
+            "(Abandoning processing of events)": [
+              "Stage"
+            ],
+            "- ([a-zA-Z0-9- =,[\\]]+ admitted to hospital in state)": [
+              "Stage"
+            ],
+            "- (Notary responded) \\([A-Za-z0-9= ,]+\\)": [
+              "Stage"
+            ],
+            "(.*)": [
+              "Stage"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+
