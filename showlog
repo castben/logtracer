@@ -472,19 +472,26 @@ def parse_json(file_to_process=None):
                         print("Finished... %.2f%s" % (cp, '%'), file=sys.stderr)
 
 
-def print_line(line, fields_to_print):
+def print_line(line, selected_fields):
     """
     Print each line -- this is only running on mode `parse-json`
     :param line: original line
-    :param fields_to_print: desired fields to print
+    :param selected_fields: desired fields to print
     :return:
     """
     global fields_found
     final_line = ""
+    to_print = ""
+    if args.fields:
+        fields_to_print = args.fields.split(",")
+    else:
+        if selected_fields:
+            fields_to_print = selected_fields
     value = None
+
     try:
         line_fields = json.loads(line)
-        for each_field in args.fields.split(","):
+        for each_field in fields_to_print.split(","):
             fld = fields_found[int(each_field)].strip()
             if fld in line_fields:
                 value = line_fields[fld]
@@ -498,12 +505,17 @@ def print_line(line, fields_to_print):
                 final_line = final_line + f" {value}"
 
         if final_line:
-            print(final_line.strip())
+            to_print = final_line.strip()
         else:
-            print(line.strip())
+            to_print = line.strip()
 
     except json.JSONDecodeError as jde:
-        print(line.strip())
+        to_print = line.strip()
+
+    if not args.interactive:
+        print(to_print)
+    else:
+        return to_print
 
 
 def expand(value):
@@ -625,7 +637,7 @@ def getKeysx(val,  listofkeys, old="$"):
     return listofkeys
 
 
-def list_log_file_fields(interactive=False):
+def list_log_file_fields():
     """
     List actual found fields.
     :return:
@@ -637,7 +649,7 @@ def list_log_file_fields(interactive=False):
     if not fields_found:
         load_index()
 
-    if not interactive:
+    if not args.interactive:
         print("\n\nFollowing fields were found:")
         for pos, each_field_found in enumerate(fields_found):
             print(f"{pos:3} - {each_field_found}")
@@ -700,23 +712,13 @@ def interactive_work():
     from TermTk import TTkUtil, TTkUiLoader, TTk
 
     root = ttk.TTk()
-    # Data generated using ttkDesigner
-    # widget = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
-    #     "eJx9kk1v0zAYx5M1bZqVlwFiDCZNOfZUlTMvB6QBmtsxQQQHhJCXmD4Wjl0lNqxIkzj24KP5QnwqtBOPk3T0RCTLz4vt///n+Gf0689O0HyXbmzjb6yquZLO9h9PppOp" +
-    #     "sz1tuPOtfi5oXTubZNnXD7xYMO3sYEkrWtZNPzqlJXN2d0653PSHZ6rm2p/3yY1JQAJmo3f8B2vSK3LFbDLnMsXlGhwJcDNmrxlfgPZpMqcXXfMkCELfx0LXbyvxGS0K" +
-    #     "LhcbgVZkMKMrZXRrdhPH73nNzwVzaxsfS4pR4cNMKZHxpbPR4cdp6YwdiHYDQkEf9iG+RJBXTJVMV6tOBb1rV9thDlwUFfN8zfLudmShvju/cQyJvXVd+izUonYw8l5D" +
-    #     "EjK46aMv5IjBbRLAHo47DRbcbad721RwH808WMPBGh7CIzt4oaqCVYjQz7hGLLvnAfyYoUwDY2+0wulLQVH5JPgdDA0cbpHBUSuAJhAI0g3HCE1n7EIfF1xfk+xvFT1L" +
-    #     "rqRmUndEOyTqiHJysCEK/0v0j2Y045Klp6Y8b5CSt4wW6RspVpjszo3QPPUr3NrYXoWXi6+jlyvh5xjzekmlI6GNsdbFhhp4gh6e4niGPp43JWNH6Fqy3L/KGn+bmfwF" +
-    #     "Np8DIA=="))
-    #
-    # TTKTextEdit_logcontent = widget.getWidgetByName("TTkTextEdit_logcontent")
-    # TTkWindow_logs = widget.getWidgetByName("TTkWindow_logs")
 
     TTkWindow_logs = ttk.TTkWindow(parent=root,
                                    pos=(26, 4), size=(120, 35),
                                    title=ttk.TTkString("Logs reader", ttk.TTkColor.ITALIC),
                                    border=True,
                                    layout=ttk.TTkGridLayout())
+
     TTKTextEdit_logcontent = ttk.TTkTextEdit(parent=TTkWindow_logs)
 
     @pyTTkSlot()
@@ -758,8 +760,8 @@ def interactive_work():
     def resize_logcontent(h, w):
         """
         Try to keep size of parent window...
-        :param h: parent window
-        :param w: parent window
+        :param h: parent window h
+        :param w: parent window w
         :return:
         """
 
@@ -827,6 +829,7 @@ def interactive_work():
         Try to analyse given log to see if it is possible to gather information from json format
         :return:
         """
+
         fields_found = parse_json(loaded_file)
 
         def transfer_to_show():
@@ -834,30 +837,85 @@ def interactive_work():
             Transfer selected fields to show list
             :return:
             """
-            items = fieldsList.selectedItems()
-            if fieldsList.selectedLabels():
-                for s in fieldsList.selectedItems():
-                    fieldlist_toshow.addItem(str(s.text()))
-                    items.remove(s)
-            fieldsList.items()
+
+            selection = list(fields_found_list.selectedItems())
+
+            if fields_found_list.selectedLabels():
+                for s in selection:
+                    fields_found_list.removeItem(s)
+                    fields_to_show.addItem(str(s.text()))
+
+            fields_found_list.setCurrentRow(0)
+
+        def transfer_to_fieldsfound():
+            """
+            Transfer selected fields to show list
+            :return:
+            """
+
+            selection = list(fields_to_show.selectedItems())
+
+            if fields_found_list.selectedLabels():
+                for s in selection:
+                    fields_to_show.removeItem(s)
+                    fields_found_list.addItem(str(s.text()))
+
+            fields_to_show.setCurrentRow(0)
+
+        def move_item_up():
+            """
+            Move a field up
+            :return:
+            """
+
+            if fields_to_show.selectedLabels():
+                item = fields_to_show.selectedItems()[0]
+                pos = fields_to_show.indexOf(item)
+                if pos-1 < 0:
+                    return
+                fields_to_show.moveItem(pos, pos-1)
+
+        def move_item_down():
+            """
+            Move a field up
+            :return:
+            """
+
+            if fields_to_show.selectedLabels():
+                item = fields_to_show.selectedItems()[0]
+                pos = fields_to_show.indexOf(item)
+                if pos+1 > len(fields_to_show.items()):
+                    return
+                fields_to_show.moveItem(pos, pos+1)
+
+        def reformat_file():
+            """
+            Re format file using aligned fields
+            :return:
+            """
+
+            pass
+
+
 
         if fields_found:
             listlayout = ttk.TTkGridLayout()
-            fieldsFoundWindow = ttk.TTkWindow(parent=root, pos=(3, 2),
-                                              size=(57, 18),
+            fieldsFoundWindow = ttk.TTkWindow(size=(57, 18),
                                               title=ttk.TTkString("Fields found", ttk.TTkColor.ITALIC),
                                               border=True,
                                               layout=listlayout)
 
-            frame_fieldlist = ttk.TTkFrame(layout=ttk.TTkHBoxLayout(),
-                                           border=1,
-                                           title="Available fields",
-                                           maxSize=(30, 15),
-                                           selectionMode=ttk.TTkK.MultiSelection)
-            frame_fieldlist_toshow = ttk.TTkFrame(layout=ttk.TTkHBoxLayout(),
-                                                  border=1,
-                                                  title="Fields to show",
-                                                  maxSize=(30, 15))
+            frame_fields_found_list = ttk.TTkFrame(layout=ttk.TTkHBoxLayout(),
+                                                   border=1,
+                                                   title="Available fields",
+                                                   maxSize=(30, 15),
+                                                   selectionMode=ttk.TTkK.MultiSelection)
+
+            frame_fields_to_show = ttk.TTkFrame(layout=ttk.TTkHBoxLayout(),
+                                                border=1,
+                                                title="Fields to show",
+                                                maxSize=(30, 15))
+
             frame_middle_buttons = ttk.TTkFrame(layout=ttk.TTkVBoxLayout(), border=0, maxSize=(5, 5))
             frame_sort_buttons = ttk.TTkFrame(layout=ttk.TTkVBoxLayout(), border=0, maxSize=(8, 6))
             button_add = ttk.TTkButton(text=">>")
@@ -866,27 +924,32 @@ def interactive_work():
             button_dn = ttk.TTkButton(text="Down")
             button_ok = ttk.TTkButton(text="OK")
             button_cn = ttk.TTkButton(text="Cancel")
-            fieldsList = ttk.TTkList(parent=frame_fieldlist)
-            fieldlist_toshow = ttk.TTkList(parent=frame_fieldlist_toshow)
+            fields_found_list = ttk.TTkList(parent=frame_fields_found_list)
+            fields_to_show = ttk.TTkList(parent=frame_fields_to_show)
             frame_middle_buttons.addWidget(button_add)
             frame_middle_buttons.addWidget(button_del)
             frame_sort_buttons.addWidget(button_up)
             frame_sort_buttons.addWidget(button_dn)
-            listlayout.addWidget(frame_fieldlist, 0, 0, 3, 1)
+
+            listlayout.addWidget(frame_fields_found_list, 0, 0, 3, 1)
             listlayout.addWidget(frame_middle_buttons, row=1, col=1, rowspan=1, colspan=1)
-            listlayout.addWidget(frame_fieldlist_toshow, 0, 3, 3, 1)
+            listlayout.addWidget(frame_fields_to_show, 0, 3, 3, 1)
             listlayout.addWidget(frame_sort_buttons, 1, 4, 1, 1)
             listlayout.addWidget(button_ok, 3, 3, 1, 1)
             listlayout.addWidget(button_cn, 3, 4, 1, 1)
 
             # Actions
             button_add.clicked.connect(transfer_to_show)
+            button_del.clicked.connect(transfer_to_fieldsfound)
+            button_up.clicked.connect(move_item_up)
+            button_dn.clicked.connect(move_item_down)
+            button_cn.clicked.connect(lambda: fieldsFoundWindow.close())
 
             for each_field in fields_found:
                 # ttkItem = ttk.TTkCheckbox(each_field)
-                fieldsList.addItem(each_field)
+                fields_found_list.addItem(each_field)
 
-            #fieldsFoundWindow.addWidget(listlayout)
+            ttk.TTkHelper.overlay(TTkWindow_logs, fieldsFoundWindow, 3, 6, modal=True)
 
     fileMenu = TTkWindow_logs.newMenubarTop().addMenu("&File")
     viewMenu = TTkWindow_logs.newMenubarTop().addMenu("&View")
@@ -931,7 +994,7 @@ if __name__ == "__main__":
     wordWrap_value = 250
     loaded_file = None
     file = None
-    fields_found = []
+    fields_found = {}
     program_name = os.path.basename(__file__)
     if len(os.path.splitext(program_name)) > 1:
         tmpname = os.path.splitext(program_name)
