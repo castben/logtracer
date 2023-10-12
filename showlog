@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!./system/bin/python
 # showlog:
 # Support team tool to re-format Corda5 logs into a more easy readable format, program will reformat standard
 # corda5 format that come, which is:
@@ -135,6 +135,7 @@ def load_config():
         print("Make sure you add Placeholder for `log_line` into your regex, this is how program identify what to analyse")
         print("It seems actual regex expression is missing `log_line` label for right group, below is actual regex found")
         exit(0)
+
 
 def read_file(filename):
     """
@@ -435,35 +436,37 @@ def parse_json(file_to_process=None):
     Try to parse given file using json
     :return:
     """
-    global fields_found, file
+
     if file_to_process:
         parse_file = file_to_process
-        load_index(file_to_process)
+        used_file = load_index(file_to_process)
     else:
-        load_index(file_to_process)
+        used_file = load_index(file_to_process)
         parse_file = args.log_file
 
-    tl = file['total-lines']
+    # tl = file['total-lines']
+    tl = used_file.get('total-lines')
     cpi = 0
     cl = 0
-    if not args.fields and not fields_found:
+    if not args.fields and not used_file.get('fields'):
         if not args.interactive:
-            print("Json parsing require an analysis of what are current fields; attempting to create an index file with this info")
-        generate_field_index(parse_file)
-        list_log_file_fields()
-        return
+            print("Json parsing require an analysis of what are current"
+                  " fields; attempting to create an index file with this info")
+        used_file = generate_field_index(parse_file)
 
-    if not args.fields and fields_found:
+        return used_file
+
+    if not args.fields and used_file.get('fields'):
         if not args.interactive:
             print("Please select desired fields to be shown:")
             print("By using argument '--fields 1,2,3...' and selecting which fields to show")
-            for pos, each_field_found in enumerate(fields_found):
+            for pos, each_field_found in enumerate(used_file.get('fields')):
                 print(f"{pos:3} - {each_field_found.strip()}")
-        return fields_found
+        return used_file
     else:
         with open(f"{parse_file}", "r") as lghr:
             for each_line in lghr:
-                print_line(each_line, args.fields)
+                print_line(each_line, args.fields, used_file)
                 if args.output:
                     cl += 1
                     cp = (cl * 100) / tl
@@ -471,28 +474,28 @@ def parse_json(file_to_process=None):
                         cpi = cpi + 10
                         print("Finished... %.2f%s" % (cp, '%'), file=sys.stderr)
 
+    return used_file
 
-def print_line(line, selected_fields):
+
+def print_line(line, selected_fields, used_file):
     """
     Print each line -- this is only running on mode `parse-json`
     :param line: original line
     :param selected_fields: desired fields to print
     :return:
     """
-    global fields_found
+
     final_line = ""
     to_print = ""
     if args.fields:
-        fields_to_print = args.fields.split(",")
-    else:
-        if selected_fields:
-            fields_to_print = selected_fields
+        selected_fields = args.fields.split(",")
+
     value = None
 
     try:
         line_fields = json.loads(line)
-        for each_field in fields_to_print.split(","):
-            fld = fields_found[int(each_field)].strip()
+        for each_field in selected_fields:
+            fld = used_file.get('fields')[int(each_field)].strip()
             if fld in line_fields:
                 value = line_fields[fld]
             else:
@@ -544,21 +547,22 @@ def load_index(file_to_process=None):
 
     :return:
     """
-    global fields_found, file
 
+    used_file = File()
     if file_to_process:
         parse_file = file_to_process
     else:
         parse_file = args.log_file
 
     if os.path.exists(f"{parse_file}.jidx"):
-        with open(f"{parse_file}.jidx") as lhfidx:
-            file = yaml.safe_load(lhfidx)
-            fields_found = file['fields']
+        if not used_file.get_all_attributes():
+            with open(f"{parse_file}.jidx", "r") as lhfidx:
+                used_file.set_all_attributes(yaml.safe_load(lhfidx))
+
     else:
         # if index file is not found, it will be generated automatically
-        generate_field_index(parse_file)
-    return
+        used_file = generate_field_index(parse_file)
+    return used_file
 
 
 def generate_field_index(file_to_process=None):
@@ -566,46 +570,79 @@ def generate_field_index(file_to_process=None):
     Will generate a field index for given file, and also will save file with found fields, for future usage.
     :return:
     """
-    global fields_found, file
+
+    file = File()
 
     if file_to_process:
         parse_file = file_to_process
     else:
         parse_file = args.log_file
-
+    fields_found = None
     tl = 0
     print("You will need to select which fields you want to see")
     try:
-        print("Analysing file, please wait...")
+        if not args.interactive:
+            print("Analysing file, please wait...")
         with open(parse_file, "r") as lfh:
             for each_line in lfh:
                 tl += 1
                 try:
                     line_fields = json.loads(each_line)
                     if line_fields:
-                        getKeys(line_fields, "")
+                        fields = getKeys(line_fields, "", fields_found)
+                        fields_found = fields
                 except json.JSONDecodeError as jde:
+                    #readed line is not json format
                     pass
+
                     # print(each_line.strip())
-        file = {
-            "file-name": parse_file,
-            "total-lines": tl,
-            "fields": fields_found
-        }
+        if fields:
+            file.set("file-name", parse_file)
+            file.set("total-lines", tl)
+            file.set("fields", fields)
+        else:
+            return
+        # file = {
+        #     "file-name": parse_file,
+        #     "total-lines": tl,
+        #     "fields": fields_found
+        # }
 
         try:
             with open(f"{parse_file}.jidx", "w") as lfhidx:
-                yaml.safe_dump(file, lfhidx)
+                yaml.safe_dump(file.get_all_attributes(), lfhidx)
         except IOError as iow:
             print(f"Unable to write file index {args.log_file}.jidx due to {iow}")
             print("Without this file I'll be not able to extract desired fields, using --parse-json option")
 
     except IOError as io:
         print(f"Unable to open {parse_file} due to {io}")
-        return
+    return file
 
 
-def getKeys(val, old="$"):
+def getKeys(val, old="$", lfields_found=None):
+
+    if isinstance(val, dict):
+        for k in val.keys():
+            ff = getKeys(val[k], old + "." + str(k), lfields_found)
+            lfields_found = ff
+    elif isinstance(val, list):
+        for i, k in enumerate(val):
+            ff = getKeys(k, old + "." + str(i), lfields_found)
+            lfields_found = ff
+    else:
+        # print("{} : {}".format(old, str(val)))
+        old = old.lstrip(".")
+        if not lfields_found:
+            lfields_found = []
+
+        if old not in lfields_found:
+            lfields_found.append(old)
+
+    return lfields_found
+
+
+def getKeysxx(val, old="$"):
     global fields_found
     if isinstance(val, dict):
         for k in val.keys():
@@ -619,6 +656,7 @@ def getKeys(val, old="$"):
         if old not in fields_found:
             fields_found.append(old)
 
+    return fields_found
 
 def getKeysx(val,  listofkeys, old="$"):
 
@@ -637,24 +675,22 @@ def getKeysx(val,  listofkeys, old="$"):
     return listofkeys
 
 
-def list_log_file_fields():
+def list_log_file_fields(used_file):
     """
     List actual found fields.
-    :return:
+    :return: fields_found
 
     """
 
-    global fields_found
-
-    if not fields_found:
-        load_index()
+    if not used_file or used_file and not used_file.get("fields"):
+        used_file = load_index()
 
     if not args.interactive:
         print("\n\nFollowing fields were found:")
-        for pos, each_field_found in enumerate(fields_found):
+        for pos, each_field_found in enumerate(used_file.get("fields")):
             print(f"{pos:3} - {each_field_found}")
 
-    return fields_found
+    return used_file
 
 
 def setup():
@@ -703,13 +739,13 @@ def interactive_work():
     Launch TUI interface
     :return:
     """
-    global wordWrap_value
-    import TermTk
-    import yaml
-    import textwrap
+    global wordWrap_value, TTKTextEdit_logcontent, loaded_file
+    # import TermTk
+    # import yaml
+    # import textwrap
     import TermTk as ttk
     from TermTk.TTkCore.signal import pyTTkSlot
-    from TermTk import TTkUtil, TTkUiLoader, TTk
+    # from TermTk import TTkUtil, TTkUiLoader, TTk
 
     root = ttk.TTk()
 
@@ -722,16 +758,40 @@ def interactive_work():
     TTKTextEdit_logcontent = ttk.TTkTextEdit(parent=TTkWindow_logs)
 
     @pyTTkSlot()
-    def load_file(file):
+    def load_file(file, generate_index=True, original_file_info=None):
         """
         Load given file
         :return:
         """
         global loaded_file
+
         with open(file, 'r') as logfile:
-            TTKTextEdit_logcontent.setText(logfile.read())
-        loaded_file = file
+            full_file = logfile.read()
+
+            # If I do not require to generate an index for this loading file, it is possible file given
+            # is a temporary file view, and it doesn't have a proper format to gather fields.
+            if generate_index:
+                used_file = load_index(file)
+            else:
+                used_file = original_file_info
+
+            # Check if file can be loaded (depending on number of lines it has)
+            if used_file.get("total-lines") > max_lines_to_read:
+                # message_window(f"This file has more than {max_lines_to_read}, "
+                #                f"this tool will only load this amount of lines")
+                line_count = 0
+                for each_line in full_file.split("\n"):
+                    TTKTextEdit_logcontent.append(each_line)
+                    line_count += 1
+                    if line_count >= max_lines_to_read:
+                        break
+            else:
+                TTKTextEdit_logcontent.setText(full_file)
+
         TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{file}]", ttk.TTkColor.ITALIC))
+        loaded_file = file
+
+        return used_file
 
     def _close():
         """
@@ -768,6 +828,10 @@ def interactive_work():
         TTKTextEdit_logcontent.resize(h-4, w-4)
 
     def _showDialog():
+        """
+
+        :return:
+        """
         filePicker = ttk.TTkFileDialogPicker(pos=(1, 1), size=(75, 24), caption="Select a file",
                                              path=".",
                                              fileMode=ttk.TTkK.FileMode.AnyFile,
@@ -824,13 +888,13 @@ def interactive_work():
 
             ttk.TTkHelper.overlay(TTKTextEdit_logcontent, wrap_width, 10, 4, True )
 
-    def _parseJson():
+    @pyTTkSlot()
+    def _parseJson(loaded_file):
         """
         Try to analyse given log to see if it is possible to gather information from json format
         :return:
         """
-
-        fields_found = parse_json(loaded_file)
+        used_file = parse_json(loaded_file)
 
         def transfer_to_show():
             """
@@ -847,7 +911,7 @@ def interactive_work():
 
             fields_found_list.setCurrentRow(0)
 
-        def transfer_to_fieldsfound():
+        def transfer_to_fields_found():
             """
             Transfer selected fields to show list
             :return:
@@ -888,17 +952,31 @@ def interactive_work():
                     return
                 fields_to_show.moveItem(pos, pos+1)
 
-        def reformat_file():
+        @pyTTkSlot(ttk.TTkList)
+        def reformat_file(ttklist):
             """
             Re format file using aligned fields
             :return:
             """
+            global loaded_file, TTKTextEdit_logcontent
+            used_file = load_index(loaded_file)
+            fields = []
+            for each_selected_field in ttklist.items():
+                item = str(each_selected_field.text())
+                # Get actual index position from original list:
+                fields.append(used_file.get("fields").index(item))
 
-            pass
+            with open(loaded_file, "r") as current_file:
+                with open("temp", "w") as tmpfile:
+                    for each_line in current_file:
+                        tmpfile.write(f"{print_line(each_line, fields, used_file=used_file)}\n")
 
+            original_file = loaded_file
+            load_file("temp", generate_index=False, original_file_info=used_file)
+            loaded_file = original_file
+            TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{original_file}]", ttk.TTkColor.ITALIC))
 
-
-        if fields_found:
+        if used_file.get('fields'):
             listlayout = ttk.TTkGridLayout()
             fieldsFoundWindow = ttk.TTkWindow(size=(57, 18),
                                               title=ttk.TTkString("Fields found", ttk.TTkColor.ITALIC),
@@ -940,30 +1018,58 @@ def interactive_work():
 
             # Actions
             button_add.clicked.connect(transfer_to_show)
-            button_del.clicked.connect(transfer_to_fieldsfound)
+            button_del.clicked.connect(transfer_to_fields_found)
             button_up.clicked.connect(move_item_up)
             button_dn.clicked.connect(move_item_down)
             button_cn.clicked.connect(lambda: fieldsFoundWindow.close())
+            button_ok.clicked.connect(lambda: reformat_file(fields_to_show))
 
-            for each_field in fields_found:
+            for each_field in used_file.get("fields"):
                 # ttkItem = ttk.TTkCheckbox(each_field)
                 fields_found_list.addItem(each_field)
 
             ttk.TTkHelper.overlay(TTkWindow_logs, fieldsFoundWindow, 3, 6, modal=True)
 
+    def message_window(message, title_window="Message", buttons=None):
+        """
+        Message window
+        :param message:
+        :param titleWindow:
+        :param buttons:
+        :return:
+        """
+
+        layout = ttk.TTkVBoxLayout()
+        popupWindow = ttk.TTkWindow(title=title_window,
+                                    maxSize=(20, 5),
+                                    layout=layout)
+        layout.addWidget(ttk.TTkLabel(text=message))
+        button_ok = ttk.TTkButton(text="OK")
+        button_ok.clicked.connect(lambda: popupWindow.close)
+        layout.addWidget(button_ok)
+        ttk.TTkHelper.overlay(None, popupWindow, x=5 ,y=5, modal=True)
+
     fileMenu = TTkWindow_logs.newMenubarTop().addMenu("&File")
     viewMenu = TTkWindow_logs.newMenubarTop().addMenu("&View")
+    transformMenu = TTkWindow_logs.newMenubarTop().addMenu("&Transform")
+    # File Menu
     fileMenu.addMenu("Open").menuButtonClicked.connect(_showDialog)
     fileMenu.addMenu("Close").menuButtonClicked.connect(_close)
     fileMenu.addMenu("Exit").menuButtonClicked.connect(_exit)
+    # View Menu
     lineNumber_option = viewMenu.addMenu("Line number-[Enable]")
     lineNumber_option.menuButtonClicked.connect(_lineNumber)
-    viewMenu.addMenu("Parse Json").menuButtonClicked.connect(_parseJson)
+    viewMenu.addMenu("&File info")
+
     wordWrap_menu = viewMenu.addMenu("&Word wrap")
     wordWrap_menu.addMenu("&No Word wrap").menuButtonClicked.connect(lambda: _wordWrap_menu("NoWordWrap"))
     wordWrap_menu.addMenu("&Fit Window width").menuButtonClicked.connect(lambda: _wordWrap_menu("WordWrapFitWin"))
     fixedWidth_option = wordWrap_menu.addMenu(f"Fi&xed width [{wordWrap_value}]")
     fixedWidth_option.menuButtonClicked.connect(lambda: _wordWrap_menu("WordWrapFixed"))
+    # Transform Menu
+    transformParseMenu = transformMenu.addMenu("&Parse format")
+    transformParseMenu.addMenu("&JSON").menuButtonClicked.connect(lambda: _parseJson(loaded_file))
+    transformParseMenu.addMenu("&CSV")
 
     TTkWindow_logs.sizeChanged.connect(resize_logcontent)
     # TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.WordWrap)
@@ -972,29 +1078,70 @@ def interactive_work():
 
     root.layout().addWidget(TTkWindow_logs)
     root.mainloop()
-    # root.setLayout(ttk.TTkGridLayout())
-    #
-    # show_log_window = ttk.TTkWindow(parent=root,
-    #                                 pos=(1, 2),
-    #                                 size=(100, 30),
-    #                                 title="Showlog",
-    #                                 border=True, layout=ttk.TTkVBoxLayout())
-    #
-    # # btnCreate = ttk.TTkButton(parent=menu_window, text="Create a new Lab", border=True)
-    # # btnLoad = ttk.TTkButton(parent=menu_window, text="Load a lab plan", border=True)
-    # # btnPlugins = ttk.TTkButton(parent=menu_window, text="Plugins setup", border=True)
-    # # btnConfig = ttk.TTkButton(parent=menu_window, text="Settings", border=True)
-    # # btnQuit = ttk.TTkButton(parent=menu_window, text="Quit", border=True)
-    #
-    # rootWindow.mainloop()
+
+
+class File:
+    attribute = {}
+
+    def __init__(self):
+        """
+
+        """
+        self.attribute = {}
+
+    def set(self, key, value):
+        """
+        Set file attribute
+        :param key: key name
+        :param value: value for key
+        :return:
+        """
+        self.attribute[key] = value
+
+    def get(self, key):
+        """
+        Return value of give attribute
+        :param key: to search for
+        :return: stored value for key, None otherwise
+        """
+
+        if key in self.attribute:
+            return self.attribute[key]
+
+        return None
+
+    def set_name(self, name):
+        """
+
+        :param name:
+        :return:
+        """
+        self.attribute["file-name"] = os.path.basename(name)
+        self.attribute["file-path"] = os.path.dirname(name)
+
+    def set_all_attributes(self, attributes):
+        """
+        Set all attributes at once
+        :param attributes:
+        :return:
+        """
+        self.attribute = attributes
+
+    def get_all_attributes(self):
+        """
+
+        :return:
+        """
+        return self.attribute
 
 
 if __name__ == "__main__":
     line_number = False
     wordWrap_value = 250
     loaded_file = None
-    file = None
-    fields_found = {}
+    fields_found = []
+    max_lines_to_read = 1000
+    TTKTextEdit_logcontent = None
     program_name = os.path.basename(__file__)
     if len(os.path.splitext(program_name)) > 1:
         tmpname = os.path.splitext(program_name)
@@ -1072,8 +1219,8 @@ if __name__ == "__main__":
             print("This option must be used together with a log file it can't work alone")
             exit(0)
 
-    if args.parse_json:
-        parse_json()
+    if args.parse_json and args.log_file:
+        parse_json(args.log_file)
         exit(0)
 
     if args.export_default_config:
