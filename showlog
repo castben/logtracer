@@ -17,14 +17,41 @@
 # Author: Larry Castro
 #
 #
+from __future__ import print_function
 import argparse
-# import datetime
+
+import datetime
 import json
 import re
 import sys
 
 import yaml
 import os
+
+import builtins as __builtin__
+
+
+def print(*args1, **kwargs):
+    """Replacing the actual print command to print with timestamp"""
+    # Adding new arguments to the print function signature
+    # is probably a bad idea.
+    # Instead consider testing if custom argument keywords
+    # are present in kwargs
+
+    timestamp = "%s" % datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+
+    if not args.interactive:
+        return __builtin__.print(*args1, **kwargs)
+    else:
+        msg = ""
+        if args1:
+            for s in args1:
+                msg += s + " "
+        if kwargs:
+            for each_arg in kwargs:
+                msg += f"{kwargs[each_arg]} "
+
+        TTKTextEdit_logging_messages.append(f"{timestamp} {msg}")
 
 
 def config_file():
@@ -351,6 +378,30 @@ def check_conversions(variable_to_convert, value):
         exit(0)
 
 
+def conversion(each_field, value):
+    """
+
+    :param string_line:
+    :return:
+    """
+    # Check for any required conversion on this field.
+    #
+
+    for check_field in conversions:
+        if check_field == each_field:
+            # User require a conversion on this field
+            try:
+                #  we need to replace actual value for this field on convert method
+                #
+                convert_exec = check_conversions(check_field, value)
+                return convert_exec
+            except BaseException as be:
+                print(f"Unable to convert {each_field} conversion method failed due to : {be}")
+                return value
+
+    return value
+
+
 def create_output(filename):
     """
     Open a new file called filename and will dump all converted lines into it
@@ -449,9 +500,8 @@ def parse_json(file_to_process=None):
     cpi = 0
     cl = 0
     if not args.fields and not used_file.get('fields'):
-        if not args.interactive:
-            print("Json parsing require an analysis of what are current"
-                  " fields; attempting to create an index file with this info")
+        print("Json parsing require an analysis of what are current"
+              " fields; attempting to create an index file with this info")
         used_file = generate_field_index(parse_file)
 
         return used_file
@@ -486,7 +536,10 @@ def print_line(line, selected_fields, used_file):
     """
 
     final_line = ""
+    selected_name_fields = {}
     to_print = ""
+    # line = parse(line)
+    #
     if args.fields:
         selected_fields = args.fields.split(",")
 
@@ -503,6 +556,11 @@ def print_line(line, selected_fields, used_file):
                 if result:
                     value = result[1]
 
+            selected_name_fields[int(each_field)] = fld
+            # Verify and execute any conversion required
+            if args.interactive:
+                value = conversion(fld, value)
+
             if value:
                 value = expand(value)
                 final_line = final_line + f" {value}"
@@ -511,6 +569,8 @@ def print_line(line, selected_fields, used_file):
             to_print = final_line.strip()
         else:
             to_print = line.strip()
+
+        used_file.set('show-fields', selected_name_fields)
 
     except json.JSONDecodeError as jde:
         to_print = line.strip()
@@ -572,7 +632,7 @@ def generate_field_index(file_to_process=None):
     """
 
     file = File()
-
+    fields = None
     if file_to_process:
         parse_file = file_to_process
     else:
@@ -581,8 +641,7 @@ def generate_field_index(file_to_process=None):
     tl = 0
     print("You will need to select which fields you want to see")
     try:
-        if not args.interactive:
-            print("Analysing file, please wait...")
+        print("Analysing file, please wait...")
         with open(parse_file, "r") as lfh:
             for each_line in lfh:
                 tl += 1
@@ -611,6 +670,7 @@ def generate_field_index(file_to_process=None):
         try:
             with open(f"{parse_file}.jidx", "w") as lfhidx:
                 yaml.safe_dump(file.get_all_attributes(), lfhidx)
+
         except IOError as iow:
             print(f"Unable to write file index {args.log_file}.jidx due to {iow}")
             print("Without this file I'll be not able to extract desired fields, using --parse-json option")
@@ -658,6 +718,7 @@ def getKeysxx(val, old="$"):
 
     return fields_found
 
+
 def getKeysx(val,  listofkeys, old="$"):
 
     if isinstance(val, dict):
@@ -685,10 +746,9 @@ def list_log_file_fields(used_file):
     if not used_file or used_file and not used_file.get("fields"):
         used_file = load_index()
 
-    if not args.interactive:
-        print("\n\nFollowing fields were found:")
-        for pos, each_field_found in enumerate(used_file.get("fields")):
-            print(f"{pos:3} - {each_field_found}")
+    print("\n\nFollowing fields were found:")
+    for pos, each_field_found in enumerate(used_file.get("fields")):
+        print(f"{pos:3} - {each_field_found}")
 
     return used_file
 
@@ -739,7 +799,7 @@ def interactive_work():
     Launch TUI interface
     :return:
     """
-    global wordWrap_value, TTKTextEdit_logcontent, loaded_file
+    global wordWrap_value, TTKTextEdit_logcontent, loaded_file, TTKTextEdit_logging_messages
     # import TermTk
     # import yaml
     # import textwrap
@@ -750,12 +810,20 @@ def interactive_work():
     root = ttk.TTk()
 
     TTkWindow_logs = ttk.TTkWindow(parent=root,
-                                   pos=(26, 4), size=(120, 35),
+                                   pos=(4, 1), size=(142, 35),
                                    title=ttk.TTkString("Logs reader", ttk.TTkColor.ITALIC),
                                    border=True,
                                    layout=ttk.TTkGridLayout())
 
+    TTkWindow_logging = ttk.TTkWindow(parent=root,
+                                      pos=(26, 36),
+                                      size=(100, 8),
+                                      title=ttk.TTkString("Messages", ttk.TTkColor.ITALIC),
+                                      border=True,
+                                      layout=ttk.TTkGridLayout())
+
     TTKTextEdit_logcontent = ttk.TTkTextEdit(parent=TTkWindow_logs)
+    TTKTextEdit_logging_messages = ttk.TTkTextEdit(parent=TTkWindow_logging)
 
     @pyTTkSlot()
     def load_file(file, generate_index=True, original_file_info=None):
@@ -774,6 +842,10 @@ def interactive_work():
                 used_file = load_index(file)
             else:
                 used_file = original_file_info
+
+            if not used_file:
+                print(level="ERROR", message=f"Unable to open index file for {loaded_file}")
+                return None
 
             # Check if file can be loaded (depending on number of lines it has)
             if used_file.get("total-lines") > max_lines_to_read:
@@ -870,7 +942,6 @@ def interactive_work():
         if selection == 'NoWordWrap':
             TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.NoWrap)
         if selection == 'WordWrapFitWin':
-            # TTKTextEdit_logcontent.setWrapWidth(250)
             TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.WidgetWidth)
         if selection == 'WordWrapFixed':
             wrap_width = ttk.TTkWindow(pos=(3, 2), size=(20, 7),
@@ -886,7 +957,7 @@ def interactive_work():
             cancel_button.clicked.connect(lambda: wrap_width.close())
             ok_button.clicked.connect(_setWrap)
 
-            ttk.TTkHelper.overlay(TTKTextEdit_logcontent, wrap_width, 10, 4, True )
+            ttk.TTkHelper.overlay(TTKTextEdit_logcontent, wrap_width, 10, 4, True)
 
     @pyTTkSlot()
     def _parseJson(loaded_file):
@@ -975,6 +1046,7 @@ def interactive_work():
             load_file("temp", generate_index=False, original_file_info=used_file)
             loaded_file = original_file
             TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{original_file}]", ttk.TTkColor.ITALIC))
+            used_file.save()
 
         if used_file.get('fields'):
             listlayout = ttk.TTkGridLayout()
@@ -1024,17 +1096,23 @@ def interactive_work():
             button_cn.clicked.connect(lambda: fieldsFoundWindow.close())
             button_ok.clicked.connect(lambda: reformat_file(fields_to_show))
 
-            for each_field in used_file.get("fields"):
-                # ttkItem = ttk.TTkCheckbox(each_field)
+            for idx, each_field in enumerate(used_file.get("fields")):
+                # if we have fields already selected, then they shouldn't showup on fields_found_list
+                if used_file.get("show-fields") and idx in used_file.get("show-fields"):
+                    continue
                 fields_found_list.addItem(each_field)
 
-            ttk.TTkHelper.overlay(TTkWindow_logs, fieldsFoundWindow, 3, 6, modal=True)
+            if used_file.get("show-fields"):
+                for each_field in used_file.get("show-fields"):
+                    fields_to_show.addItem(used_file.get("show-fields")[each_field])
+
+            ttk.TTkHelper.overlay(None, fieldsFoundWindow, 3, 6, modal=True, toolWindow=True)
 
     def message_window(message, title_window="Message", buttons=None):
         """
         Message window
         :param message:
-        :param titleWindow:
+        :param title_window:
         :param buttons:
         :return:
         """
@@ -1054,6 +1132,7 @@ def interactive_work():
     transformMenu = TTkWindow_logs.newMenubarTop().addMenu("&Transform")
     # File Menu
     fileMenu.addMenu("Open").menuButtonClicked.connect(_showDialog)
+    fileMenu.addMenu("Export")
     fileMenu.addMenu("Close").menuButtonClicked.connect(_close)
     fileMenu.addMenu("Exit").menuButtonClicked.connect(_exit)
     # View Menu
@@ -1067,17 +1146,57 @@ def interactive_work():
     fixedWidth_option = wordWrap_menu.addMenu(f"Fi&xed width [{wordWrap_value}]")
     fixedWidth_option.menuButtonClicked.connect(lambda: _wordWrap_menu("WordWrapFixed"))
     # Transform Menu
-    transformParseMenu = transformMenu.addMenu("&Parse format")
-    transformParseMenu.addMenu("&JSON").menuButtonClicked.connect(lambda: _parseJson(loaded_file))
-    transformParseMenu.addMenu("&CSV")
+    transformParseMenu = transformMenu.addMenu("Parse format")
+    transformParseMenu.addMenu("JSON").menuButtonClicked.connect(lambda: _parseJson(loaded_file))
+    transformParseMenu.addMenu("CSV")
 
     TTkWindow_logs.sizeChanged.connect(resize_logcontent)
-    # TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.WordWrap)
     TTKTextEdit_logcontent.setWrapWidth(250)
     TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.FixedWidth)
 
     root.layout().addWidget(TTkWindow_logs)
     root.mainloop()
+
+    class BackgroundJob:
+        def __init__(self, w, top, delay):
+            self.timer = ttk.TTkTimer()
+            self.top = 10
+            self.delay = delay
+            self.switch = False
+            self.w = w
+            self.type = top
+            self.timer.timeout.connect(self.timerEvent)
+            self.timer.start(1)
+
+    @pyTTkSlot()
+    def timerEvent(self):
+
+        # p = current_line * 100 / self.top
+        # self.switch = not self.switch
+        # if self.type == 1: # Triple sin
+        #     offset1 = 15
+        #     offset2 = 20
+        #     val = [ math.sin( self.val         *math.pi/40)*4*10 ,
+        #             math.sin((self.val+offset1)*math.pi/40)*4*7,
+        #             math.sin((self.val+offset2)*math.pi/30)*4*5,]
+        # if self.type == 2: # Double sin alternated
+        #     offset = 15
+        #     if self.switch: val = [math.sin( self.val        *math.pi/40)*4*10]
+        #     else:           val = [math.sin((self.val+offset)*math.pi/40)*4*7 ]
+        # if self.type == 3: # random + sin
+        #     val = [ random.uniform(15,+40),
+        #             math.sin((self.val)*math.pi/30)*15+20,
+        #             ]
+        # if self.type == 5: # random
+        #     val = [random.uniform(-40,-10)]
+        # if self.type == 6: # random
+        #     val = [random.uniform(-40,+40)]
+        # if self.type == 4: # mix rand and sin
+        #     if self.switch: val = [math.sin(self.val*math.pi/40)*4*10]
+        #     else:           val = [random.uniform(-40,+40)]
+        # self.val+=1
+        # self.w.addValue(val)
+        self.timer.start(self.delay)
 
 
 class File:
@@ -1134,6 +1253,20 @@ class File:
         """
         return self.attribute
 
+    def save(self):
+        """
+        Save current file attributes into index file
+        :return:
+        """
+
+        try:
+            with open(f"{self.attribute['file-name']}.jidx", "w") as savefile:
+                yaml.safe_dump(self.attribute, savefile)
+
+            print("File has been saved successfully")
+        except IOError as io:
+            print(level="ERROR", message=f"Unable to save file due to {io}")
+
 
 if __name__ == "__main__":
     line_number = False
@@ -1142,6 +1275,8 @@ if __name__ == "__main__":
     fields_found = []
     max_lines_to_read = 1000
     TTKTextEdit_logcontent = None
+    TTKTextEdit_logging_messages = None
+
     program_name = os.path.basename(__file__)
     if len(os.path.splitext(program_name)) > 1:
         tmpname = os.path.splitext(program_name)
