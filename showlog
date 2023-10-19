@@ -226,7 +226,7 @@ def read_file(filename):
 
 def parse(log_line):
     """
-    Will try to parse given line
+    Will try to parse given line using loaded configuration settings.
     :param log_line: original line from logs
     :return: a parsed version of this original line
     """
@@ -625,7 +625,7 @@ def load_index(file_to_process=None):
     return used_file
 
 
-def generate_field_index(file_to_process=None):
+def generate_field_index(file_to_process=None, save=False):
     """
     Will generate a field index for given file, and also will save file with found fields, for future usage.
     :return:
@@ -637,6 +637,7 @@ def generate_field_index(file_to_process=None):
         parse_file = file_to_process
     else:
         parse_file = args.log_file
+
     fields_found = None
     tl = 0
     print("You will need to select which fields you want to see")
@@ -660,20 +661,18 @@ def generate_field_index(file_to_process=None):
             file.set("total-lines", tl)
             file.set("fields", fields)
         else:
-            return
-        # file = {
-        #     "file-name": parse_file,
-        #     "total-lines": tl,
-        #     "fields": fields_found
-        # }
+            file.set("file-name", parse_file)
+            file.set("total-lines", tl)
+            file.set("fields", None)
+            print("I'm not able to identify JSON format on whole file, loading it anyway")
 
-        try:
-            with open(f"{parse_file}.jidx", "w") as lfhidx:
-                yaml.safe_dump(file.get_all_attributes(), lfhidx)
-
-        except IOError as iow:
-            print(f"Unable to write file index {args.log_file}.jidx due to {iow}")
-            print("Without this file I'll be not able to extract desired fields, using --parse-json option")
+        if save:
+            try:
+                with open(f"{parse_file}.jidx", "w") as lfhidx:
+                    yaml.safe_dump(file.get_all_attributes(), lfhidx)
+            except IOError as iow:
+                print(f"Unable to write file index {args.log_file}.jidx due to {iow}")
+                print("Without this file I'll be not able to extract desired fields, using --parse-json option")
 
     except IOError as io:
         print(f"Unable to open {parse_file} due to {io}")
@@ -826,13 +825,41 @@ def interactive_work():
     TTKTextEdit_logging_messages = ttk.TTkTextEdit(parent=TTkWindow_logging)
 
     @pyTTkSlot()
+    def _analyse_file(file_name):
+        """
+        Attempt to analyse file with default settings to find out if is possible to parse
+        :param file_name: to analyse
+        :return:
+        """
+        global loaded_file
+        print("Attempting to check this file using following Regular Expression:")
+        print(f"{expected_log_format} which was set as default setup")
+        file = File()
+        file.set_name(file_name)
+        temp_file = file.get_temp_name()
+        line_count = 0
+        with open(temp_file, "w") as tmpfile:
+            for each_line in TTKTextEdit_logcontent.toRawText().split("\n"):
+                parsed_line = parse(str(each_line))
+                line_count += 1
+                tmpfile.write(f"{parsed_line}\n")
+
+        file.set('total-lines', line_count)
+
+        TTKTextEdit_logcontent.setText("")
+
+        load_file(temp_file, generate_index=False, original_file_info=file.get_all_attributes())
+        TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{file.get('file-name')}]", ttk.TTkColor.ITALIC))
+        file.remove_temp_file()
+
+    @pyTTkSlot()
     def load_file(file, generate_index=True, original_file_info=None):
         """
         Load given file
         :return:
         """
         global loaded_file
-
+        TTKTextEdit_logcontent.setText("")
         with open(file, 'r') as logfile:
             full_file = logfile.read()
 
@@ -849,8 +876,7 @@ def interactive_work():
 
             # Check if file can be loaded (depending on number of lines it has)
             if used_file.get("total-lines") > max_lines_to_read:
-                # message_window(f"This file has more than {max_lines_to_read}, "
-                #                f"this tool will only load this amount of lines")
+                print(f"This file has more than {max_lines_to_read}, this tool will only load this amount of lines")
                 line_count = 0
                 for each_line in full_file.split("\n"):
                     TTKTextEdit_logcontent.append(each_line)
@@ -862,7 +888,8 @@ def interactive_work():
 
         TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{file}]", ttk.TTkColor.ITALIC))
         loaded_file = file
-
+        transformMenu.setEnabled(True)
+        viewMenu.setEnabled(True)
         return used_file
 
     def _close():
@@ -871,10 +898,11 @@ def interactive_work():
         :return:
         """
         TTKTextEdit_logcontent.setText("")
-
+        transformMenu.setEnabled(False)
+        viewMenu.setEnabled(False)
         TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader", ttk.TTkColor.ITALIC))
 
-    def _lineNumber():
+    def _line_number():
         """
 
         :return:
@@ -889,7 +917,7 @@ def interactive_work():
             lineNumber_option.setText("Line number-[Enable]")
 
     @pyTTkSlot()
-    def resize_logcontent(h, w):
+    def _resize_log_content(h, w):
         """
         Try to keep size of parent window...
         :param h: parent window h
@@ -899,7 +927,7 @@ def interactive_work():
 
         TTKTextEdit_logcontent.resize(h-4, w-4)
 
-    def _showDialog():
+    def _show_file_dialog():
         """
 
         :return:
@@ -920,14 +948,14 @@ def interactive_work():
         root.quit()
 
     @pyTTkSlot()
-    def _wordWrap_menu(selection):
+    def _word_wrap_menu(selection):
         """
         Will setup word wrap for editor
         :param selection: selection to be done
         :return: void
         """
 
-        def _setWrap():
+        def _set_wrap():
             """
 
             :return:
@@ -950,17 +978,17 @@ def interactive_work():
                                        layout=ttk.TTkVBoxLayout())
             width_value = ttk.TTkSpinBox(value=wordWrap_value, maximum=250, minimum=80)
             wrap_width.addWidget(width_value)
-            ok_button = ttk.TTkButton(text="OK")
+            apply_button = ttk.TTkButton(text="Apply")
             cancel_button = ttk.TTkButton(text="Cancel")
-            wrap_width.addWidget(ok_button)
+            wrap_width.addWidget(apply_button)
             wrap_width.addWidget(cancel_button)
             cancel_button.clicked.connect(lambda: wrap_width.close())
-            ok_button.clicked.connect(_setWrap)
+            apply_button.clicked.connect(_set_wrap)
 
             ttk.TTkHelper.overlay(TTKTextEdit_logcontent, wrap_width, 10, 4, True)
 
     @pyTTkSlot()
-    def _parseJson(loaded_file):
+    def _parse_json(loaded_file):
         """
         Try to analyse given log to see if it is possible to gather information from json format
         :return:
@@ -1023,48 +1051,72 @@ def interactive_work():
                     return
                 fields_to_show.moveItem(pos, pos+1)
 
-        @pyTTkSlot(ttk.TTkList)
-        def reformat_file(ttklist):
+        def _remove_temp_file():
             """
-            Re format file using aligned fields
+            Remove temporary file
+            :return:
+            """
+
+            if os.path.exists("./temp.shw"):
+                os.remove("./temp.shw")
+
+        @pyTTkSlot(ttk.TTkList)
+        def reformat_file(ttklist,ok=False):
+            """
+            Re format file using aligned fields, this method will read original file to apply any formatting change
             :return:
             """
             global loaded_file, TTKTextEdit_logcontent
             used_file = load_index(loaded_file)
+
             fields = []
             for each_selected_field in ttklist.items():
                 item = str(each_selected_field.text())
                 # Get actual index position from original list:
                 fields.append(used_file.get("fields").index(item))
-
+            temp_file_name = used_file.get_temp_name()
+            line_count = 0
             with open(loaded_file, "r") as current_file:
-                with open("temp", "w") as tmpfile:
+                with open(temp_file_name, "w") as tmpfile:
                     for each_line in current_file:
+                        if line_count >= max_lines_to_read:
+                            break
+                        #TTKTextEdit_logcontent.toRawText().split("\n"):
                         tmpfile.write(f"{print_line(each_line, fields, used_file=used_file)}\n")
+                        line_count += 1
 
             original_file = loaded_file
-            load_file("temp", generate_index=False, original_file_info=used_file)
+            load_file(temp_file_name, generate_index=False, original_file_info=used_file)
             loaded_file = original_file
             TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{original_file}]", ttk.TTkColor.ITALIC))
+            print("Modifications done to formatting are temporarily, these are not applied to original file")
+            print("If you want these formatting being converted into a file please use File->Export feature...")
             used_file.save()
+            # Remove used temp file...
+            used_file.remove_temp_file()
+
+            if ok:
+                transformMenu.setEnabled(True)
+                fields_found_window.close()
 
         if used_file.get('fields'):
             listlayout = ttk.TTkGridLayout()
-            fieldsFoundWindow = ttk.TTkWindow(size=(57, 18),
-                                              title=ttk.TTkString("Fields found", ttk.TTkColor.ITALIC),
-                                              border=True,
-                                              layout=listlayout)
+            transformMenu.setEnabled(False)
+            fields_found_window = ttk.TTkWindow(size=(70, 18),
+                                                title=ttk.TTkString("Fields found", ttk.TTkColor.ITALIC),
+                                                border=True,
+                                                layout=listlayout)
 
             frame_fields_found_list = ttk.TTkFrame(layout=ttk.TTkHBoxLayout(),
                                                    border=1,
                                                    title="Available fields",
-                                                   maxSize=(30, 15),
+                                                   maxSize=(40, 15),
                                                    selectionMode=ttk.TTkK.MultiSelection)
 
             frame_fields_to_show = ttk.TTkFrame(layout=ttk.TTkHBoxLayout(),
                                                 border=1,
                                                 title="Fields to show",
-                                                maxSize=(30, 15))
+                                                maxSize=(40, 15))
 
             frame_middle_buttons = ttk.TTkFrame(layout=ttk.TTkVBoxLayout(), border=0, maxSize=(5, 5))
             frame_sort_buttons = ttk.TTkFrame(layout=ttk.TTkVBoxLayout(), border=0, maxSize=(8, 6))
@@ -1072,6 +1124,7 @@ def interactive_work():
             button_del = ttk.TTkButton(text="<<")
             button_up = ttk.TTkButton(text="Up")
             button_dn = ttk.TTkButton(text="Down")
+            button_ap = ttk.TTkButton(text="Apply")
             button_ok = ttk.TTkButton(text="OK")
             button_cn = ttk.TTkButton(text="Cancel")
             fields_found_list = ttk.TTkList(parent=frame_fields_found_list)
@@ -1081,20 +1134,25 @@ def interactive_work():
             frame_sort_buttons.addWidget(button_up)
             frame_sort_buttons.addWidget(button_dn)
 
-            listlayout.addWidget(frame_fields_found_list, 0, 0, 3, 1)
-            listlayout.addWidget(frame_middle_buttons, row=1, col=1, rowspan=1, colspan=1)
-            listlayout.addWidget(frame_fields_to_show, 0, 3, 3, 1)
-            listlayout.addWidget(frame_sort_buttons, 1, 4, 1, 1)
-            listlayout.addWidget(button_ok, 3, 3, 1, 1)
-            listlayout.addWidget(button_cn, 3, 4, 1, 1)
+            listlayout.addWidget(frame_fields_found_list, 0, 0, 3, 2)
+            listlayout.addWidget(frame_middle_buttons, 1, 2, 1, 1)
+            listlayout.addWidget(frame_fields_to_show, 0, 3, 3, 2)
+            listlayout.addWidget(frame_sort_buttons, 1, 5, 1, 1)
+            listlayout.addWidget(button_ap, 3, 3, 1, 1)
+            listlayout.addWidget(button_ok, 3, 4, 1, 1)
+            listlayout.addWidget(button_cn, 3, 5, 1, 1)
 
             # Actions
             button_add.clicked.connect(transfer_to_show)
             button_del.clicked.connect(transfer_to_fields_found)
             button_up.clicked.connect(move_item_up)
             button_dn.clicked.connect(move_item_down)
-            button_cn.clicked.connect(lambda: fieldsFoundWindow.close())
-            button_ok.clicked.connect(lambda: reformat_file(fields_to_show))
+            button_cn.clicked.connect(lambda: {
+                fields_found_window.close(),
+                transformMenu.setEnabled(True)
+            })
+            button_ok.clicked.connect(lambda: reformat_file(fields_to_show, True))
+            button_ap.clicked.connect(lambda: reformat_file(fields_to_show))
 
             for idx, each_field in enumerate(used_file.get("fields")):
                 # if we have fields already selected, then they shouldn't showup on fields_found_list
@@ -1106,7 +1164,19 @@ def interactive_work():
                 for each_field in used_file.get("show-fields"):
                     fields_to_show.addItem(used_file.get("show-fields")[each_field])
 
-            ttk.TTkHelper.overlay(None, fieldsFoundWindow, 3, 6, modal=True, toolWindow=True)
+            ttk.TTkHelper.overlay(None, fields_found_window, 3, 6, modal=True, toolWindow=True)
+        else:
+            print("WARNING: Sorry I'm not able to find any json format on this file so"
+                  " I was not able to pull any field from it")
+
+    def _export_file(loaded_file):
+        """
+        Export actual file, applying transformation to whole file
+        :param loaded_file:
+        :return:
+        """
+
+
 
     def message_window(message, title_window="Message", buttons=None):
         """
@@ -1131,29 +1201,31 @@ def interactive_work():
     viewMenu = TTkWindow_logs.newMenubarTop().addMenu("&View")
     transformMenu = TTkWindow_logs.newMenubarTop().addMenu("&Transform")
     # File Menu
-    fileMenu.addMenu("Open").menuButtonClicked.connect(_showDialog)
-    fileMenu.addMenu("Export")
+    fileMenu.addMenu("Open").menuButtonClicked.connect(_show_file_dialog)
+    fileMenu.addMenu("Export").menuButtonClicked.connect(_export_file)
     fileMenu.addMenu("Close").menuButtonClicked.connect(_close)
     fileMenu.addMenu("Exit").menuButtonClicked.connect(_exit)
     # View Menu
     lineNumber_option = viewMenu.addMenu("Line number-[Enable]")
-    lineNumber_option.menuButtonClicked.connect(_lineNumber)
+    lineNumber_option.menuButtonClicked.connect(_line_number)
     viewMenu.addMenu("&File info")
 
     wordWrap_menu = viewMenu.addMenu("&Word wrap")
-    wordWrap_menu.addMenu("&No Word wrap").menuButtonClicked.connect(lambda: _wordWrap_menu("NoWordWrap"))
-    wordWrap_menu.addMenu("&Fit Window width").menuButtonClicked.connect(lambda: _wordWrap_menu("WordWrapFitWin"))
+    wordWrap_menu.addMenu("&No Word wrap").menuButtonClicked.connect(lambda: _word_wrap_menu("NoWordWrap"))
+    wordWrap_menu.addMenu("&Fit Window width").menuButtonClicked.connect(lambda: _word_wrap_menu("WordWrapFitWin"))
     fixedWidth_option = wordWrap_menu.addMenu(f"Fi&xed width [{wordWrap_value}]")
-    fixedWidth_option.menuButtonClicked.connect(lambda: _wordWrap_menu("WordWrapFixed"))
+    fixedWidth_option.menuButtonClicked.connect(lambda: _word_wrap_menu("WordWrapFixed"))
     # Transform Menu
     transformParseMenu = transformMenu.addMenu("Parse format")
-    transformParseMenu.addMenu("JSON").menuButtonClicked.connect(lambda: _parseJson(loaded_file))
+    transformParseMenu.addMenu("JSON").menuButtonClicked.connect(lambda: _parse_json(loaded_file))
     transformParseMenu.addMenu("CSV")
+    transformMenu.addMenu("Analyse file...").menuButtonClicked.connect(lambda: _analyse_file(loaded_file))
 
-    TTkWindow_logs.sizeChanged.connect(resize_logcontent)
-    TTKTextEdit_logcontent.setWrapWidth(250)
+    TTkWindow_logs.sizeChanged.connect(_resize_log_content)
+    TTKTextEdit_logcontent.setWrapWidth(wordWrap_value)
     TTKTextEdit_logcontent.setLineWrapMode(ttk.TTkK.FixedWidth)
-
+    transformMenu.setEnabled(False)
+    viewMenu.setEnabled(False)
     root.layout().addWidget(TTkWindow_logs)
     root.mainloop()
 
@@ -1263,17 +1335,44 @@ class File:
             with open(f"{self.attribute['file-name']}.jidx", "w") as savefile:
                 yaml.safe_dump(self.attribute, savefile)
 
-            print("File has been saved successfully")
+            print(f"{self.attribute['file-name']}.jidx support file updated")
         except IOError as io:
-            print(level="ERROR", message=f"Unable to save file due to {io}")
+            print(level="ERROR", message=f"Unable to save {self.attribute['file-name']}.jidx support file due to {io}")
+
+    def get_temp_name(self, filename=None):
+        """
+        Save a temporary file
+        :return:
+        """
+        name = None
+        if filename:
+            name = os.path.basename(filename)
+            name = f"temp@{name}.shw"
+        else:
+            if 'file-name' in self.attribute:
+                name = os.path.basename(self.attribute['file-name'])
+                name = f"temp@{name}.shw"
+
+        self.set('temp-file', name)
+        if not name:
+            print("Unable to setup a proper temporarily name, no file name was found")
+        return name
+
+    def remove_temp_file(self):
+        """
+        Remove temporary file
+        :return:
+        """
+        if 'temp-file' in self.attribute:
+            os.remove(self.get('temp-file'))
 
 
 if __name__ == "__main__":
     line_number = False
-    wordWrap_value = 250
+    wordWrap_value = 800
     loaded_file = None
     fields_found = []
-    max_lines_to_read = 1000
+    max_lines_to_read = 500
     TTKTextEdit_logcontent = None
     TTKTextEdit_logging_messages = None
 
