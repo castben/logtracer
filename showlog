@@ -224,10 +224,11 @@ def read_file(filename):
         exit(1)
 
 
-def parse(log_line):
+def parse(log_line, selected_layout=None):
     """
     Will try to parse given line using loaded configuration settings.
     :param log_line: original line from logs
+    :param selected_layout: will use layout selected, otherwise will use default set on config
     :return: a parsed version of this original line
     """
     global log_config
@@ -638,6 +639,8 @@ def generate_field_index(file_to_process=None, save=False):
     else:
         parse_file = args.log_file
 
+    file.set_name(parse_file)
+
     fields_found = None
     tl = 0
     print("You will need to select which fields you want to see")
@@ -657,11 +660,11 @@ def generate_field_index(file_to_process=None, save=False):
 
                     # print(each_line.strip())
         if fields:
-            file.set("file-name", parse_file)
+            file.set_name(parse_file)
             file.set("total-lines", tl)
             file.set("fields", fields)
         else:
-            file.set("file-name", parse_file)
+            file.set_name(parse_file)
             file.set("total-lines", tl)
             file.set("fields", None)
             print("I'm not able to identify JSON format on whole file, loading it anyway")
@@ -831,26 +834,37 @@ def interactive_work():
         :param file_name: to analyse
         :return:
         """
-        global loaded_file
+        global loaded_file, current_file
         print("Attempting to check this file using following Regular Expression:")
         print(f"{expected_log_format} which was set as default setup")
         file = File()
+
         file.set_name(file_name)
         temp_file = file.get_temp_name()
         line_count = 0
-        with open(temp_file, "w") as tmpfile:
+        if file.get_path():
+            full_name = f"{file.get_path()}/{temp_file}"
+        else:
+            full_name = file.get_temp_name()
+        with open(f"{full_name}", "w") as tmpfile:
             for each_line in TTKTextEdit_logcontent.toRawText().split("\n"):
                 parsed_line = parse(str(each_line))
                 line_count += 1
                 tmpfile.write(f"{parsed_line}\n")
 
         file.set('total-lines', line_count)
+        file.set('export-format', 'C5 built-in config')
+        file.set('selected-layout', 'default')
+        file.set('export-file', f"export-{file.get('file-name')}")
 
         TTKTextEdit_logcontent.setText("")
 
-        load_file(temp_file, generate_index=False, original_file_info=file.get_all_attributes())
+        load_file(full_name, generate_index=False, original_file_info=file.get_all_attributes())
+        loaded_file = file.get_name()
         TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{file.get('file-name')}]", ttk.TTkColor.ITALIC))
         file.remove_temp_file()
+        current_file = file
+        return file
 
     @pyTTkSlot()
     def load_file(file, generate_index=True, original_file_info=None):
@@ -858,17 +872,28 @@ def interactive_work():
         Load given file
         :return:
         """
-        global loaded_file
+        global loaded_file, filepicker_config
         TTKTextEdit_logcontent.setText("")
         with open(file, 'r') as logfile:
             full_file = logfile.read()
-
+            pd = os.path.dirname(file)
+            filepicker_config['path'] = pd
             # If I do not require to generate an index for this loading file, it is possible file given
             # is a temporary file view, and it doesn't have a proper format to gather fields.
             if generate_index:
                 used_file = load_index(file)
             else:
-                used_file = original_file_info
+                if isinstance(original_file_info, dict):
+                    used_file = File()
+                    used_file.set_all_attributes(original_file_info)
+                else:
+                    used_file = original_file_info
+
+            if pd:
+                used_file.set('file-path', pd)
+                loaded_file = f"{pd}/{used_file.get_name()}"
+            else:
+                loaded_file = used_file.get_name()
 
             if not used_file:
                 print(level="ERROR", message=f"Unable to open index file for {loaded_file}")
@@ -886,8 +911,17 @@ def interactive_work():
             else:
                 TTKTextEdit_logcontent.setText(full_file)
 
-        TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{file}]", ttk.TTkColor.ITALIC))
-        loaded_file = file
+        TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{used_file.get_name()}]", ttk.TTkColor.ITALIC))
+
+        # if isinstance(used_file, File):
+        #     used_file.set_name(file)
+        # else:
+        #     pt = os.path.dirname(file)
+        #     pf = os.path.basename(file)
+        #     if pt:
+        #         used_file['file-path'] = pt
+        #     used_file['file-name'] = pf
+
         transformMenu.setEnabled(True)
         viewMenu.setEnabled(True)
         return used_file
@@ -932,10 +966,12 @@ def interactive_work():
 
         :return:
         """
-        filePicker = ttk.TTkFileDialogPicker(pos=(1, 1), size=(75, 24), caption="Select a file",
-                                             path=".",
+        global filepicker_config
+        filePicker = ttk.TTkFileDialogPicker(pos=(1, 1), size=filepicker_config['size'], caption="Select a file",
+                                             path=filepicker_config['path'],
                                              fileMode=ttk.TTkK.FileMode.AnyFile,
                                              filter="All Files (*);;logs files (*.log)")
+
         ttk.TTkHelper.overlay(TTkWindow_logs, filePicker, 4, 8, True)
         filePicker.pathPicked.connect(load_file)
 
@@ -1051,37 +1087,31 @@ def interactive_work():
                     return
                 fields_to_show.moveItem(pos, pos+1)
 
-        def _remove_temp_file():
-            """
-            Remove temporary file
-            :return:
-            """
-
-            if os.path.exists("./temp.shw"):
-                os.remove("./temp.shw")
-
         @pyTTkSlot(ttk.TTkList)
         def reformat_file(ttklist,ok=False):
             """
-            Re format file using aligned fields, this method will read original file to apply any formatting change
+            Reformat file using aligned fields, this method will read original file to apply any formatting change
             :return:
             """
-            global loaded_file, TTKTextEdit_logcontent
+            global loaded_file, TTKTextEdit_logcontent, current_file
             used_file = load_index(loaded_file)
+            used_file.set_name(loaded_file)
+            used_file.set('export-file', f"export@{used_file.get('file-name')}")
 
             fields = []
             for each_selected_field in ttklist.items():
                 item = str(each_selected_field.text())
                 # Get actual index position from original list:
                 fields.append(used_file.get("fields").index(item))
-            temp_file_name = used_file.get_temp_name()
+
+            temp_file_name = f"{used_file.get('file-path')}/{used_file.get_temp_name()}"
             line_count = 0
-            with open(loaded_file, "r") as current_file:
+            with open(loaded_file, "r") as fh_current_file:
                 with open(temp_file_name, "w") as tmpfile:
-                    for each_line in current_file:
+                    for each_line in fh_current_file:
                         if line_count >= max_lines_to_read:
                             break
-                        #TTKTextEdit_logcontent.toRawText().split("\n"):
+                        # TTKTextEdit_logcontent.toRawText().split("\n"):
                         tmpfile.write(f"{print_line(each_line, fields, used_file=used_file)}\n")
                         line_count += 1
 
@@ -1091,9 +1121,11 @@ def interactive_work():
             TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{original_file}]", ttk.TTkColor.ITALIC))
             print("Modifications done to formatting are temporarily, these are not applied to original file")
             print("If you want these formatting being converted into a file please use File->Export feature...")
+            used_file.set("export-format", "**CUSTOM**")
             used_file.save()
             # Remove used temp file...
             used_file.remove_temp_file()
+            current_file = used_file
 
             if ok:
                 transformMenu.setEnabled(True)
@@ -1169,14 +1201,15 @@ def interactive_work():
             print("WARNING: Sorry I'm not able to find any json format on this file so"
                   " I was not able to pull any field from it")
 
-    def _export_file(loaded_file):
+    @pyTTkSlot()
+    def _export_file(use_file):
         """
         Export actual file, applying transformation to whole file
-        :param loaded_file:
+        :param use_file:
         :return:
         """
 
-
+        current_file.export()
 
     def message_window(message, title_window="Message", buttons=None):
         """
@@ -1202,7 +1235,7 @@ def interactive_work():
     transformMenu = TTkWindow_logs.newMenubarTop().addMenu("&Transform")
     # File Menu
     fileMenu.addMenu("Open").menuButtonClicked.connect(_show_file_dialog)
-    fileMenu.addMenu("Export").menuButtonClicked.connect(_export_file)
+    fileMenu.addMenu("Export").menuButtonClicked.connect(lambda: _export_file(current_file))
     fileMenu.addMenu("Close").menuButtonClicked.connect(_close)
     fileMenu.addMenu("Exit").menuButtonClicked.connect(_exit)
     # View Menu
@@ -1308,7 +1341,27 @@ class File:
         :return:
         """
         self.attribute["file-name"] = os.path.basename(name)
-        self.attribute["file-path"] = os.path.dirname(name)
+        path = os.path.dirname(name)
+        if path:
+            self.attribute["file-path"] = os.path.dirname(name)
+
+    def get_name(self):
+        """
+        Return file name
+        :return:
+        """
+        return os.path.basename(self.attribute['file-name'])
+
+    def get_path(self):
+        """
+        Return file directory
+        :return:
+        """
+
+        if 'file-path' in self.attribute:
+            return self.attribute['file-path']
+        else:
+            return ""
 
     def set_all_attributes(self, attributes):
         """
@@ -1345,6 +1398,7 @@ class File:
         :return:
         """
         name = None
+
         if filename:
             name = os.path.basename(filename)
             name = f"temp@{name}.shw"
@@ -1363,16 +1417,69 @@ class File:
         Remove temporary file
         :return:
         """
+
+        pt = self.get_path()
+
+        if pt:
+            full_name = f"{pt}/{self.get('temp-file')}"
+        else:
+            full_name = self.get('temp-file')
+
         if 'temp-file' in self.attribute:
-            os.remove(self.get('temp-file'))
+            os.remove(full_name)
+
+    def export(self):
+        """
+        Export current file using selected format by user
+        :param format: type of format to be used. JSON field sort, or build-in layout.
+        :return:
+        """
+        global desired_output_format, current_file
+
+        pt = self.get_path()
+
+        if pt:
+            full_export_name = f"{pt}/{self.get('export-file')}"
+            full_name = f"{pt}/{self.get_name()}"
+        else:
+            full_export_name = self.get('export-file')
+            full_name = self.get_name()
+
+        print(f"** Exporting file: ")
+        print(f" * {full_name} as {full_export_name}")
+        print(f" * Using format: {self.get('export-format')}")
+        if self.get('export-format') == '**CUSTOM**':
+            print(" * Using following fields:")
+            for ef in self.get('show-fields').values():
+                print(f"    * {ef}")
+            else:
+                print(f" * Using config layout: {self.get('selected-layout')}")
+
+        with open(f"{full_export_name}", "w") as export_file:
+            with open(f"{full_name}", "r") as original_file:
+                for each_line in original_file:
+                    if self.get('export-format') == '**CUSTOM**':
+                        cf = self.get("show-fields")
+                        strip_line = print_line(each_line.strip('\n'), cf.keys(), current_file)
+                        export_file.write(f"{strip_line}\n")
+                    else:
+
+                        desired_output_format = layouts[self.get('selected-layout')]
+                        strip_line = parse(each_line).strip('\n')
+                        export_file.write(f"{strip_line}\n")
 
 
 if __name__ == "__main__":
+    filepicker_config = {
+        "path": ".",
+        "size": (120, 35)
+    }
+    current_file = None
     line_number = False
     wordWrap_value = 800
     loaded_file = None
     fields_found = []
-    max_lines_to_read = 500
+    max_lines_to_read = 5000
     TTKTextEdit_logcontent = None
     TTKTextEdit_logging_messages = None
 
