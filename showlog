@@ -824,7 +824,7 @@ def interactive_work():
                                       border=True,
                                       layout=ttk.TTkGridLayout())
 
-    TTKTextEdit_logcontent = ttk.TTkTextEdit(parent=TTkWindow_logs)
+    TTKTextEdit_logcontent = ttk.TTkTextEdit(parent=TTkWindow_logs, lineNumberStarting=1)
     TTKTextEdit_logging_messages = ttk.TTkTextEdit(parent=TTkWindow_logging)
 
     @pyTTkSlot()
@@ -1054,7 +1054,7 @@ def interactive_work():
 
             selection = list(fields_to_show.selectedItems())
 
-            if fields_found_list.selectedLabels():
+            if fields_to_show.selectedLabels():
                 for s in selection:
                     fields_to_show.removeItem(s)
                     fields_found_list.addItem(str(s.text()))
@@ -1159,7 +1159,7 @@ def interactive_work():
             button_ap = ttk.TTkButton(text="Apply")
             button_ok = ttk.TTkButton(text="OK")
             button_cn = ttk.TTkButton(text="Cancel")
-            fields_found_list = ttk.TTkList(parent=frame_fields_found_list)
+            fields_found_list = ttk.TTkList(parent=frame_fields_found_list, )
             fields_to_show = ttk.TTkList(parent=frame_fields_to_show)
             frame_middle_buttons.addWidget(button_add)
             frame_middle_buttons.addWidget(button_del)
@@ -1272,6 +1272,7 @@ def interactive_work():
             self.type = top
             self.timer.timeout.connect(self.timerEvent)
             self.timer.start(1)
+            
 
     @pyTTkSlot()
     def timerEvent(self):
