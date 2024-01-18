@@ -115,6 +115,11 @@ configuration:
         libraries:
            - import datetime
 
+      timeMillis: 
+        execute: datetime.datetime.fromtimestamp(timeMillis).strftime('%Y-%m-%d %H:%M:%S')
+        libraries:
+           - import datetime
+
     # This define which output is being used from `layout` list by default
     default-layout: default       
     """
@@ -362,6 +367,10 @@ def check_conversions(variable_to_convert, value):
 
     # User require a conversion on this field
     try:
+        # Check if giving timestamp value is in the range of Seconds (max length 10) or milliseconds (max lenght 13)
+        if len("%s" % value) > 10:
+            # if given value represent milliseconds, need to divide them by 1000 to make them seconds
+            value = value / 1000
         #  we need to replace actual value for this field on convert method
         #
         line_to_exec = conversions[variable_to_convert]['execute'].replace(variable_to_convert, "%s" % value)
@@ -397,7 +406,7 @@ def conversion(each_field, value):
                 convert_exec = check_conversions(check_field, value)
                 return convert_exec
             except BaseException as be:
-                print(f"Unable to convert {each_field} conversion method failed due to : {be}")
+                print(f"[SHOWLOG ERROR] Unable to convert {each_field} conversion method failed due to : {be}")
                 return value
 
     return value
@@ -559,8 +568,8 @@ def print_line(line, selected_fields, used_file):
 
             selected_name_fields[int(each_field)] = fld
             # Verify and execute any conversion required
-            if args.interactive:
-                value = conversion(fld, value)
+            #if args.interactive:
+            value = conversion(fld, value)
 
             if value:
                 value = expand(value)
@@ -643,7 +652,8 @@ def generate_field_index(file_to_process=None, save=False):
 
     fields_found = None
     tl = 0
-    print("You will need to select which fields you want to see")
+    if not args.fields:
+        print("You will need to select which fields you want to see")
     try:
         print("Analysing file, please wait...")
         with open(parse_file, "r") as lfh:
@@ -809,6 +819,12 @@ def interactive_work():
     from TermTk.TTkCore.signal import pyTTkSlot
     # from TermTk import TTkUtil, TTkUiLoader, TTk
 
+    HighlightCode('timestamps', r'[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}', '#00AAAA')
+    HighlightCode('level', 'WARN', '#AAAA00')
+    HighlightCode('level', 'WARNING', '#AAAA00')
+    HighlightCode('level', r'\bINFO ', '#44AA00')
+    HighlightCode('level', 'ERROR ', '#FF8800')
+
     root = ttk.TTk()
 
     TTkWindow_logs = ttk.TTkWindow(parent=root,
@@ -904,12 +920,12 @@ def interactive_work():
                 print(f"This file has more than {max_lines_to_read}, this tool will only load this amount of lines")
                 line_count = 0
                 for each_line in full_file.split("\n"):
-                    TTKTextEdit_logcontent.append(each_line)
+                    TTKTextEdit_logcontent.append(HighlightCode.highlight(ttk.TTkString(each_line)))
                     line_count += 1
                     if line_count >= max_lines_to_read:
                         break
             else:
-                TTKTextEdit_logcontent.setText(full_file)
+                TTKTextEdit_logcontent.setText(HighlightCode.highlight(ttk.TTkString(full_file)))
 
         TTkWindow_logs.setTitle(ttk.TTkString(f"Logs reader -- [{used_file.get_name()}]", ttk.TTkColor.ITALIC))
 
@@ -1262,48 +1278,6 @@ def interactive_work():
     root.layout().addWidget(TTkWindow_logs)
     root.mainloop()
 
-    class BackgroundJob:
-        def __init__(self, w, top, delay):
-            self.timer = ttk.TTkTimer()
-            self.top = 10
-            self.delay = delay
-            self.switch = False
-            self.w = w
-            self.type = top
-            self.timer.timeout.connect(self.timerEvent)
-            self.timer.start(1)
-            
-
-    @pyTTkSlot()
-    def timerEvent(self):
-
-        # p = current_line * 100 / self.top
-        # self.switch = not self.switch
-        # if self.type == 1: # Triple sin
-        #     offset1 = 15
-        #     offset2 = 20
-        #     val = [ math.sin( self.val         *math.pi/40)*4*10 ,
-        #             math.sin((self.val+offset1)*math.pi/40)*4*7,
-        #             math.sin((self.val+offset2)*math.pi/30)*4*5,]
-        # if self.type == 2: # Double sin alternated
-        #     offset = 15
-        #     if self.switch: val = [math.sin( self.val        *math.pi/40)*4*10]
-        #     else:           val = [math.sin((self.val+offset)*math.pi/40)*4*7 ]
-        # if self.type == 3: # random + sin
-        #     val = [ random.uniform(15,+40),
-        #             math.sin((self.val)*math.pi/30)*15+20,
-        #             ]
-        # if self.type == 5: # random
-        #     val = [random.uniform(-40,-10)]
-        # if self.type == 6: # random
-        #     val = [random.uniform(-40,+40)]
-        # if self.type == 4: # mix rand and sin
-        #     if self.switch: val = [math.sin(self.val*math.pi/40)*4*10]
-        #     else:           val = [random.uniform(-40,+40)]
-        # self.val+=1
-        # self.w.addValue(val)
-        self.timer.start(self.delay)
-
 
 class File:
     attribute = {}
@@ -1468,6 +1442,39 @@ class File:
                         desired_output_format = layouts[self.get('selected-layout')]
                         strip_line = parse(each_line).strip('\n')
                         export_file.write(f"{strip_line}\n")
+
+
+class HighlightCode:
+
+    color_library = []
+
+    def __init__(self, description, regex, color):
+        """
+
+        :param regex:
+        :param color:
+        """
+        self.description = description
+        self.regex = regex
+        self.color = color
+
+        HighlightCode.color_library.append(self)
+
+    @staticmethod
+    def highlight(txt):
+        """
+
+        :return:
+        """
+        import TermTk as ttk
+
+        ret = txt
+        for each_definition in HighlightCode.color_library:
+            if m := txt.findall(regexp=each_definition.regex):
+                for match in m:
+                    ret = ret.setColor(ttk.TTkColor.fg(each_definition.color), match=match)
+
+        return ret
 
 
 if __name__ == "__main__":
