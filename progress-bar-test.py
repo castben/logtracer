@@ -38,6 +38,8 @@ def main():
 
     root = ttk.TTk()
     layout = ttk.TTkGridLayout(columnMinHeight=1)
+    button_load = ttk.TTkButton(text="Load", parent=root)
+
     if args.f:
         rootW = root
         root.setLayout(layout)
@@ -69,13 +71,12 @@ def main():
 
         pb1 = ((current_line*100)/lines)/100
 
-
-
         # last_value = pb1.value()
         # pb.setValue(0 if last_value == 1 else last_value + 0.02)
 
         timer.start(0.2)
 
+    @ttk.pyTTkSlot()
     def _loadFile(filename):
         global current_line
         lines = 0
@@ -83,18 +84,20 @@ def main():
             lines = len(check_file.read())
 
         current_line = 0
-        timer.timeout.connect(lambda: _timerEvent(current_line, lines))
-        timer.start(1)
-        # text_content.textChanged.connect(lambda: _timerEvent(current_line, lines))
+
+        text_content.textChanged.connect(lambda: _timerEvent(current_line, lines))
         with open(filename, "r") as load_file:
-            line = load_file.read()
-            text_content.append(line)
-            current_line += 1
+            for each_line in load_file:
+                # line = load_file.readline()
+                text_content.append(each_line)
+                current_line += 1
+                #timer.timeout.connect(lambda: _timerEvent(current_line, lines))
+                timer.start(1)
 
     # timer.timeout.connect(_timerEvent)
     # timer.start(1)
-    _loadFile('clients-logs/tests/test-node-originator-599f5c9f5f-vnv8t.log')
-
+    #_loadFile('sdx-25MB.log')
+    button_load.clicked.connect(lambda: _loadFile('sdx-25MB.log'))
     root.mainloop()
 
 
