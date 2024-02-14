@@ -111,6 +111,7 @@ configuration:
       # This will help to convert epochSecond into a readable human format, below line is `python executable` commands
       # Any required library to use conversion exec statement need to be added into `libraries` field, these libraries
       # will be automatically imported *before* executing statement
+      # Here you can define variable that will be found in log file, and what conversion will be performed on it
 
       instant.epochSecond: 
         execute: datetime.datetime.fromtimestamp(instant.epochSecond).strftime('%Y-%m-%d %H:%M:%S')
@@ -118,6 +119,9 @@ configuration:
            - import datetime
 
       timeMillis: 
+      # In this case python only convert seconds timestamps into human readable time stamp, but conversion routine
+      # has a condition to determine if value given is milliseconds or seconds and will act accordantly...
+      #
         execute: datetime.datetime.fromtimestamp(timeMillis).strftime('%Y-%m-%d %H:%M:%S')
         libraries:
            - import datetime
@@ -128,7 +132,7 @@ configuration:
     try:
         log_config = yaml.safe_load(config)
     except BaseException as be:
-        print(f"{program_name}: There's an error on default configuration: {be} unable to continue")
+        print(f"[{program_name}]: There's an error on default configuration: {be} unable to continue")
         exit(0)
 
 
@@ -918,7 +922,7 @@ def interactive_work():
                 return None
 
             # Check if file can be loaded (depending on number of lines it has)
-            if used_file.get("total-lines") > max_lines_to_read:
+            if used_file.get("total-lines") >= max_lines_to_read:
                 print(f"This file has more than {max_lines_to_read}, this tool will only load this amount of lines")
                 line_count = 0
                 for each_line in full_file.split("\n"):
@@ -1177,8 +1181,10 @@ def interactive_work():
             button_ap = ttk.TTkButton(text="Apply")
             button_ok = ttk.TTkButton(text="OK")
             button_cn = ttk.TTkButton(text="Cancel")
-            fields_found_list = ttk.TTkList(parent=frame_fields_found_list, )
-            fields_to_show = ttk.TTkList(parent=frame_fields_to_show)
+            fields_found_list = ttk.TTkList(parent=frame_fields_found_list, dragDropMode=ttk.TTkK.AllowDrag | ttk.TTkK.AllowDrop,
+                                            selectionMode=ttk.TTkK.MultiSelection)
+            fields_to_show = ttk.TTkList(parent=frame_fields_to_show, dragDropMode=ttk.TTkK.AllowDrag | ttk.TTkK.AllowDrop,
+                                         selectionMode=ttk.TTkK.MultiSelection)
             frame_middle_buttons.addWidget(button_add)
             frame_middle_buttons.addWidget(button_del)
             frame_sort_buttons.addWidget(button_up)
@@ -1362,12 +1368,14 @@ class File:
         """
 
         try:
-            with open(f"{self.attribute['file-name']}.jidx", "w") as savefile:
+            with open(f"{self.attribute['file-path']}/{self.attribute['file-name']}.jidx", "w") as savefile:
                 yaml.safe_dump(self.attribute, savefile)
 
-            print(f"{self.attribute['file-name']}.jidx support file updated")
+            print(f"{self.attribute['file-path']}/{self.attribute['file-name']}.jidx support file updated")
         except IOError as io:
-            print(level="ERROR", message=f"Unable to save {self.attribute['file-name']}.jidx support file due to {io}")
+            print(level="ERROR", message=f"Unable to save "
+                                         f"{self.attribute['file-path']}/{self.attribute['file-name']}.jidx"
+                                         f" support file due to {io}")
 
     def get_temp_name(self, filename=None):
         """
@@ -1490,7 +1498,7 @@ if __name__ == "__main__":
     wordWrap_value = 800
     loaded_file = None
     fields_found = []
-    max_lines_to_read = 5000
+    max_lines_to_read = 2500
     TTKTextEdit_logcontent = None
     TTKTextEdit_logging_messages = None
 
@@ -1551,7 +1559,8 @@ if __name__ == "__main__":
                                               ' which will include all these fields for future usages',
                         action='store_true')
     parser.add_argument('--setup', help='An interactive way to setup program default options', action='store_true')
-    parser.add_argument('--interactive', help='Launch an text tui interface to interact with all options',
+    parser.add_argument('--interactive',
+                        '-i', help='Launch an text tui interface to interact with all options',
                         action='store_true')
     args = parser.parse_args()
 

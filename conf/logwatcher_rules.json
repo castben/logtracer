@@ -916,13 +916,17 @@
           "(?P<message>Flow error kept for overnight observation)",
           "Flow\\((?P<message>action=[a-z_]+);",
           "(?P<message>Stored new attachment)",
-          "(?P<message>Flow \\[__flow_id__\\] failed to be finalised\\..*\\.\\s)"
+          "(?P<message>Flow \\[__flow_id__\\] failed to be finalised\\..*\\.\\s)",
+          "(?P<message>BankRelationshipState).*\\[party.=__source__,party.=__destination__\\],uid.*idMutualAccount=__idMutualAccount__.*,owner=.*,party=__accountOwner__\\],sides.*flow-id=__flow_id__,"
         ],
         "FIELDS": [
           "note over:message",
           "annotation:flow_id",
           "annotation:tx_id",
-          "participant:source"
+          "participant:source",
+          "participant:destination",
+          "annotation:idMutualAccount",
+          "annotation:accountOwner"
         ],
         "IGNORE": [
           "responded",
@@ -1234,7 +1238,8 @@
             "Notary responded \\(__participant__\\)",
             "actor_owning_identity=__participant__",
             "Received transaction acknowledgement request from party __participant__",
-            "origin=__participant__"
+            "origin=__participant__",
+            "__participant__"
           ],
           "APPLY_TO": [
             "participant"
@@ -1244,7 +1249,8 @@
           "EXPECT": [
             "vault",
             "to notary: __participant__",
-            ", actor_owning_identity=__participant__"
+            ", actor_owning_identity=__participant__",
+            "__participant__"
           ],
           "APPLY_TO": [
             "participant"
@@ -1281,6 +1287,22 @@
         "vnode_id": {
           "EXPECT": [
             "[A-Z0-9]{12}"
+          ],
+          "APPLY_TO": [
+            "note over"
+          ]
+        },
+        "idMutualAccount": {
+          "EXPECT": [
+            "[0-9]{14}"
+          ],
+          "APPLY_TO": [
+            "note over"
+          ]
+        },
+        "accountOwner": {
+          "EXPECT": [
+            "__participant__"
           ],
           "APPLY_TO": [
             "note over"

@@ -2395,11 +2395,11 @@ def draw_results(title, script_txt, file):
     import subprocess
 
     base_dir = os.path.dirname(file)
-    if not file:
-        save_path = f"{app_path}/plugins/plantuml_cmd/data"
-    else:
-        filename = os.path.basename(file)
-        save_path = f"{app_path}/{base_dir}/uml-{filename}"
+    #if not file:
+    save_path = f"{app_path}/plugins/plantuml_cmd/data"
+    #else:
+    #    filename = os.path.basename(file)
+    #    save_path = f"{app_path}/{base_dir}/uml-{filename}"
 
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -2408,11 +2408,13 @@ def draw_results(title, script_txt, file):
         with open(f"{save_path}/{title}.txt", "w") as uml:
             for each_line in script_txt:
                 uml.write("%s\n" % (each_line,))
-    subprocess.call(['java', '-jar',
-                     f'{app_path}/plugins/plantuml_cmd/plantuml.jar',
-                     '-tsvg',
-                     '-v',
-                     f'{save_path}/{title}.txt'])
+
+        if args.generate_uml:
+            subprocess.call(['java', '-jar',
+                             f'{app_path}/plugins/plantuml_cmd/plantuml.jar',
+                             '-tsvg',
+                             '-v',
+                             f'{save_path}/{title}.txt'])
 
 # ================================== Support import ==================================
 
@@ -3431,7 +3433,7 @@ class CordaObject:
             party.role = uml_role
             # if I'm not able to add this new party name, means it is already in.
             if not party.add():
-                return
+                continue
 
             CordaObject.uml_init.append(uml_object)
 
@@ -3444,7 +3446,7 @@ class CordaObject:
         Apply given rule to this object
         :return:
         """
-        participant_build = []
+        global participant_build
         participant_build_counter = 0
         x500_key_count = {}
         x500_build = ""
@@ -3509,7 +3511,7 @@ class CordaObject:
 
                 if rules_details[x500_key_check.group(1)]["operator"] == "=":
                     if x500_key_count[x500_key_check.group(1)] > rules_details[x500_key_check.group(1)]["occurrences"]:
-                        print("Warning Found a merged x500 name:\n %s\nattempting to split it" % uml_object)
+                        # print("Warning Found a merged x500 name:\n %s\nattempting to split it" % uml_object)
                         force_x500_split = True
                     else:
                         force_x500_split = False
@@ -3526,7 +3528,9 @@ class CordaObject:
                     # Remove last "," from this participant build:
                     x500_build = x500_build.strip(", ")
                     # Store this name
-                    participant_build.append(x500_build)
+                    if x500_build not in participant_build:
+                        print(f"  X500 name: {x500_build} [Re-Build from split]")
+                        participant_build.append(x500_build)
                     x500_build = "%s, " % x500_key_check.group(0)
                     # Reset rule key count for all to start from this x500 name (previous name was already stored)
                     for each_rd in x500_key_count:
@@ -3547,7 +3551,7 @@ class CordaObject:
                     # Store this name
                     if x500_build not in participant_build:
                         print(f" * X500 name: {x500_build}")
-                    participant_build.append(x500_build)
+                        participant_build.append(x500_build)
 
                     # Remove current keyword from expected list
                     if x500_key_check.group(1) in allowed_keys_list:
@@ -3568,7 +3572,7 @@ class CordaObject:
                     # Store this name
                     if x500_build not in participant_build:
                         print(f"  X500 name: {x500_build}")
-                    participant_build.append(x500_build)
+                        participant_build.append(x500_build)
                     # Clear build variable for next name
                     x500_build = ""
                 else:
@@ -3929,18 +3933,21 @@ def build_uml_script(corda_object=None):
 
                     # Check if there's any source/destination that require reporting...
                     if not source:
+                        print("="*100)
                         print("Warning: I was not able to determine source for given UML step:")
                         print("Action       : %s" % action)
                         print("Line         : %s" % reference)
                         print("Destination  : %s" % destination)
                         print("Original Line: %s" % corda_object.references[reference]["message"])
-
+                        print("="*100)
                     if not destination:
+                        print("="*100)
                         print("Warning: I was not able to determine destination for given UML step:")
                         print("Action       : %s" % action)
                         print("Line         : %s" % reference)
                         print("Source       : %s" % source)
                         print("Original Line: %s" % corda_object.references[reference]["message"])
+                        print("="*100)
 
                     if get_uml_values(each_uml_step[action], "note over:message"):
                         tx_id = ""
@@ -5978,6 +5985,7 @@ if __name__ == "__main__":
     app_path = os.path.dirname(os.path.abspath(__file__))
     app_path_support = app_path
     parser = argparse.ArgumentParser()
+    participant_build = []
 
     parser.add_argument('-t', '--transaction-details',
                         help='Will show each stage for every transaction found for given flow', action='store_true')
@@ -5991,6 +5999,8 @@ if __name__ == "__main__":
                                                      ' otherwise it will be ordered by timestamp', action='store_true')
     parser.add_argument('--simple-tables', help='show simple rendered text tables', action='store_true')
     parser.add_argument('--no-tables', help='show simple rendered text tables', action='store_true')
+    parser.add_argument('--generate-uml', '-u', help='Makes program generates a UML graph for each '
+                                                     'transaction or Flow found')
     parser.add_argument('--full-tables', help='show simple rendered text tables', action='store_true')
     parser.add_argument('--simplify', help='Read original file, and outputs a simplify version of it',
                         action="store_true")

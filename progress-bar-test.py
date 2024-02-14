@@ -81,7 +81,7 @@ def main():
         global current_line
         lines = 0
         with open(filename, "r") as check_file:
-            lines = len(check_file.read())
+            lines = len(check_file.readline())
 
         current_line = 0
 
