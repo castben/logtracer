@@ -258,7 +258,10 @@ def parse(log_line, selected_layout=None):
             log_scan = json.loads(line_groups['log_line'])
         except json.decoder.JSONDecodeError as jsonError:
             # Is not a on Json format, then return same line no further parsing will be performed
-            return log_line
+            if args.skip_pod_name and extract_fields.group("log_line"):
+                return extract_fields.group("log_line")
+            else:
+                return log_line
 
         # This will restrict fields that can be shown, I think will be better approach for this tool
         # to allows all fields, and it is up to user to decide what to see.
@@ -1561,6 +1564,8 @@ if __name__ == "__main__":
     parser.add_argument('--setup', help='An interactive way to setup program default options', action='store_true')
     parser.add_argument('--interactive',
                         '-i', help='Launch an text tui interface to interact with all options',
+                        action='store_true')
+    parser.add_argument('--skip-pod-name','-p', help='Skip pod name if log has standard corda 5 log format',
                         action='store_true')
     args = parser.parse_args()
 

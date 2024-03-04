@@ -414,6 +414,35 @@
           ]
         }
       },
+      "TRACER-2": {
+        "EXPECT": "([0-9-:.TZ ]*) \\{level=.([A-Z]+)., (.*)\\}?",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "TRACER-0": {
+        "EXPECT": "([0-9-:.ZT ]*) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
       "TRACER-1": {
         "EXPECT": "([0-9-:.ZT ]*) ([A-Za-z]+) (.*)",
         "FIELDS": [
@@ -905,6 +934,7 @@
       },
       "note left": {
         "EXPECT": [
+          "(?P<message>Node for \\\"[a-zA-Z0-9]+\\\" started up and registered in [0-9.]+ sec)",
 	      "(?P<message>admitted to hospital in state StateMachineState)",
           "(?P<message>received token vault update with \\d+ consumed states and: \\d+ produced states).*flow-id=__flow_id__.*origin=__source__",
           ".*WARN.*flow-id=__flow_id__\\s*tx-id=__tx_id__.*(?P<message>SqlExceptionHelper.*)",
@@ -990,7 +1020,6 @@
                 "Requesting all membership transactions from",
                 "Sending transaction to notary",
                 "Recording transaction locally",
-                "Received a notarisation request for Tx",
                 "Sending it to flow hospital to be triaged",
                 "responding with ReceiveFinalityFlow to"
               ],
@@ -1185,7 +1214,7 @@
       "OBJECTS": {
         "participant": {
           "EXPECT": [
-            "([OLUNCST]{1,2}=[a-zA-Z &.\",-=]+,\\s*C=[A-Z]{2})"
+            "([OLUNCST]{1,2}=[a-zA-Z &._\",-=]+,\\s*C=[A-Z]{2})"
           ],
           "APPLY_TO": [
             "source",
@@ -1206,7 +1235,7 @@
         },
         "notary": {
           "EXPECT": [
-            "([OLUNCST]{1,2}=[a-zA-Z &.\",-=]+,\\s*C=[A-Z]{2})"
+            "([OLUNCST]{1,2}=[a-zA-Z &._\",-=]+,\\s*C=[A-Z]{2})"
           ],
           "APPLY_TO": [
             "source",

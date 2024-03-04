@@ -2554,6 +2554,7 @@ class CordaObject:
     relations = {}
 
     # Default UML references
+    # This represents entities endpoints (for source and destination)
     default_uml_endpoints = {}
     # To store all uml setup
     uml = {}
@@ -2660,6 +2661,10 @@ class CordaObject:
 
     @staticmethod
     def reset():
+        """
+        Clears up actual object and deletes all info
+        :return:
+        """
         CordaObject.list = {}
         CordaObject.uml_init = []
         CordaObject.log_owner = None
@@ -2873,6 +2878,7 @@ class CordaObject:
 
         :return: void
         """
+        party = Party.get_party(participant)
 
         if role == "log_owner":
             CordaObject.log_owner = participant
@@ -2891,6 +2897,14 @@ class CordaObject:
             else:
                 print("There's no config section for '%s' unable to define default properly" % (role,))
                 print("Default destination/source will be shown as 'None' at UML")
+
+        # Check if this participant has extra endpoints to attach (A notary for example)
+        additional_endpoints = Configs.get_config(section="UML_ENTITY", param="OBJECTS", sub_param=party.get_corda_role().lower())
+        if additional_endpoints:
+            for each_endpoint in additional_endpoints['USAGES']:
+                additional_usages = additional_endpoints['USAGES'][each_endpoint]['EXPECT']
+                CordaObject.default_uml_endpoints[participant][each_endpoint]['EXPECT'].extend(additional_usages)
+
 
     @staticmethod
     def get_log_owner():
@@ -3411,8 +3425,8 @@ class CordaObject:
         Add new objects
         Also, it will try to identify if given object has a role
 
-        :param incoming_uml_object:
-        :param uml_role:
+        :param incoming_uml_object: Normally party name
+        :param uml_role: role assigned to this party (participant, control node, etc)
 
         :return:
         """
@@ -3648,6 +3662,7 @@ class Party:
     def __init__(self):
         self.name = None
         self.role = ''
+        self.corda_role = ''
         self.default_endpoint = None
 
     def set_name(self, name):
@@ -3666,6 +3681,23 @@ class Party:
         """
 
         self.role = role
+
+    def set_corda_role(self, corda_role):
+        """
+        Set party corda role
+        :param corda_role: set actual corda role like participant, Notary, etc
+        :return: void
+        """
+
+        self.corda_role = corda_role
+
+    def get_corda_role(self):
+        """
+        Return actual corda role assigned to this party
+        :return: String
+        """
+
+        return self.corda_role
 
     def add_endpoint(self, endpoints, endpoint_type="source"):
         """
@@ -3704,6 +3736,19 @@ class Party:
 
         Party.party_list.append(self)
         return True
+
+    @staticmethod
+    def get_party( party_name):
+        """
+        Return Party object that match x500 name
+        :param party_name: x500 name of party to look for
+        :return: a party object
+        """
+        for each_party in Party.party_list:
+            if each_party.name == party_name:
+                return each_party
+
+        return None
 
 class OrderedDictX(OrderedDict):
     def prepend(self, other):
@@ -4102,6 +4147,14 @@ def setup_default_endpoint(message, check_end_point=None):
     :param message: actual message to scan
     :return: a source or destination depending on default rules defined. will return null otherwise...
     """
+
+    #TODO: hay un problema en este metodo para determinar el default origen o default destino, el problema
+    # se presenta cuando un participante es por ejemplo el notario y al mismo tiempo es el dueno del logfile
+    # en este sentido el programa le asignara los "endpoints" correspondientes a un "log_owner" y con esto
+    # dejara fuera la identidicacion del notario como destino, esto provoca que el destino sea "desconocido"
+    # para el programa y falle.
+    # Asignar los destinos adicionales para el notario cuando sea log_owner, creo que esto solucionara el problema
+
     default_end_point = None
     if not check_end_point:
         for each_object in CordaObject.default_uml_endpoints:
@@ -4220,17 +4273,42 @@ def trace_id():
             print("I was not able to determine who is the owner of given logs,"
                   " please can you choose it from below...\n")
             participant_list = []
+            counter = 0
             for each_item in CordaObject.uml_init:
                 # if "uml_object" in each_item:
-                #     counter += 1
+                # counter += 1
                 #     party = each_item.replace("uml_object", "").replace('"', '').strip()
                 if "participant" in each_item:
                     counter += 1
                     party = clear_participant_str(each_item)
                     print("[%s] %s" % (counter, party))
                     participant_list.append(party)
-
+            counter += 1
+            print(f"[{counter}] - Need to define new party for this file")
             selection = input("Please let me know which one is the producer of this log file [1-%s]:" % (counter,))
+            if int(selection) == counter:
+                party_roles = [
+                    "Notary",
+                    "Party"
+                ]
+                print("Please specify a valid x500 name for this party:")
+                party_name = input("> ")
+                print("Please specify role for this party:")
+                for idx, each_role in enumerate(party_roles):
+                    print(f"{idx} - {each_role}")
+                party_irole = -1
+                while int(party_irole) < 0 or int(party_irole) > len(party_roles):
+                    party_irole = input("> ")
+
+                party_role = party_roles[int(party_irole)]
+
+                CordaObject.add_uml_object(party_name, "participant")
+                participant_list.append(party_name)
+                add_participant(party_name, party_role)
+                party_object = Party.get_party(party_name)
+                if party_object:
+                    party_object.set_corda_role(party_role)
+
             CordaObject.set_participant_role(participant_list[int(selection) - 1], role="log_owner", attach_usages=True)
 
         print("Party elements found:")
@@ -4258,19 +4336,29 @@ def trace_id():
             operations = Table(table_name=title)
             operations.add_header("Time Stamp", 30, "^", "^")
             operations.add_header("Log Line #", 10, "^", "^")
-            for each_field in CordaObject.additional_table_fields:
-                operations.add_header(each_field, 70, "^", "<")
+            #
+            if CordaObject.additional_table_fields:
+                for each_field in CordaObject.additional_table_fields:
+                    operations.add_header(each_field, 70, "^", "<")
+            else:
+                # Add mere line that held reference...
+                operations.add_header("Reference",60,"^","<")
+
             operations.add_header("UML", 10, "^", "^")
             for each_reference in corda_o.references:
                 corda_or = corda_o.references[each_reference]
                 operations.add_cell(corda_or["timestamp"])
                 operations.add_cell("%s" % (each_reference,))
 
-                for each_field in CordaObject.additional_table_fields:
-                    if each_field in corda_or:
-                        operations.add_cell(corda_or[each_field])
-                    else:
-                        operations.add_cell("[*NO MATCH RULE*]: %s" % corda_or["message"])
+                if CordaObject.additional_table_fields:
+                    for each_field in CordaObject.additional_table_fields:
+                        if each_field in corda_or:
+                            operations.add_cell(corda_or[each_field])
+                        else:
+                            operations.add_cell("[*NO MATCH RULE*]: %s" % corda_or["message"])
+                else:
+                    operations.add_cell(corda_or['message'])
+
                 if "uml" in corda_or:
                     operations.add_cell(list(corda_or["uml"][0].keys())[0])
                 else:
@@ -5061,6 +5149,8 @@ def get_ref_ids():
                                 #  log lo que provoca que el objeto no sea creado... por los momentos voy a
                                 #  ignorar estas referencias...
                                 if log_line_fields:
+                                    if not 'error_level' in log_line_fields:
+                                        log_line_fields['error_level'] = 'INFO'
                                     co.add_data("id_ref", each_group)
                                     co.add_data("Original line", each_line)
                                     co.add_data("error_level", log_line_fields["error_level"])
@@ -6000,10 +6090,12 @@ if __name__ == "__main__":
     parser.add_argument('--simple-tables', help='show simple rendered text tables', action='store_true')
     parser.add_argument('--no-tables', help='show simple rendered text tables', action='store_true')
     parser.add_argument('--generate-uml', '-u', help='Makes program generates a UML graph for each '
-                                                     'transaction or Flow found')
+                                                     'transaction or Flow found', action="store_true")
     parser.add_argument('--full-tables', help='show simple rendered text tables', action='store_true')
     parser.add_argument('--simplify', help='Read original file, and outputs a simplify version of it',
                         action="store_true")
+    parser.add_argument('--generate-uml-for','-gu',
+                        help='Generate a UML chart for a specific reference')
     args = parser.parse_args()
     load_corda_object_definition()
     Configs.load_config()
@@ -6038,3 +6130,4 @@ if __name__ == "__main__":
 
     if args.web_style:
         print('</html>')
+
