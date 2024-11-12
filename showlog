@@ -1502,7 +1502,7 @@ if __name__ == "__main__":
     wordWrap_value = 800
     loaded_file = None
     fields_found = []
-    max_lines_to_read = 2500
+    max_lines_to_read = None
     TTKTextEdit_logcontent = None
     TTKTextEdit_logging_messages = None
 
