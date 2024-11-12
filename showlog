@@ -851,6 +851,7 @@ def interactive_work():
 
     TTKTextEdit_logcontent = ttk.TTkTextEdit(parent=TTkWindow_logs, lineNumberStarting=1)
     TTKTextEdit_logging_messages = ttk.TTkTextEdit(parent=TTkWindow_logging)
+    TTKTextEdit_logcontent.setReadOnly(False)
 
     @pyTTkSlot()
     def _analyse_file(file_name):
