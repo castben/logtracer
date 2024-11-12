@@ -926,7 +926,7 @@ def interactive_work():
                 return None
 
             # Check if file can be loaded (depending on number of lines it has)
-            if used_file.get("total-lines") >= max_lines_to_read:
+            if max_lines_to_read and used_file.get("total-lines") >= max_lines_to_read:
                 print(f"This file has more than {max_lines_to_read}, this tool will only load this amount of lines")
                 line_count = 0
                 for each_line in full_file.split("\n"):
