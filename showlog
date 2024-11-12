@@ -1135,7 +1135,7 @@ def interactive_work():
             with open(loaded_file, "r") as fh_current_file:
                 with open(temp_file_name, "w") as tmpfile:
                     for each_line in fh_current_file:
-                        if line_count >= max_lines_to_read:
+                        if max_lines_to_read and line_count >= max_lines_to_read:
                             break
                         # TTKTextEdit_logcontent.toRawText().split("\n"):
                         tmpfile.write(f"{print_line(each_line, fields, used_file=used_file)}\n")
