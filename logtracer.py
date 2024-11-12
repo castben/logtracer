@@ -2900,7 +2900,7 @@ class CordaObject:
 
         # Check if this participant has extra endpoints to attach (A notary for example)
         additional_endpoints = Configs.get_config(section="UML_ENTITY", param="OBJECTS", sub_param=party.get_corda_role().lower())
-        if additional_endpoints:
+        if additional_endpoints and 'USAGES' in additional_endpoints:
             for each_endpoint in additional_endpoints['USAGES']:
                 additional_usages = additional_endpoints['USAGES'][each_endpoint]['EXPECT']
                 CordaObject.default_uml_endpoints[participant][each_endpoint]['EXPECT'].extend(additional_usages)
