@@ -2397,6 +2397,12 @@ def draw_results(title, script_txt, file):
     base_dir = os.path.dirname(file)
     #if not file:
     save_path = f"{app_path}/plugins/plantuml_cmd/data"
+    if file:
+        tmp_file = os.path.basename(file)
+        if '.' in tmp_file:
+            tmp = tmp_file.split('.')
+            save_path = f"{app_path}/plugins/plantuml_cmd/data/{tmp[0]}"
+
     #else:
     #    filename = os.path.basename(file)
     #    save_path = f"{app_path}/{base_dir}/uml-{filename}"
