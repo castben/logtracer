@@ -3653,6 +3653,65 @@ class CordaObject:
 
         return None
 
+    @staticmethod
+    def get_all_objects(export=True):
+        """
+        Returns all objects stored
+        :return: a dictionary
+        """
+        data = {}
+        if not export:
+            return CordaObject.list
+
+        for each_type in CordaObject.list:
+            for each_item in CordaObject.list[each_type]:
+                if each_type not in data:
+                    data[each_type] = {}
+
+                data[each_type][each_item] = CordaObject.list[each_type][each_item].data
+
+        return data
+
+class FileManagement:
+    """
+    A class to help to read big files...
+    """
+    def __init__(self):
+        self.filename = None
+        self.block_size = None
+
+
+    def divide_file(self):
+        """
+        Divide file in defined block_sizes
+        :return:
+        """
+        with open(self.filename, "r") as fh_file:
+            while True:
+                start_pos = fh_file.tell()
+                lines = fh_file.readlines(self.filename)
+                if not lines:
+                    break
+                yield start_pos, fh_file.tell() - start_pos
+
+    def process_block(args):
+        filename, start, size = args
+        results = []
+        with open(filename, "r") as file:
+            file.seek(start)
+            lines = file.read(size).splitlines()
+            for line in lines:
+                result = CordaObject.analyse(line)  # Tu lógica aquí
+                if result:
+                    results.append(result)
+        return results
+
+    def parallel_processing(self,filename, block_size):
+        tasks = [(filename, start, size) for start, size in self.divide_file(filename, block_size)]
+        with Pool() as pool:
+            results = pool.map(self.process_block, tasks)
+        return results
+
 
 class UMLObject:
     """
