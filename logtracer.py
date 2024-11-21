@@ -11,6 +11,7 @@ import os
 import re
 import textwrap
 from collections import OrderedDict
+from multiprocessing import Pool
 
 from ahocorapy.keywordtree import KeywordTree
 from sqlalchemy import and_
@@ -3756,6 +3757,7 @@ class Party:
 
         return None
 
+
 class OrderedDictX(OrderedDict):
     def prepend(self, other):
         ins = []
@@ -5188,11 +5190,140 @@ def get_ref_ids():
                 exit(0)
 
         # Flows.flow_summary()
-
+        saving_tracing_ref_data(CordaObject.get_all_objects())
         trace_id()
         print('Finished.')
     except IOError as io:
         print('Sorry unable to open %s due to %s' % (log_file, io))
+
+def get_ref_ids_NEW(each_line):
+    """
+    Search for all identifiable ids on a log
+
+    :return:
+    """
+    #TODO: transformar estarutina para que trabaje con una sola linea antes lo hacia haciendo un bucle
+    global logfile_format
+    print("Phase *1* Collect ids")
+    corda_objects = Configs.get_config(section='CORDA_OBJECTS')
+    corda_object_detection = None
+    # Complete list of corda object regex definition
+    all_regex = []
+    # A helper list to give the type and avoid to do a second search on the config to gather object type
+    all_regex_type = []
+    if not corda_objects:
+        print("No definition for corda objects found, please setup CORDA_OBJECT section on config")
+        exit(0)
+    else:
+        # Collect from "CORDA_OBJECTS" all object definitions:
+        corda_objects = Configs.get_config(section="CORDA_OBJECTS")
+
+        for each_type in corda_objects:
+            if "EXPECT" in Configs.get_config(sub_param=each_type, section="CORDA_OBJECTS")[each_type]:
+                regex_list = Configs.get_config(sub_param=each_type, section="CORDA_OBJECTS")[each_type]["EXPECT"]
+                for each_rgx in regex_list:
+                    all_regex.append(build_regex(each_rgx, nogroup_name=True))
+                    all_regex_type.append(each_type)
+
+        # Prepare full regex for quick detection
+        corda_object_detection = "|".join(all_regex)
+
+    try:
+        if not logfile_format:
+            for each_version in Configs.get_config(section="VERSION"):
+                try_version = Configs.get_config(section="VERSION", param=each_version)
+                check_version = re.search(try_version["EXPECT"], each_line)
+                if check_version:
+                    logfile_format = each_version
+                    print("Log file format recognized as: %s" % logfile_format)
+                    break
+
+        cordaobject_id_match = re.finditer(corda_object_detection, each_line)
+
+        if cordaobject_id_match:
+            group_count = 0
+            for matchNum, match in enumerate(cordaobject_id_match, start=1):
+                for groupNum in range(0, len(match.groups())):
+                    groupNum = groupNum + 1
+                    each_group = match.group(groupNum)
+                    if each_group and each_group not in CordaObject.id_ref:
+                        # print("id {group} identified as {type}".format(
+                        #     group=match.group(groupNum),
+                        #     type=all_regex_type[groupNum-1]
+                        # ))
+
+                        # Add a new reference found into the list
+                        CordaObject.id_ref.append(each_group)
+                        #
+                        # Also create this object to be identified later:
+                        # first extract line features (timestamp, severity, etc)
+                        log_line_fields = get_fields_from_log(each_line, logfile_format)
+                        # Create object:
+                        co = CordaObject()
+                        # TODO: Hay un bug que ocurre cuando el programa detecta un corda_object que esta
+                        #  en una linea que esta fuera (tiene retorno de carro) de la linea principal del
+                        #  log lo que provoca que el objeto no sea creado... por los momentos voy a
+                        #  ignorar estas referencias...
+                        if log_line_fields:
+                            if not 'error_level' in log_line_fields:
+                                log_line_fields['error_level'] = 'INFO'
+                            co.add_data("id_ref", each_group)
+                            co.add_data("Original line", each_line)
+                            co.add_data("error_level", log_line_fields["error_level"])
+                            co.add_data("timestamp", log_line_fields["timestamp"])
+                            co.add_data("type", all_regex_type[groupNum-1])
+                            co.set_type(all_regex_type[groupNum-1])
+                            co.add_object()
+
+        #  /home/larry/IdeaProjects/support/plugins/trackFlow/sup1290/node-diusp-lweb0004.2020-05-21-1.log
+        #  /home/r3support/www/uploads/customers/TradeIX/SUP-1480/20200915171050_pack/
+        # trace_logs_receiver_1/2020-09/app-09-15-2020-3.log
+        print("Summary:")
+        for each_type in CordaObject.list:
+            print(" * %s %s(S) identified." % (len(CordaObject.list[each_type]), each_type))
+
+        if not logfile_format:
+            print("Sorry I can't find a proper log template to parse this log terminating program")
+            exit(0)
+
+        if len(CordaObject.id_ref) > 0:
+            print('%s file contains %s ids' % (log_file, len(CordaObject.id_ref)))
+
+        if len(CordaObject.id_ref) > 50 and not args.web_style:
+            print('**WARNING** this may take long time to complete...')
+            print('Do you want to track all id\'s in %s file ?' % (log_file,))
+
+            response = input('> ')
+            if response != 'y':
+                exit(0)
+
+        # Flows.flow_summary()
+        saving_tracing_ref_data(CordaObject.get_all_objects())
+        trace_id()
+        print('Finished.')
+    except IOError as io:
+        print('Sorry unable to open %s due to %s' % (log_file, io))
+
+def saving_tracing_ref_data(data):
+    """
+    Will save actual collected reference data to be able to load it quickly
+    :param data:
+    :return:
+    """
+    logdir = os.path.dirname(args.log_file)
+    log_file = os.path.basename(args.log_file)
+    tracer_cache = f'{logdir}/cache'
+
+    if not os.path.exists(tracer_cache):
+        os.mkdir(tracer_cache)
+    try:
+        with open(f"{tracer_cache}/references.json", 'w') as fh_references:
+            json.dump(data, fh_references, indent=4)
+    except IOError as io:
+        print(f'Unable to create cache file {tracer_cache}/references.json due to: {io}')
+
+    return
+
 
 
 def build_regex(regex, nogroup_name=False):
