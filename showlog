@@ -363,7 +363,7 @@ def generate_internal_access(variable_dict, variable_to_get):
             fvariable_value = eval(f"variable_dict{fvariable}")
             # final_output = final_output + f"{variables[len(variables)-1]}: {final_variable} "
             return fvariable, fvariable_value
-        except BaseException as be:
+        except KeyError as be:
 
             # print(f"Unable to access variable_dict{fvariable} from this line: {variable_dict}")
             return None, None
@@ -533,15 +533,23 @@ def parse_json(file_to_process=None):
                 print(f"{pos:3} - {each_field_found.strip()}")
         return used_file
     else:
-        with open(f"{parse_file}", "r") as lghr:
-            for each_line in lghr:
-                print_line(each_line, args.fields, used_file)
-                if args.output:
-                    cl += 1
-                    cp = (cl * 100) / tl
-                    if cp >= cpi:
-                        cpi = cpi + 10
-                        print("Finished... %.2f%s" % (cp, '%'), file=sys.stderr)
+        if used_file.get('file-format') == "JSON per line":
+            with open(f"{parse_file}", "r") as lghr:
+                for each_line in lghr:
+                    print_line(each_line, args.fields, used_file)
+                    if args.output:
+                        cl += 1
+                        cp = (cl * 100) / tl
+                        if cp >= cpi:
+                            cpi = cpi + 10
+                            print("Finished... %.2f%s" % (cp, '%'), file=sys.stderr)
+        if used_file.get('file-format') == "JSON File":
+            line_count = 0
+            with open(f"{parse_file}", "r") as lghr:
+                json_file = json.load(lghr)
+                for each_record in json_file:
+                    # line_count += 1
+                    print_line(each_record, args.fields, used_file)
 
     return used_file
 
@@ -565,13 +573,21 @@ def print_line(line, selected_fields, used_file):
     value = None
 
     try:
-        line_fields = json.loads(line)
+        if used_file.get("file-format") == 'JSON per line':
+            line_fields = json.loads(line)
+        if used_file.get("file-format") == 'JSON File':
+            line_fields = line
         for each_field in selected_fields:
             fld = used_file.get('fields')[int(each_field)].strip()
             if fld in line_fields:
                 value = line_fields[fld]
             else:
                 result = generate_internal_access(line_fields, fld)
+                if not result[1]:
+                    # print(line)
+                    # input("Missing fields!...STOPPING")
+                    result = (fld, 'UNKNOWN')
+
                 if result:
                     value = result[1]
 
@@ -661,31 +677,57 @@ def generate_field_index(file_to_process=None, save=False):
 
     fields_found = None
     tl = 0
+    file_format = None
     if not args.fields:
         print("You will need to select which fields you want to see")
     try:
         print("Analysing file, please wait...")
-        with open(parse_file, "r") as lfh:
-            for each_line in lfh:
-                tl += 1
-                try:
-                    line_fields = json.loads(each_line)
-                    if line_fields:
-                        fields = getKeys(line_fields, "", fields_found)
-                        fields_found = fields
-                except json.JSONDecodeError as jde:
-                    #readed line is not json format
-                    pass
 
-                    # print(each_line.strip())
+        # Check if is a JSON file
+        #
+        try:
+            with open(parse_file, "r") as lfh:
+                json_file = json.load(lfh)
+            tl = len(json_file)
+            if json_file:
+                file_format = "JSON File"
+                for each_record in json_file:
+                    fields = getKeys(each_record, "", fields_found)
+                    fields_found = fields
+
+        except json.JSONDecodeError as jde:
+            # Isn't a json file
+            # try next test... is a json file per line?
+            pass
+
+        if not file_format:
+            # Check if json per line file
+            #
+            with open(parse_file, "r") as lfh:
+                for each_line in lfh:
+                    tl += 1
+                    try:
+                        line_fields = json.loads(each_line)
+                        if line_fields:
+                            fields = getKeys(line_fields, "", fields_found)
+                            fields_found = fields
+                            if not file_format:
+                                file_format = "JSON per line"
+                    except json.JSONDecodeError as jde:
+                        # read line is not json format
+                        pass
+
+                        # print(each_line.strip())
         if fields:
             file.set_name(parse_file)
             file.set("total-lines", tl)
             file.set("fields", fields)
+            file.set("file-format", file_format)
         else:
             file.set_name(parse_file)
             file.set("total-lines", tl)
             file.set("fields", None)
+            file.set("file-format", "unknown")
             print("I'm not able to identify JSON format on whole file, loading it anyway")
 
         if save:
@@ -851,7 +893,6 @@ def interactive_work():
 
     TTKTextEdit_logcontent = ttk.TTkTextEdit(parent=TTkWindow_logs, lineNumberStarting=1)
     TTKTextEdit_logging_messages = ttk.TTkTextEdit(parent=TTkWindow_logging)
-    TTKTextEdit_logcontent.setReadOnly(False)
 
     @pyTTkSlot()
     def _analyse_file(file_name):
@@ -1132,15 +1173,25 @@ def interactive_work():
 
             temp_file_name = f"{used_file.get('file-path')}/{used_file.get_temp_name()}"
             line_count = 0
-            with open(loaded_file, "r") as fh_current_file:
+            if used_file.get('file-format') == 'JSON per line':
+                with open(loaded_file, "r") as fh_current_file:
+                    with open(temp_file_name, "w") as tmpfile:
+                        for each_line in fh_current_file:
+                            if max_lines_to_read and  line_count >= max_lines_to_read:
+                                break
+                            # TTKTextEdit_logcontent.toRawText().split("\n"):
+                            tmpfile.write(f"{print_line(each_line, fields, used_file=used_file)}\n")
+                            line_count += 1
+            if used_file.get('file-format') == 'JSON File':
+                with open(loaded_file, "r") as fh_current_file:
+                    json_records = json.load(fh_current_file)
                 with open(temp_file_name, "w") as tmpfile:
-                    for each_line in fh_current_file:
+                    for each_line in json_records:
                         if max_lines_to_read and line_count >= max_lines_to_read:
                             break
                         # TTKTextEdit_logcontent.toRawText().split("\n"):
                         tmpfile.write(f"{print_line(each_line, fields, used_file=used_file)}\n")
                         line_count += 1
-
             original_file = loaded_file
             load_file(temp_file_name, generate_index=False, original_file_info=used_file)
             loaded_file = original_file
@@ -1502,7 +1553,7 @@ if __name__ == "__main__":
     wordWrap_value = 800
     loaded_file = None
     fields_found = []
-    max_lines_to_read = None
+    max_lines_to_read = 2500
     TTKTextEdit_logcontent = None
     TTKTextEdit_logging_messages = None
 
