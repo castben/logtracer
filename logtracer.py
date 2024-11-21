@@ -2906,11 +2906,19 @@ class CordaObject:
                 print("Default destination/source will be shown as 'None' at UML")
 
         # Check if this participant has extra endpoints to attach (A notary for example)
-        additional_endpoints = Configs.get_config(section="UML_ENTITY", param="OBJECTS", sub_param=party.get_corda_role().lower())
-        if additional_endpoints and 'USAGES' in additional_endpoints:
-            for each_endpoint in additional_endpoints['USAGES']:
-                additional_usages = additional_endpoints['USAGES'][each_endpoint]['EXPECT']
-                CordaObject.default_uml_endpoints[participant][each_endpoint]['EXPECT'].extend(additional_usages)
+        #
+        if party.get_corda_role():
+            additional_endpoints = Configs.get_config(section="UML_ENTITY", param="OBJECTS",
+                                                      sub_param=party.get_corda_role().lower())
+            if party.get_corda_role().lower() in additional_endpoints:
+                additional_endpoints = additional_endpoints[party.get_corda_role().lower()]
+            else:
+                additional_endpoints = None
+
+            if additional_endpoints and 'USAGES' in additional_endpoints:
+                for each_endpoint in additional_endpoints['USAGES']:
+                    additional_usages = additional_endpoints['USAGES'][each_endpoint]['EXPECT']
+                    CordaObject.default_uml_endpoints[participant][each_endpoint]['EXPECT'].extend(additional_usages)
 
 
     @staticmethod
