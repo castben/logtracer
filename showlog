@@ -349,8 +349,9 @@ def parse(log_line, selected_layout=None):
 def generate_internal_access(variable_dict, variable_to_get):
     """
     This method will try to generate internal access to given variable
-    :param variable:
-    :return:
+    :type variable_dict: Actual dictionary object to access
+    :param variable_to_get: dot representation to reach such variable
+    :return: access representation to get into that variable,value of variable asked for
     """
 
     if '.' in variable_to_get:

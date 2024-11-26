@@ -2939,13 +2939,13 @@ class CordaObject:
 
         uml_definition = Configs.get_config(section="UML_DEFINITIONS")
         uml_rtn = {}
-
         uml_step = {}
         # Loop over all UML definitions
         for each_uml_definition in uml_definition:
             # now for each uml definition, try to see if we have a match
             #
-            # Stage 1: Find out which UML command should be applied to given line
+            # Stage 1: Find out which UML command should be applied to given line, as all UML_DEFINITIONS are
+            # created as "meta-definitions" I need below line to extract actual regex that need to be used...
             # In this section, i will loop over all defined UML commands, and find out if this line match any of them
             #
 
@@ -3503,15 +3503,14 @@ class CordaObject:
         allowed_keys_list = list(rules.keys())
         # search for proper formed x500 keys on given string...
         # following line will extract all keys from given string
-        x500_keys = re.findall("([%s]{1,2}=[^\n,]*)" % allowed_keys, uml_object)
+        x500_keys = re.findall(r"([%s]{1,2}=[^\n\!\@\#\$\%\^\*\(\)~\?\>\<\&\/\\\,\.\",]*)" % allowed_keys, uml_object)
         number_of_keys = len(x500_keys)
         x500_key_counter = 0
         for each_x500_key in x500_keys:
             x500_key_counter += 1
-
             # Extract proper key, and it's value; will use re.search to manage re groups
             #
-            x500_key_check = re.search("([%s]{1,2})=([^\n,]*)" % allowed_keys, each_x500_key)
+            x500_key_check = re.search(r"([%s]{1,2}=[^\n\!\@\#\$\%\^\*\(\)~\?\>\<\&\/\\\,\.\",]*)" % allowed_keys, each_x500_key)
 
             # count how many times given key appears
 
@@ -3800,10 +3799,18 @@ class Party:
     def add(self):
         """
         Add a new party
-        :return:
+        :return: False if Party was already added, True if it is first time
         """
         self.name = self.name.replace('"','')
         # If party name was already registered do not add it.
+
+        # # Verify if this UML object definition has a rule to accomplish
+        # rules = Configs.get_config(uml_role, "RULES", "UML_DEFINITIONS")
+        # if rules:
+        #     uml_list = CordaObject.uml_apply_rules(incoming_uml_object, rules)
+        # else:
+        #     uml_list = [incoming_uml_object]
+
         for pty in Party.party_list:
             if self.name == pty.name:
                 return False
@@ -3812,7 +3819,7 @@ class Party:
         return True
 
     @staticmethod
-    def get_party( party_name):
+    def get_party(party_name):
         """
         Return Party object that match x500 name
         :param party_name: x500 name of party to look for
@@ -3841,6 +3848,56 @@ class OrderedDictX(OrderedDict):
             self.update(ins)
             self.update(items)
 
+def generate_internal_access(variable_dict, variable_to_get):
+    """
+    This method will try to generate internal access to given variable
+    :type variable_dict: Actual dictionary object to access
+    :param variable_to_get: dot representation to reach such variable
+    :return: access representation to get into that variable,value of variable asked for
+    """
+
+    if '.' in variable_to_get:
+        variables = variable_to_get.split('.')
+        fvariable = ""
+        for each_var in variables:
+            fvariable = fvariable + f"['{each_var}']"
+
+        try:
+            fvariable_value = eval(f"variable_dict{fvariable}")
+            # final_output = final_output + f"{variables[len(variables)-1]}: {final_variable} "
+            return fvariable, fvariable_value
+        except KeyError as be:
+
+            # print(f"Unable to access variable_dict{fvariable} from this line: {variable_dict}")
+            return None, None
+
+def join_all_regex(section, list_to_collect=None):
+    """
+    A method to join all regex to search for...
+    :param section: This is section at the JSON you want to collect regex from
+    :param corda_objects:
+    :param list_to_collect:
+    :return:
+    """
+    all_regex = []
+    all_regex_type = []
+
+
+    objects_to_check = Configs.get_config(section=section)
+
+    if not objects_to_check:
+        return None, None
+
+    for each_type in objects_to_check.keys():
+        if list_to_collect and each_type not in list_to_collect:
+            continue
+        if "EXPECT" in objects_to_check[each_type]:
+            regex_list = objects_to_check[each_type]["EXPECT"]
+            for each_rgx in regex_list:
+                all_regex.append(build_regex(each_rgx, nogroup_name=True))
+                all_regex_type.append(each_type)
+
+    return all_regex, all_regex_type
 
 def regex_to_use(regex_list, message_line):
     """
@@ -4311,7 +4368,7 @@ def trace_id():
     #     print('\n%s' % flow,)
     start = False
     end = False
-    print("Phase *2* Analysing...")
+    print("Phase *2* Analysing... searching references for transactions and flows")
 
     if log_file:
         # If a file is being specified...
@@ -5161,29 +5218,27 @@ def get_ref_ids():
     :return:
     """
     global logfile_format
-    print("Phase *1* Collect ids")
+
     corda_objects = Configs.get_config(section='CORDA_OBJECTS')
     corda_object_detection = None
+    print("Phase *1* Collect ids searching for "+",".join(list(corda_objects.keys())))
     # Complete list of corda object regex definition
-    all_regex = []
-    # A helper list to give the type and avoid to do a second search on the config to gather object type
-    all_regex_type = []
-    if not corda_objects:
+    # # A helper list to give the type and avoid to do a second search on the config to gather object type
+
+
+    # Prepare full regex for quick detection
+    all_regex, all_regex_type = join_all_regex('CORDA_OBJECTS')
+    all_regex_party, all_regex_type_party = join_all_regex('UML_DEFINITIONS', ['participant'])
+
+    if not all_regex:
         print("No definition for corda objects found, please setup CORDA_OBJECT section on config")
         exit(0)
     else:
         # Collect from "CORDA_OBJECTS" all object definitions:
-        corda_objects = Configs.get_config(section="CORDA_OBJECTS")
-
-        for each_type in corda_objects:
-            if "EXPECT" in Configs.get_config(sub_param=each_type, section="CORDA_OBJECTS")[each_type]:
-                regex_list = Configs.get_config(sub_param=each_type, section="CORDA_OBJECTS")[each_type]["EXPECT"]
-                for each_rgx in regex_list:
-                    all_regex.append(build_regex(each_rgx, nogroup_name=True))
-                    all_regex_type.append(each_type)
-
-        # Prepare full regex for quick detection
+        # This will search for "CORDA_OBJECTS" defined (see json file)
         corda_object_detection = "|".join(all_regex)
+
+    corda_party_detection = "|".join(all_regex_party)
 
     try:
         with open(log_file, 'r') as flog_file:
@@ -5198,6 +5253,8 @@ def get_ref_ids():
                             break
 
                 cordaobject_id_match = re.finditer(corda_object_detection, each_line)
+
+                # Definition of references and also collecting information about "CORDA_OBJECTS"(FLOW,TRANSACTIONS)
 
                 if cordaobject_id_match:
                     group_count = 0
@@ -5233,6 +5290,21 @@ def get_ref_ids():
                                     co.add_data("type", all_regex_type[groupNum-1])
                                     co.set_type(all_regex_type[groupNum-1])
                                     co.add_object()
+
+                # Definition to check parties
+                cordaobject_party_match = re.finditer(corda_party_detection, each_line)
+                matches = list(cordaobject_party_match)
+                if matches:
+                    for matchNum, match in enumerate(matches, start=1):
+                        for groupNum in range(0, len(match.groups())):
+                            groupNum = groupNum + 1
+                            each_group = match.group(groupNum)
+                            if each_group:
+                                CordaObject.add_uml_object(each_group,'participant')
+                                # party = Party()
+                                # party.set_name(each_group)
+                                # if party.add():
+                                #     print(each_group)
 
         #  /home/larry/IdeaProjects/support/plugins/trackFlow/sup1290/node-diusp-lweb0004.2020-05-21-1.log
         #  /home/r3support/www/uploads/customers/TradeIX/SUP-1480/20200915171050_pack/
