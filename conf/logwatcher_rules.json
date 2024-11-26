@@ -429,6 +429,21 @@
           ]
         }
       },
+      "Coadjute-0": {
+        "EXPECT": "([0-9-:.ZT]*)\\s+([A-Z]+)\\s*(.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
       "TRACER-0": {
         "EXPECT": "([0-9-:.ZT ]*) (.*)",
         "FIELDS": [
@@ -812,12 +827,11 @@
       "notary": {
         "DESCRIPTION": "This will designate who is the Notary in a list of participants",
         "EXPECT": [
-          "__participant__"
+          "Sending transaction to notary: __notary__"
         ],
         "FIELDS": [
           "participant:notary"
         ],
-        "OPTIONS": "SINGLE_DEFINITION",
         "MAX_LEN": 35
       },
       "participant": {
@@ -838,7 +852,47 @@
           "CN": "1:=:O",
           "ST": "1:=:O"
         },
-        "MAX_LEN": 35
+        "RULES-D": {
+          "supported-attributes": {
+            "CN": {
+              "length": "20",
+              "mandatory": false,
+              "occurrences": "1",
+              "expect": "(CN=[^\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+            },
+            "OU": {
+              "length": "20",
+              "mandatory": false,
+              "occurrences": ">1",
+              "expect": "(OU=[^\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+            },
+            "O": {
+              "length": "<128",
+              "mandatory": true,
+              "occurrences": "1",
+              "expect": "(O=[^\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+            },
+            "L": {
+              "length": "<64",
+              "mandatory": true,
+              "occurrences": "1",
+              "expect": "(L=[^;\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+            },
+            "C": {
+              "length": "2",
+              "mandatory": true,
+              "occurrences": "1",
+              "expect": "(C=[^;\\n\\!\\@\\#\\$\\%\\^\\*\\(\\);\\~\\?\\>\\<\\&\\/\\,\\\\.\\\",]{1,2})"
+            },
+            "ST": {
+              "length": "20",
+              "mandatory": false,
+              "occurrences": "1",
+              "expect": "(ST=[^;\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+            }
+          }
+        },
+        "MAX_LEN": 128
       },
       "actor-source": {
         "DESCRIPTION": "This represent a node in the log",
@@ -878,7 +932,7 @@
         "COMMAND": "This represent a sent message",
         "EXPECT": [
           "(?P<message>Requesting all membership transactions from __destination__)",
-          "(?P<message>Sending transaction to [a-zA-Z0-9]*)",
+          "(?P<message>Sending transaction to [a-zA-Z0-9]*):\\s*__destination__",
           "(?P<message>Sending it to the (?P<destination>vault))",
           "(?P<message>Recording transaction locally)",
           "(?P<message>.*[Ss]ending it to flow hospital)",
@@ -906,7 +960,7 @@
       "<-": {
         "COMMAND": "This represent a receiving message",
         "EXPECT": [
-          "(?P<message>Notary responded)",
+          "(?P<message>Notary responded)\\s*\\(__source__\\)",
           "(?P<message>Received transaction acknowledgement request from party __source__)",
           "(?P<message>Recorded transaction locally successfully)",
           "(?P<message>Flow error discharged from hospital.*origin=__destination__)",
@@ -1214,6 +1268,7 @@
       "OBJECTS": {
         "participant": {
           "EXPECT": [
+            "(CN=[^,]+, OU=[^,]+, O=[^,]+(?:, L=[^,]+)?(?:, C=[^,]+)?)",
             "([OLUNCST]{1,2}=[a-zA-Z &._\",-=]+,\\s*C=[A-Z]{2})"
           ],
           "APPLY_TO": [
@@ -1226,7 +1281,7 @@
         },
         "actor": {
           "EXPECT": [
-            "([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}[0-9:]+)"
+            "(?:CN=[^,]+, )?(OU=[^,]+, )?O=[^,]+(?:, L=[^,]+)?(?:, C=[^,]{2})?"
           ],
           "APPLY_TO": [
             "actor-source",
@@ -1235,6 +1290,7 @@
         },
         "notary": {
           "EXPECT": [
+            "(?:CN=[^,]+, )?(OU=[^,]+, )?O=[^,]+(?:, L=[^,]+)?(?:, C=[^,]{2})?",
             "([OLUNCST]{1,2}=[a-zA-Z &._\",-=]+,\\s*C=[A-Z]{2})"
           ],
           "APPLY_TO": [
@@ -1358,7 +1414,8 @@
           "The duplicate key value is\\s*\\(__tx_id__\\)",
           "ref=__tx_id__",
           "Tx \\[__tx_id__\\]",
-          "Transaction \\[__tx_id__\\]"
+          "Transaction \\[__tx_id__\\]",
+          ".tx_id.:.__tx_id__."
         ],
         "ANALYSIS": {
           "DESCRIPTION": "This section specify how to extract actual status message from the log for transaction found RegEx will keep pattern to match(can add more than one) and its values represent fields to extract",
@@ -1408,29 +1465,6 @@
               "Stage"
             ],
             "(Caching flow sandbox for.*) \\(cache size": [
-              "Stage"
-            ]
-          }
-        }
-      },
-      "VNODE": {
-        "DESCRIPTION": "Represents a VNODE",
-        "EXPECT": [
-          "\"vnode_id\":\"__vnode_id__\""
-        ],
-        "ANALYSIS": {
-          "DESCRIPTION": "This section specify how to extract actual status message from the log for transaction found RegEx will keep pattern to match(can add more than one) and its values represent fields to extract",
-          "EXPECT": {
-            "(Abandoning processing of events)": [
-              "Stage"
-            ],
-            "- ([a-zA-Z0-9- =,[\\]]+ admitted to hospital in state)": [
-              "Stage"
-            ],
-            "- (Notary responded) \\([A-Za-z0-9= ,]+\\)": [
-              "Stage"
-            ],
-            "(.*)": [
               "Stage"
             ]
           }
