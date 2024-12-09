@@ -280,7 +280,30 @@ def x5001():
                 print("WARNING: this participant name '%s' is missing a mandatory key: %s" % (uml_object,
                                                                                               each_rule_key))
 
-def uml_apply_rules(uml_object, rules):
+
+def x500test(line):
+    """
+
+    :param line:
+    :return:
+    """
+    x500_pattern = r"(?:(C=[^,]+|L=[^,]+|O=[^,]+|OU=[^,\"]+),?\s?)+"
+    # Buscar todas las coincidencias válidas
+    matches = re.finditer(x500_pattern, line)
+
+    # Filtrar resultados para eliminar cadenas irrelevantes
+    x500_names = []
+    for match in matches:
+        x500_candidate = match.group().strip(", ")
+        # Validar que el candidato tenga al menos dos atributos típicos de un X.500 name
+        if len(re.findall(r"(C=[^,]+|L=[^,]+|O=[^,]+|OU=[^,]+)", x500_candidate)) >= 2:
+            x500_names.append(x500_candidate)
+
+    # Mostrar resultados
+    for i, name in enumerate(x500_names, start=1):
+        print(f"X.500 Name {i}: {name}")
+
+def uml_apply_rules(original_line, rules):
     """
     Apply given rule to this object, this method will only respect x500 names that are 100% compatible
     with corda platform. Please refer to rules to check this out
@@ -288,6 +311,7 @@ def uml_apply_rules(uml_object, rules):
     """
     global participant_build
     participant_build_counter = 0
+    line_to_process = []
     x500_key_count = {}
     x500_build = ""
     rules_details = rules['RULES-D']['supported-attributes']
@@ -310,157 +334,124 @@ def uml_apply_rules(uml_object, rules):
 
         return True
 
+    # Check if there's handling for special cases:
+    # if we hit such case I will split this into two lines so I can pick up correct tokens
     #
-    # Split the x500 name in sections, using ","
-    # then apply rule to each section.
-    #
-    # now will check every item against rules and build x500 name.
+    if 'special-cases' in rules['RULES-D']:
+        for each_case in rules['RULES-D']['special-cases']:
+            expect = rules['RULES-D']['special-cases'][each_case]['expect']
+            case_result = re.search(expect, original_line)
 
-    allowed_keys = "".join(sorted(sorted(set("".join(rules_details.keys())))))
-    allowed_keys_list = list(rules_details.keys())
-    # search for proper formed x500 keys on given string...
-    # following line will extract all keys from given string
-    x500_keys = re.findall(r"([%s]{1,2}=[^\n\!\@\#\$\^\*\(\)~\?\>\<\&\/\\\,\.\",]*)" % allowed_keys, uml_object)
+            if case_result:
+                for each_group in case_result.groups():
+                    line_to_process.append(each_group)
 
-    # Check if given line has a potential x500 name to be verified
-    if not x500_keys:
-        return None
+    if original_line and not line_to_process:
+        line_to_process.append(original_line)
 
-    number_of_keys = len(x500_keys)
-    x500_key_counter = 0
-    # Incoming line is not cleaned up, it will have x500 name within, so I will split line using as
-    # delimiter "," and re-build names...
+    for uml_object in line_to_process:
 
-    line_separated = uml_object.split(',')
-    for each_item in line_separated:
-        for each_x500_key in allowed_keys_list:
-            # Extract proper key, and it's value; will use re.search to manage re groups
-            #
-            x500_key_check = re.search(f"{rules_details[each_x500_key]['expect']}", each_item)
+        #
+        # Split the x500 name in sections, using ","
+        # then apply rule to each section.
+        #
+        # now will check every item against rules and build x500 name.
 
-            if not x500_key_check:
-                # This attribute do not exist here
-                continue
-            #
-            # Interpret how many occurrences are allowed to this specific attribute
-            if not 'occurrences' in rules_details[each_x500_key]:
-                occurrences_count = 1
-                occurrences_operator = '='
-            else:
-                occurrences = re.search(r'([<>]?)(\d+)', rules_details[each_x500_key]['occurrences'])
+        allowed_keys = "".join(sorted(sorted(set("".join(rules_details.keys())))))
+        allowed_keys_list = list(rules_details.keys())
+        # search for proper formed x500 keys on given string...
+        # following line will extract all keys from given string
+        x500_keys = re.findall(r"([%s]{1,2}=[^\n\!\@\#\$\^\*\(\)~\?\>\<\&\/\\\,\.\",]*)" % allowed_keys, uml_object)
 
-                if occurrences:
-                    if not occurrences.group(1):
-                        occurrences_operator = '='
-                    else:
-                        occurrences_operator = occurrences.group(1)
+        # Check if given line has a potential x500 name to be verified
+        if not x500_keys:
+            return None
 
-                    if not occurrences.group(2):
-                        occurrences_count = 1
-                    else:
-                        occurrences_count = int(occurrences.group(2))
+        number_of_keys = len(x500_keys)
+        x500_key_counter = 0
+        # Incoming line is not cleaned up, it will have x500 name within, so I will split line using as
+        # delimiter "," and re-build names...
 
+        line_separated = uml_object.split(',')
+        token_count = len(line_separated)
+        token = 0
+        for each_item in line_separated:
+            token += 1
+            for each_x500_key in allowed_keys_list:
+                # Extract proper key, and it's value; will use re.search to manage re groups
+                #
+                x500_key_check = re.search(f"{rules_details[each_x500_key]['expect']}", each_item)
 
-            # count how many times given key appears
+                if not x500_key_check:
+                    # This attribute do not exist here
+                    continue
+                #
+                # Interpret how many occurrences are allowed to this specific attribute
+                if not 'occurrences' in rules_details[each_x500_key]:
+                    occurrences_count = 1
+                    occurrences_operator = '='
+                else:
+                    occurrences = re.search(r'([<>]?)(\d+)', rules_details[each_x500_key]['occurrences'])
 
-            if each_x500_key not in x500_key_count:
-                x500_key_count[each_x500_key] = 1
-            else:
-                x500_key_count[each_x500_key] += 1
-                x500_key_counter += 1
+                    if occurrences:
+                        if not occurrences.group(1):
+                            occurrences_operator = '='
+                        else:
+                            occurrences_operator = occurrences.group(1)
 
-            # Check how many occurrences are at the moment for this attribute
+                        if not occurrences.group(2):
+                            occurrences_count = 1
+                        else:
+                            occurrences_count = int(occurrences.group(2))
 
-            if occurrences_operator == '>':
-                if x500_key_count[each_x500_key] > occurrences_count:
-                    pass
-            else:
-                if occurrences_operator == '=':
+                # count how many times given key appears
+
+                if each_x500_key not in x500_key_count:
+                    x500_key_count[each_x500_key] = 1
+                else:
+                    x500_key_count[each_x500_key] += 1
+                    x500_key_counter += 1
+
+                # Check how many occurrences are at the moment for this attribute
+
+                if occurrences_operator == '>':
                     if x500_key_count[each_x500_key] > occurrences_count:
-                        # this means actual number of attributes are more than expected, which probably because
-                        # there's more than 1 x500 name on same line
-                        force_x500_split = True
+                        pass
+                else:
+                    if occurrences_operator == '=':
+                        if x500_key_count[each_x500_key] > occurrences_count:
+                            # this means actual number of attributes are more than expected, which probably because
+                            # there's more than 1 x500 name on same line
+                            force_x500_split = True
 
-            if force_x500_split:
-                # Remove last "," from this participant build:
-                x500_build = x500_build.strip(", ")
-                # Store this name
-                if check_has_all_mandatory_attributes(x500_build) and x500_build not in participant_build:
-                    print(f"  X500 name: {x500_build} [Re-Build from split]")
-                    participant_build.append(x500_build)
-                x500_build = "%s, " % x500_key_check.group(0)
-                # Reset rule key count for all to start from this x500 name (previous name was already stored)
-                for each_rd in x500_key_count:
-                    x500_key_count[each_rd] = 0
+                if force_x500_split:
+                    # Remove last "," from this participant build:
+                    x500_build = x500_build.strip(", ")
+                    # Store this name, first let's check if
+                    if check_has_all_mandatory_attributes(x500_build):
+                        if x500_build not in participant_build:
+                            print(f"  X500 name: {x500_build} [Re-Build from split]")
+                            participant_build.append(x500_build)
 
-                # Update to 1 only actual processed key
-                x500_key_count[x500_key_check.group(1)] = 1
-                # Reset required fields again for the next name
-                allowed_keys_list = list(rules_details.keys())
-                # Remove recently added field at x500_build from allowed_keys_list
-                allowed_keys_list.remove(each_x500_key)
+                    x500_build = "%s, " % x500_key_check.group(0)
+                    # Reset rule key count for all to start from this x500 name (previous name was already stored)
+                    for each_rd in x500_key_count:
+                        x500_key_count[each_rd] = 0
 
-            if len(x500_keys) - x500_key_counter == 0:
-                # X500 name seems to be complete; store it
-                x500_build += "%s, " % x500_key_check.group(0)
-                # Remove last "," from this participant build:
-                x500_build = x500_build.strip(", ")
-                # Store this name
-                if x500_build not in participant_build:
-                    print(f" * X500 name: {x500_build}")
-                    participant_build.append(x500_build)
+                    # Update to 1 only actual processed key
+                    x500_key_count[each_x500_key] = 1
+                    # Reset required fields again for the next name
+                    allowed_keys_list = list(rules_details.keys())
 
-                # Remove current keyword from expected list
-                # if x500_key_check.group(1) in allowed_keys_list:
-                #     allowed_keys_list.remove(x500_key_check.group(1))
-                # # if actual keyword is "S" or "ST remove it
-                # if x500_key_check.group(1) == "ST":
-                #     allowed_keys_list.remove("S")
-                # if x500_key_check.group(1) == "S":
-                #     allowed_keys_list.remove("ST")
-
-            if not allowed_keys_list or not rules_details[each_x500_key]['mandatory'] and not force_x500_split:
-                # # X500 name seems to be complete; store it
-                # # Remove last "," from this participant build:
-                # x500_build = x500_build.strip(", ")
-                # # Reset required fields again for the next name
-                # allowed_keys_list = list(rules_details.keys())
-                # # Store this name
-                # if x500_build and  x500_build not in participant_build:
-                #     print(f"  X500 name: {x500_build}")
-                #     participant_build.append(x500_build)
-                # # Clear build variable for next name
-                # x500_build = ""
-                pass
-            else:
                 try:
 
                     if x500_key_check.group(0) not in x500_build:
                         # If x500 key is not in the actual x500 name add it...
                         x500_build += "%s, " % x500_key_check.group(0)
-                        # x500_key_check += x500_key_check.group(0) + ","
-                        # participant_build[participant_build_counter] += "%s, " % x500_key_check.group(0)
 
-                        # # Remove current keyword from expected list
-                        # if each_x500_key in allowed_keys_list:
-                        #     allowed_keys_list.remove(each_x500_key)
-                        # # if actual keyword is "S" or "ST remove it
-                        # if each_x500_key == "ST":
-                        #     allowed_keys_list.remove("S")
-                        # if each_x500_key == "S":
-                        #     allowed_keys_list.remove("ST")
 
                 except BaseException as be:
                     print(be)
-
-    # Check if any mandatory field is missing
-    # if allowed_keys_list:
-    #     for each_rule_key in allowed_keys_list:
-    #         # check if this field is mandatory:
-    #         if rules_details[each_rule_key]['mandatory']:
-    #             print("WARNING: this participant name '%s' is missing a mandatory key: %s" % (uml_object,
-    #                                                                                           each_rule_key))
-
 
     return participant_build
 
@@ -475,6 +466,7 @@ if __name__ == "__main__":
     with open("/home/larry/IdeaProjects/logtracer/client-logs/Finteum/CS-3462/notary-issue/node-bull-759dc59895-j7rmw.log", "r") as h_x500:
         for each_line in h_x500:
             uml_apply_rules(each_line, rules)
+            #x500test(each_line)
 
 
 
