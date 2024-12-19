@@ -901,7 +901,7 @@ class Table:
                                                 each_column = str(each_column)
                                             # Catch errors with the RE trying to interpret '*'
                                             if '*' in each_h:
-                                                each_h = each_h.replace("*", "\*")
+                                                each_h = each_h.replace("*", r"\*")
 
                                             # If length of search pattern is less than 3, then search for exact match
                                             # within the string given, otherwise search for the full pattern,
