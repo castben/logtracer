@@ -66,22 +66,6 @@ list_x500 = [
 ]
 
 uml_object = "CN=ACTIONSTEP, OU=ACTIONSTEP, O=ACTIONSTEP OPERATIONS UK LIMITED, L=High Wycombe, C=GB, CN=ReapIT, OU=Preproduction_node_1, O=Reapit limited, L=London, C=GB, CN=TALBOTS LAW, OU=TALBOTS LAW, O=TALBOTS LAW LTD, L=Stourbridge, C=GB, CN=REX, OU=REX, O=REX LABS LIMITED, L=London, C=GB, CN=DEZREZLEGAL, OU=DEZREZLEGAL, O=DEZREZLEGAL LIMITED, L=Swansea, C=GB, CN=EstateAgent, OU=Preproduction_node_1, O=Coadjute Limited, L=London, C=GB, CN=VTUK, OU=VTUK, O=VISION TEKNOLOGY UK LIMITED, L=Witney, C=GB, CN=Conveyancer, OU=Preproduction_node_2, O=Coadjute Limited, L=London, C=GB, CN=INSIGHTLEGAL, OU=INSIGHTLEGAL, O=INSIGHT LEGAL SOFTWARE LTD, L=Reading, C=GB, CN=PREMIUM, OU=PREMIUM, O=COADJUTE LIMITED, L=London, C=GB, CN=MAB, OU=MAB, O=MORTGAGE ADVICE BUREAU LIMITED, L=Derby, C=GB, CN=AVRillo, OU=Preproduction_node_1, O=Avrillo LLP, L=Enfield, C=GB, CN=PMPL, OU=PMPL, O=PM LAW LIMITED, L=Sheffield, C=GB, CN=DezRez, OU=Preproduction_node_1, O=DEZREZ SERVICES LIMITED, L=Swansea, C=GB, CN=Home, OU=Home1, O=CUMBRIA CAPITAL LTD, L=London, C=GB, CN=Osprey, OU=Preproduction_node_1, O=PRACCTICE LIMITED, L=Malvern, C=GB, CN=ASAP, OU=ASAP, O=ASSURED SALE AND PROGRESSION LIMITED, L=Pontefract, C=GB, CN=TAYLOR ROSE MW, OU=TAYLOR ROSE MW, O=TAYLOR ROSE TTKW LIMITED, L=London, C=GB, CN=Redbrick, OU=Preproduction_node_1, O=Redbrick Solutions"
-#
-# ("CN=ACTIONSTEP, OU=ACTIONSTEP, O=ACTIONSTEP OPERATIONS UK LIMITED, L=High Wycombe, C=GB, CN=DEZREZLEGAL,"
-#              "OU=DEZREZLEGAL, O=DEZREZLEGAL LIMITED, L=Swansea, CN=Conveyancer, OU=Preproduction_node_2, "
-#              "O=Coadjute Limited, L=London, CN=INSIGHTLEGAL, OU=INSIGHTLEGAL, O=INSIGHT LEGAL SOFTWARE LTD, L=Reading, "
-#              "CN=PREMIUM, OU=PREMIUM, O=COADJUTE LIMITED, CN=PMPL, OU=PMPL, O=PM LAW LIMITED, L=Sheffield, CN=DezRez, "
-#              "OU=Preproduction_node_1, O=DEZREZ SERVICES LIMITED, CN=Home, OU=Home1, O=CUMBRIA CAPITAL LTD, "
-#              "CN=Osprey, O=PRACCTICE LIMITED, L=Malvern, CN=ASAP, OU=ASAP, "
-#              "O=ASSURED SALE AND PROGRESSION LIMITED, L=Pontefract, C=GB, CN=ACTIONSTEP, OU=ACTIONSTEP, "
-#              "O=ACTIONSTEP OPERATIONS UK LIMITED, L=High Wycombe, C=GB, CN=REX, OU=REX, O=REX LABS LIMITED, L=London, "
-#              "CN=DEZREZLEGAL, OU=DEZREZLEGAL, O=DEZREZLEGAL LIMITED, L=Swansea, "
-#              "CN=VTUK, OU=VTUK, O=VISION TEKNOLOGY UK LIMITED, L=Witney, CN=Conveyancer, OU=Preproduction_node_2, "
-#              "O=Coadjute Limited, CN=INSIGHTLEGAL, OU=INSIGHTLEGAL, O=INSIGHT LEGAL SOFTWARE LTD, L=Reading, "
-#              "CN=PREMIUM, OU=PREMIUM, O=COADJUTE LIMITED, CN=AVRillo, OU=Preproduction_node_1, O=Avrillo LLP,"
-#              " L=Enfield, CN=PMPL, OU=PMPL, O=PM LAW LIMITED, L=Sheffield, CN=DezRez, O=DEZREZ SERVICES LIMITED, "
-#              "CN=Home, OU=Home1, O=CUMBRIA CAPITAL LTD, CN=Osprey, O=PRACCTICE LIMITED, L=Malvern, CN=ASAP, OU=ASAP, "
-#              "O=ASSURED SALE AND PROGRESSION LIMITED, L=Pontefract, C=GB")
 
 # "([OLUNCST]{1,2}=[a-zA-Z0-9- &._,=]+)"
 
@@ -303,7 +287,7 @@ def x500test(line):
     for i, name in enumerate(x500_names, start=1):
         print(f"X.500 Name {i}: {name}")
 
-def uml_apply_rules(original_line, rules):
+def uml_apply_rulesx(original_line, rules):
     """
     Apply given rule to this object, this method will only respect x500 names that are 100% compatible
     with corda platform. Please refer to rules to check this out
@@ -367,23 +351,23 @@ def uml_apply_rules(original_line, rules):
         if not x500_keys:
             return None
 
-        number_of_keys = len(x500_keys)
         x500_key_counter = 0
         # Incoming line is not cleaned up, it will have x500 name within, so I will split line using as
         # delimiter "," and re-build names...
 
         line_separated = uml_object.split(',')
-        token_count = len(line_separated)
+        token_count = len(x500_keys)
         token = 0
-        for each_item in line_separated:
+        for each_item in x500_keys:
             token += 1
-            for each_x500_key in allowed_keys_list:
-                # Extract proper key, and it's value; will use re.search to manage re groups
-                #
-                x500_key_check = re.search(f"{rules_details[each_x500_key]['expect']}", each_item)
+            each_x500_key, attribute_value = each_item.split('=')
+            if each_x500_key in allowed_keys_list:
+                # Apply corresponding attribute rule
+                check_attribute = re.search(rules_details[each_x500_key]['expect'], each_item)
 
-                if not x500_key_check:
-                    # This attribute do not exist here
+                # Interpret how many occurrences are allowed to this specific attribute
+                if not check_attribute:
+                    print(f"Unable to parse {each_item} into x500 attribute")
                     continue
                 #
                 # Interpret how many occurrences are allowed to this specific attribute
@@ -404,9 +388,10 @@ def uml_apply_rules(original_line, rules):
                         else:
                             occurrences_count = int(occurrences.group(2))
 
-                # count how many times given key appears
+                # count how many times given attribute appears
 
                 if each_x500_key not in x500_key_count:
+                    x500_build += "%s, " % check_attribute.group(1)
                     x500_key_count[each_x500_key] = 1
                 else:
                     x500_key_count[each_x500_key] += 1
@@ -428,12 +413,19 @@ def uml_apply_rules(original_line, rules):
                     # Remove last "," from this participant build:
                     x500_build = x500_build.strip(", ")
                     # Store this name, first let's check if
-                    if check_has_all_mandatory_attributes(x500_build):
-                        if x500_build not in participant_build:
-                            print(f"  X500 name: {x500_build} [Re-Build from split]")
-                            participant_build.append(x500_build)
+                    # if check_has_all_mandatory_attributes(x500_build):
+                    if x500_build not in participant_build and check_has_all_mandatory_attributes(x500_build):
+                        print(uml_object)
+                        print(f"  X500 name: {x500_build} [Re-Build from split]")
+                        print('-'*200)
 
-                    x500_build = "%s, " % x500_key_check.group(0)
+                    # if check_has_all_mandatory_attributes(x500_build):
+                    participant_build.append(x500_build)
+                    # else:
+                    #     x500_build += "%s, " % check_attribute.group(1)
+                    #     continue
+
+                    x500_build = "%s, " % check_attribute.group(1)
                     # Reset rule key count for all to start from this x500 name (previous name was already stored)
                     for each_rd in x500_key_count:
                         x500_key_count[each_rd] = 0
@@ -445,9 +437,9 @@ def uml_apply_rules(original_line, rules):
 
                 try:
 
-                    if x500_key_check.group(0) not in x500_build:
+                    if check_attribute.group(1) not in x500_build:
                         # If x500 key is not in the actual x500 name add it...
-                        x500_build += "%s, " % x500_key_check.group(0)
+                        x500_build += "%s, " % check_attribute.group(1)
 
 
                 except BaseException as be:
@@ -455,19 +447,170 @@ def uml_apply_rules(original_line, rules):
 
     return participant_build
 
+class X500NameParser:
+    def __init__(self, rules):
+        """
+        Initialize the parser with rules for attribute validation.
+        :param rules: Dictionary containing validation rules.
+        """
+        self.rules = rules['RULES-D']['supported-attributes']
+        self.mandatory_attributes = [k for k, v in self.rules.items() if v.get('mandatory', False)]
+        self.regex = re.compile(r"([CNSTLOU]{1,2}=[^\[\]^,]*)")
 
+    def extract_attributes(self, line):
+        """
+        Extract attributes from a given line using a regex.
+        :param line: String containing potential X500 names.
+        :return: List of tuples representing key-value pairs.
+        """
+        matches = self.regex.findall(line)
+        attributes = [match.split('=') for match in matches]
+        return attributes
+
+    def validate_x500_name(self, attributes):
+        """
+        Validate if a set of attributes constitutes a valid X500 name.
+        :param attributes: List of key-value pairs.
+        :return: Boolean indicating validity.
+        """
+        keys = {key for key, _ in attributes}
+        for mandatory in self.mandatory_attributes:
+            if mandatory not in keys:
+                return False
+        return True
+
+    def parse_line(self, line):
+        """
+        Parse a line to extract and validate X500 names.
+        :param line: String containing potential X500 names.
+        :return: List of valid X500 names.
+        """
+        attributes = self.extract_attributes(line)
+        x500_names = []
+        current_name = []
+
+        for key, value in attributes:
+            if any(key == k for k, _ in current_name):
+                # Duplicate key means we likely have a new X500 name
+                if self.validate_x500_name(current_name):
+                    x500_names.append(current_name)
+                current_name = []
+
+            current_name.append((key, value))
+
+        # Add the last X500 name if valid
+        if self.validate_x500_name(current_name):
+            x500_names.append(current_name)
+
+        # Rebuild names into canonical string format
+        return [', '.join(f"{k}={v}" for k, v in name) for name in x500_names]
+
+import re
+
+class X500NameParser:
+    def __init__(self, rules):
+        self.rules = rules
+        self.supported_attributes = rules['RULES-D']['supported-attributes']
+        self.mandatory_attributes = [
+            key for key, val in self.supported_attributes.items() if val['mandatory']
+        ]
+        self.attribute_regex = re.compile(r"([CNSTLOU]{1,2}=[^\[^\]^,]*)")
+        self.separator_regex = re.compile(r"\[[A-Fa-f0-9]{40}\]| issued by")  # Delimitadores basados en hashes
+
+    def detect_separators(self, line):
+        """Detect potential separators between X500 names."""
+        separators = []
+        for match in self.separator_regex.finditer(line):
+            separators.append(match.start())
+        return separators
+
+    def extract_x500_names(self, line):
+        """Extract X500 names based on detected separators."""
+        separators = self.detect_separators(line)
+        if not separators:
+            return [line]  # No separators, treat as a single block
+
+        names = []
+        start_idx = 0
+        for sep in separators:
+            segment = line[start_idx:sep].strip(", ")
+            names.append(segment)
+            start_idx = sep + 42  # Skip the separator length
+
+        # Add any remaining segment
+        if start_idx < len(line):
+            names.append(line[start_idx:].strip(", "))
+
+        return names
+
+    def validate_x500_name(self, x500_name):
+        """Ensure the extracted X500 name has all mandatory attributes."""
+        attributes = self.attribute_regex.findall(x500_name)
+        keys = {attr.split('=')[0] for attr in attributes}
+        return all(attr in keys for attr in self.mandatory_attributes)
+
+    def parse_line(self, line):
+        """Parse a line and extract valid X500 names."""
+        x500_names = self.extract_x500_names(line)
+        valid_names = []
+        for name in x500_names:
+            if self.validate_x500_name(name):
+                valid_names.append(name)
+        return valid_names
+
+
+# Example usage:
+# if __name__ == "__main__":
+#     rules = {
+#         "RULES-D": {
+#             "supported-attributes": {
+#                 "CN": {"mandatory": False},
+#                 "OU": {"mandatory": False},
+#                 "O": {"mandatory": True},
+#                 "L": {"mandatory": True},
+#                 "C": {"mandatory": True},
+#                 "ST": {"mandatory": False}
+#             }
+#         }
+#     }
+#
+#     parser = X500NameParser(rules)
+#     log_line = "C=AU,L=Sydney,O=CT-mnp-dev-party001[5717E8311C829A6321B57820CFBF4E764C103B10], CN=Test Identity Manager Service Certificate,OU=HQ,O=HoldCo LLC,L=New York,C=US[4B4F4BB66B15603CEE75A81A00FA132095D84BDF]"
+#
+#     parsed_names = parser.parse_line(log_line)
+#     for name in parsed_names:
+#         print(f"Parsed X500 Name: {name}")
+
+#
 if __name__ == "__main__":
     participant_build = []
     with open("./conf/logwatcher_rules.json") as h_rules:
         config = json.load(h_rules)
 
     rules = config['UML_SETUP']['UML_DEFINITIONS']["participant"]
-
-    with open("/home/larry/IdeaProjects/logtracer/client-logs/Finteum/CS-3462/notary-issue/node-bull-759dc59895-j7rmw.log", "r") as h_x500:
+    parser = X500NameParser(rules)
+    with open("/Users/larry.castro/IdeaProjects/logtracer/client-logs/ChainThat/node-cenm-notary-875884d5b-j6dsw 1.log", "r") as h_x500:
         for each_line in h_x500:
-            uml_apply_rules(each_line, rules)
-            #x500test(each_line)
+            parsed_names = parser.parse_line(each_line)
+            if parsed_names:
+                for name in parsed_names:
+                    print(f"Parsed X500 Name: {name}")
 
+        # for each_participant in participant_build:
+        #     print(each_participant)
 
-
+# if __name__ == "__main__":
+#     participant_build = []
+#     with open("./conf/logwatcher_rules.json") as h_rules:
+#         config = json.load(h_rules)
+#
+#     rules = config['UML_SETUP']['UML_DEFINITIONS']["participant"]
+#
+#     with open("/Users/larry.castro/IdeaProjects/logtracer/client-logs/ChainThat/node-cenm-notary-875884d5b-j6dsw 1.log", "r") as h_x500:
+#         for each_line in h_x500:
+#             uml_apply_rules(each_line, rules)
+#             #x500test(each_line)
+#
+#         for each_participant in participant_build:
+#             print(each_participant)
 # openAIX500()
