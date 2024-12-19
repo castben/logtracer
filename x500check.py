@@ -345,7 +345,8 @@ def uml_apply_rulesx(original_line, rules):
         allowed_keys_list = list(rules_details.keys())
         # search for proper formed x500 keys on given string...
         # following line will extract all keys from given string
-        x500_keys = re.findall(r"([%s]{1,2}=[^\n\!\@\#\$\^\*\(\)~\?\>\<\&\/\\\,\.\",]*)" % allowed_keys, uml_object)
+
+        x500_keys = re.findall(r"([%s]{1,2}=[^=\n\!\@\#\$\^\*\(\)~\?\>\<\&\/\\\,\.\",]*)" % allowed_keys, uml_object)
 
         # Check if given line has a potential x500 name to be verified
         if not x500_keys:
