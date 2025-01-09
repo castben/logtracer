@@ -232,6 +232,20 @@ def uml_apply_rulesx(original_line, rules):
     return participant_build
 
 
+def uml_apply_rules(original_line, rules):
+    """
+
+    :param original_line:
+    :param rules:
+    :return:
+    """
+    global participant_build
+
+    parser = X500NameParser(rules)
+    parsed_names = parser.parse_line(each_line, participant_build)
+
+    return parsed_names
+
 class X500Name:
     """
     This represents x500 names
