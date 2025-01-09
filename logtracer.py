@@ -16,8 +16,7 @@ from multiprocessing import Pool
 from ahocorapy.keywordtree import KeywordTree
 from sqlalchemy import and_
 
-# import support
-# from support import Table, Configs
+# from .home.larry.IdeaProjects.support import Table, Configs
 
 # Global variables
 log_file = None
