@@ -3469,7 +3469,7 @@ class CordaObject:
             # Check object Role...
 
     @staticmethod
-    def uml_apply_rules(uml_object, rules):
+    def uml_apply_rules_X(uml_object, rules):
         """
         Apply given rule to this object
         :return:
@@ -3502,7 +3502,7 @@ class CordaObject:
         allowed_keys_list = list(rules.keys())
         # search for proper formed x500 keys on given string...
         # following line will extract all keys from given string
-        re_pattern = fr'[{allowed_keys}]{1,2}==[^\n\!\@\#\$\^\%\*\(\)~\?\>\<\&\/\\\,\.",]*)'
+        re_pattern = fr'([{allowed_keys}]{1,2}) =[^\n\!\@\#\$\^\%\*\(\)~\?\>\<\&\/\\\,\.",]*'
         x500_keys = re.findall(re_pattern, uml_object)
         number_of_keys = len(x500_keys)
         x500_key_counter = 0
@@ -3628,14 +3628,33 @@ class CordaObject:
                         print(be)
 
         # Check if any mandatory field is missing
-        if allowed_keys_list:
-            for each_rule_key in allowed_keys_list:
-                # check if this field is mandatory:
-                if ":M" in rules[each_rule_key]:
-                    print("WARNING: this participant name '%s' is missing a mandatory key: %s" % (uml_object,
-                                                                                                  each_rule_key))
+        # if allowed_keys_list:
+        #     for each_rule_key in allowed_keys_list:
+        #         # check if this field is mandatory:
+        #         if ":M" in rules[each_rule_key]:
+        #             print("WARNING: this participant name '%s' is missing a mandatory key: %s" % (uml_object,
+        #                                                                                           each_rule_key))
 
         return participant_build
+
+    @staticmethod
+    def uml_apply_rules(original_line, rules):
+        """
+
+        :param original_line:
+        :param rules:
+        :return:
+        """
+        global x500_build_list
+        rulesx = Configs.get_config("participant", "RULES-D", "UML_DEFINITIONS")
+        list_to_return = []
+        parser = X500NameParser(rulesx)
+        parsed_names = parser.parse_line(original_line, x500_build_list)
+
+        for each_name in parsed_names:
+            list_to_return.append(each_name.string())
+
+        return list_to_return
 
     @staticmethod
     def get_corda_object_definition(macro_variable):
@@ -3850,6 +3869,234 @@ class OrderedDictX(OrderedDict):
             self.clear()
             self.update(ins)
             self.update(items)
+
+class X500Name:
+    """
+    This represents x500 names
+    """
+
+    def __init__(self, x500name):
+        """
+        This represents an actual x500 valid name
+        """
+
+        self.alternate_names = []
+        self.original_string = x500name
+        self.regex = re.compile(r"([CNSTLOU]{1,2}=[^\[\]^,]*)")
+        self.attributes = self.extract_attributes()
+
+    def extract_attributes(self, name=None):
+        """
+        Try to extract actual attributes for given name
+        Extract attributes from a given line using a regex.
+        """
+
+        if not name:
+            name = self.original_string
+
+        matches = self.regex.findall(name)
+        # attributes = [match.split('=') for match in matches]
+        attributes = matches
+        return attributes
+
+    def compare_name(self, name_to_compare):
+        """
+        Will try to compare given name to actual x500 name to see if it is the same,
+        x500 names can have their attributes shifted, but they are still same regardless to their order.
+        this method will tell if given name is same
+        :param name_to_compare: other x500 name to compare
+        :return: true if it is same, false otherwise
+        """
+
+        other_attributes = self.extract_attributes(name_to_compare)
+
+        if set(other_attributes) == set(self.attributes):
+            return True
+
+        return False
+
+    def add_alternate_name(self, other_x500_name):
+        """
+        This will add a new alias for given name
+        :param other_x500_name:
+        :return:
+        """
+
+        # first check if alias is already here
+        if other_x500_name == self.original_string:
+            return
+
+        if other_x500_name in self.alternate_names:
+            return
+
+
+        self.alternate_names.append(other_x500_name)
+
+    def get_attributes(self):
+        """
+        Return all attributes
+        :return:
+        """
+
+        return self.attributes
+
+    def get_alternate_names(self):
+        """
+        Return all aliases found for this name
+        :return:
+        """
+
+        return self.alternate_names
+
+    def string(self):
+        """
+        Returns actual x500 name in string format
+        :return:
+        """
+
+        return ', '.join(f"{k}" for k in self.attributes).strip()
+
+    def has_alternate_names(self):
+        """
+        Will return wether current name has alternate names
+        :return: true if it has, false otherwise
+        """
+
+        if self.alternate_names:
+            return True
+
+        return False
+
+class X500NameParser:
+    def __init__(self, rules):
+        """
+        Initialize the parser with rules for attribute validation.
+        :param rules: Dictionary containing validation rules.
+        """
+        # self.rules = rules['RULES-D']['supported-attributes']
+        self.rules = rules['supported-attributes']
+        self.mandatory_attributes = [k for k, v in self.rules.items() if v.get('mandatory', False)]
+        self.regex = re.compile(r"([CNSTLOU]{1,2}=[^\[\]^,=]*)")
+
+    def extract_attributes(self, line):
+        """
+        Extract attributes from a given line using a regex.
+        :param line: String containing potential X500 names.
+        :return: List of tuples representing key-value pairs.
+        """
+        matches = self.regex.findall(line)
+        attributes = []
+        for each_match in matches:
+            key, value = each_match.split('=')
+            valid_value = value
+            if key not in self.rules:
+                print(f'Invalid x500 attribute, not supported... {key}={value} ')
+                print(f"There're no rules to check {key}")
+                print('Unable to verify this x500 attribute')
+            else:
+                valid = re.search(self.rules[key]['expect'], each_match)
+                if valid:
+                    _,valid_value = valid.group(1).split('=')
+                else:
+                    print(f'Invalid x500 attribute, not supported... {key}={valid_value} ')
+                    print('Unable to verify this x500 attribute')
+                    print(f'Key/value do is not on expected format {key}={self.rules[key]["expect"]}')
+
+            attributes.append((key, valid_value))
+
+        # attributes = [match.split('=') for match in matches]
+        return attributes
+
+    def validate_x500_name(self, attributes):
+        """
+        Validate if a set of attributes constitutes a valid X500 name.
+        :param attributes: List of key-value pairs.
+        :return: Boolean indicating validity.
+        """
+        keys = {key for key, _ in attributes}
+        for mandatory in self.mandatory_attributes:
+            if mandatory not in keys:
+                return False
+        return True
+
+    # def xparse_line(self, line):
+    #     """
+    #     Parse a line to extract and validate X500 names.
+    #     :param line: String containing potential X500 names.
+    #     :return: List of valid X500 names.
+    #     """
+    #     attributes = self.extract_attributes(line)
+    #     x500_names = []
+    #     current_name = []
+    #
+    #     for key, value in attributes:
+    #         if any(key == k for k, _ in current_name):
+    #             # Duplicate key means we likely have a new X500 name
+    #             if self.validate_x500_name(current_name):
+    #                 x500_names.append(current_name)
+    #             current_name = []
+    #
+    #         current_name.append((key, value))
+    #
+    #     # Add the last X500 name if valid
+    #     if self.validate_x500_name(current_name):
+    #         x500_names.append(current_name)
+    #
+    #     # Rebuild names into canonical string format
+    #     return [', '.join(f"{k}={v}" for k, v in name) for name in x500_names]
+
+    def parse_line(self, line,x500_list):
+        """
+        Parse a line to extract and validate X500 names.
+        :param line: String containing potential X500 names.
+        :param x500_list: provide an empty list, that will persist on each call, this will help to build final
+        :list for all x500 names found, this is required to prevent "static" variables.
+        :return: List of valid X500 names.
+        """
+        attributes = self.extract_attributes(line)
+        x500_names = []
+        rx500_names = []
+        current_name = []
+
+        for key, value in attributes:
+            if any(key == k for k, _ in current_name):
+                # Duplicate key means we likely have a new X500 name
+                rname = ', '.join(f"{k}={v}" for k, v in current_name)
+                if self.validate_x500_name(current_name):
+                    if rname not in rx500_names:
+                        rx500_names.append(rname)
+                    x500_names.append(current_name)
+                current_name = []
+
+            current_name.append((key, value))
+
+        # Add the last X500 name if valid
+        if self.validate_x500_name(current_name):
+            rname = ', '.join(f"{k}={v}" for k, v in current_name)
+            if rname not in rx500_names:
+                rx500_names.append(rname)
+            x500_names.append(current_name)
+
+
+        # Process all names found and convert them into a proper x500 name object
+
+        if rx500_names:
+
+            for rname in rx500_names:
+                alternate_name_found = False
+                # if name not in x500_name_list:
+                x500name = X500Name(rname)
+                if x500_list:
+                    for each_xname in x500_list:
+                        if each_xname.compare_name(rname):
+                            each_xname.add_alternate_name(rname)
+                            alternate_name_found = True
+
+                if not alternate_name_found:
+                    x500_list.append(x500name)
+
+        # return rx500_names
+        return x500_list
 
 def generate_internal_access(variable_dict, variable_to_get):
     """
@@ -6355,6 +6602,7 @@ if __name__ == "__main__":
     app_path_support = app_path
     parser = argparse.ArgumentParser()
     participant_build = []
+    x500_build_list = []
 
     parser.add_argument('-t', '--transaction-details',
                         help='Will show each stage for every transaction found for given flow', action='store_true')
