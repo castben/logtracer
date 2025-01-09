@@ -2370,7 +2370,7 @@ class Rules:
 
                 rule.register()
 
-        load_corda_object_definition()
+        load_corda_object_definition('%s/conf/logwatcher_rules.json' % (app_path,))
 
 
 def generate_hash(stringData):
@@ -4002,7 +4002,7 @@ def clear_groupnames(regex_list):
     return CordaObject.get_clear_group_list(regex_list)
 
 
-def load_corda_object_definition(config_file="./conf/logwatcher_rules.json"):
+def load_corda_object_definition(config_file):
     """
     Load TraceId definition definition
     :return:
@@ -6376,7 +6376,7 @@ if __name__ == "__main__":
     parser.add_argument('--generate-uml-for','-gu',
                         help='Generate a UML chart for a specific reference')
     args = parser.parse_args()
-    load_corda_object_definition()
+    load_corda_object_definition('%s/conf/logwatcher_rules.json' % (app_path,))
     Configs.load_config()
     load_rules()
 
