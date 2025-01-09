@@ -3502,14 +3502,15 @@ class CordaObject:
         allowed_keys_list = list(rules.keys())
         # search for proper formed x500 keys on given string...
         # following line will extract all keys from given string
-        x500_keys = re.findall(r"([%s]{1,2}=[^\n\!\@\#\$\%\^\*\(\)~\?\>\<\&\/\\\,\.\",]*)" % allowed_keys, uml_object)
+        re_pattern = fr'[{allowed_keys}]{1,2}==[^\n\!\@\#\$\^\%\*\(\)~\?\>\<\&\/\\\,\.",]*)'
+        x500_keys = re.findall(re_pattern, uml_object)
         number_of_keys = len(x500_keys)
         x500_key_counter = 0
         for each_x500_key in x500_keys:
             x500_key_counter += 1
             # Extract proper key, and it's value; will use re.search to manage re groups
             #
-            x500_key_check = re.search(r"([%s]{1,2}=[^\n\!\@\#\$\%\^\*\(\)~\?\>\<\&\/\\\,\.\",]*)" % allowed_keys, each_x500_key)
+            x500_key_check = re.search(re_pattern, each_x500_key)
 
             # count how many times given key appears
 
