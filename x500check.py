@@ -361,7 +361,7 @@ class X500NameParser:
                 else:
                     print(f'Invalid x500 attribute, not supported... {key}={valid_value} ')
                     print('Unable to verify this x500 attribute')
-                    print(f'Key/value do is not on expected format {key}={self.rules[key]['expect']}')
+                    print(f'Key/value do is not on expected format {key}={self.rules[key]["expect"]}')
 
             attributes.append((key, valid_value))
 
