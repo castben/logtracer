@@ -3522,10 +3522,13 @@ class CordaObject:
             # Check if given key it is found at the rules.
             #
             if x500_key_check.group(1) not in rules:
-                print("Warning, %s x500 keyword not fully supported on corda's x500 names" % x500_key_check.group(0))
-                print("There's no proper rule to manage it, will be added anyway and ignored...")
-                x500_key_check += x500_key_check.group(0) + ","
-                participant_build[participant_build_counter] += x500_key_check.group(0) + ","
+                print(f"-- Warning, {x500_key_check.group(0)} x500 keyword not fully supported on corda's x500 names")
+                print("There's no proper rule to manage it, will be ignored...")
+                # x500_key_check_s += x500_key_check.group(0) + ","
+                # if not participant_build:
+                #     participant_build.append(x500_key_check.group(0) + ",")
+                # else:
+                #     participant_build[participant_build_counter] += x500_key_check.group(0) + ","
             else:
                 # Check if x500 name is complete:
                 mandatory_key = False
