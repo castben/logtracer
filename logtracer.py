@@ -2056,9 +2056,9 @@ class Configs:
 
         :return:
         """
-        global app_path_support
+
         if not file:
-            file = "%s/conf/support.json" % (app_path_support,)
+            file = "%s/conf/support.json" % (os.path.dirname(os.path.abspath(__file__)),)
 
         try:
             with open(file, "r") as fconfig:
@@ -2110,6 +2110,7 @@ class Configs:
         is probably a sub-string of real subparameter.
         :return:
         """
+        global app_path_support
         if not Configs.config:
             Configs.load_config()
 
@@ -2555,10 +2556,11 @@ class CordaObject:
     """
     This class object will hold all transaction results and many other useful objects
     """
+    # This represents al ID's registered so far
     id_ref = []
+    # This keep a list of all instances of this class
     list = {}
     relations = {}
-
     # Default UML references
     # This represents entities endpoints (for source and destination)
     default_uml_endpoints = {}
@@ -2586,6 +2588,7 @@ class CordaObject:
 
     def __init__(self):
         self.data = {}
+        self.reference_id = None
         self.references = OrderedDictX()
         self.type = None
 
@@ -2668,7 +2671,7 @@ class CordaObject:
     @staticmethod
     def reset():
         """
-        Clears up actual object and deletes all info
+        Clears up actual object class and deletes all info
         :return:
         """
         CordaObject.list = {}
@@ -2680,18 +2683,24 @@ class CordaObject:
         CordaObject.id_ref = []
         CordaObject.relations = {}
 
+
     def get_reference_id(self):
         return self.data['ref_id']
 
     def add_data(self, cproperty, value):
         """
+        Add internal data into instance of this object
 
-        :param cproperty:
-        :param value:
+        :param cproperty: property name to add
+        :param value: value
         :return:
         """
         if not self:
             pass
+
+        if cproperty == 'id_ref':
+            self.reference_id = value
+
         self.data[cproperty] = value
 
         # Extract extra data
@@ -2728,6 +2737,7 @@ class CordaObject:
         :return: void
         """
         self.data['id_ref'] = reference_id
+        self.reference_id = reference_id
 
     def get_data(self, data_property):
         """
@@ -2814,31 +2824,29 @@ class CordaObject:
         :return: depends on parameters given (list, dictionary, or string)
         """
 
-        cobject = self
-
         # Check if object has references
 
-        if not cobject.references:
+        if not self.references:
             return None
 
-        if cobject.references and not line_no and not field:
-            return cobject.references
+        if self.references and not line_no and not field:
+            return self.references
 
-        if cobject.references and line_no and not field:
-            if line_no in cobject.references:
-                return cobject.references[line_no]
+        if self.references and line_no and not field:
+            if line_no in self.references:
+                return self.references[line_no]
             else:
                 return None
 
         # if there's no line_no reference, I can't return proper reference, or I got the line_no, but that line is not
         # in the references, then return None
 
-        if not line_no or line_no and line_no not in cobject.references:
+        if not line_no or line_no and line_no not in self.references:
             return None
 
         if field:
-            if field in cobject.references[line_no]:
-                return cobject.references[line_no][field]
+            if field in self.references[line_no]:
+                return self.references[line_no][field]
 
         return None
 
@@ -4606,6 +4614,7 @@ def trace_id():
     :return:
     """
     from ahocorapy.keywordtree import KeywordTree
+
     global log_file, logfile_format
 
     # Create keyword search tree
@@ -4673,25 +4682,29 @@ def trace_id():
                     "Notary",
                     "Party"
                 ]
-                print("Please specify a valid x500 name for this party:")
-                party_name = input("> ")
-                print("Please specify role for this party:")
-                for idx, each_role in enumerate(party_roles):
-                    print(f"{idx} - {each_role}")
-                party_irole = -1
-                while int(party_irole) < 0 or int(party_irole) > len(party_roles):
-                    party_irole = input("> ")
+                while True:
+                    print("Please specify a valid x500 name for this party:")
+                    party_name = input("> ")
+                    if not party_name:
+                        break
+                    print("Please specify role for this party:")
+                    for idx, each_role in enumerate(party_roles):
+                        print(f"{idx} - {each_role}")
+                    party_irole = -1
+                    while int(party_irole) < 0 or int(party_irole) > len(party_roles):
+                        party_irole = input("> ")
 
-                party_role = party_roles[int(party_irole)]
+                    party_role = party_roles[int(party_irole)]
 
-                CordaObject.add_uml_object(party_name, "participant")
-                participant_list.append(party_name)
-                add_participant(party_name, party_role)
-                party_object = Party.get_party(party_name)
-                if party_object:
-                    party_object.set_corda_role(party_role)
+                    CordaObject.add_uml_object(party_name, "participant")
+                    participant_list.append(party_name)
+                    add_participant(party_name, party_role)
+                    party_object = Party.get_party(party_name)
+                    if party_object:
+                        party_object.set_corda_role(party_role)
 
-            CordaObject.set_participant_role(participant_list[int(selection) - 1], role="log_owner", attach_usages=True)
+                    CordaObject.set_participant_role(participant_list[int(selection) - 1],
+                                                     role="log_owner", attach_usages=True)
 
         print("Party elements found:")
 
@@ -5474,8 +5487,6 @@ def get_ref_ids():
     print("Phase *1* Collect ids searching for "+",".join(list(corda_objects.keys())))
     # Complete list of corda object regex definition
     # # A helper list to give the type and avoid to do a second search on the config to gather object type
-
-
     # Prepare full regex for quick detection
     all_regex, all_regex_type = join_all_regex('CORDA_OBJECTS')
     all_regex_party, all_regex_type_party = join_all_regex('UML_DEFINITIONS', ['participant'])
@@ -5815,7 +5826,10 @@ def analyse_file(log_file):
                         logfile_fields['message'] = logfile_fields['message'].replace('\\"', '"')
                     if '\\t' in logfile_fields['message']:
                         logfile_fields['message'] = logfile_fields['message'].replace('\\"', '\t')
-                    print(f"{logfile_fields['timestamp']} {logfile_fields['error_level']} {logfile_fields['message']}")
+                    for fields in logfile_fields:
+                        print(f"{logfile_fields[fields]} ", end="")
+                    print("\n".strip())
+
             else:
                 print(each_line.strip())
 
