@@ -2,6 +2,7 @@ import os
 
 from logtracer import Configs, build_regex, CordaObject, get_fields_from_log, load_corda_object_definition, load_rules, \
     saving_tracing_ref_data, trace_id
+from x500check import X500NameParser
 import re
 import argparse
 
@@ -35,7 +36,7 @@ def get_ref_ids(each_line):
                     all_regex.append(build_regex(each_rgx, nogroup_name=True))
                     all_regex_type.append(each_type)
 
-        # Prepare full regex for quick detection
+        # Prepare full regex for quick detection (combine all "forms" of references ID's defined)
         corda_object_detection = "|".join(all_regex)
 
     try:
@@ -47,6 +48,10 @@ def get_ref_ids(each_line):
                     logfile_format = each_version
                     print("Log file format recognized as: %s" % logfile_format)
                     break
+
+        # This will try to match given line with all possible patterns for required ID's these patterns came
+        # from definition file at CORDA_OBJECT in there you will see all definitions program is looking for to
+        # identify a CORDA_OBJECT
 
         cordaobject_id_match = re.finditer(corda_object_detection, each_line)
 
@@ -77,6 +82,7 @@ def get_ref_ids(each_line):
                         if log_line_fields:
                             if not 'error_level' in log_line_fields:
                                 log_line_fields['error_level'] = 'INFO'
+                            # Create object
                             co.add_data("id_ref", each_group)
                             co.add_data("Original line", each_line)
                             co.add_data("error_level", log_line_fields["error_level"])
@@ -108,8 +114,7 @@ def get_ref_ids(each_line):
         #         exit(0)
 
         # Flows.flow_summary()
-        # saving_tracing_ref_data(CordaObject.get_all_objects())
-        # trace_id()
+
         # print('Finished.')
     except IOError as io:
         print('Sorry unable to open %s due to %s' % (log_file, io))
@@ -125,9 +130,17 @@ if __name__ == "__main__":
                             help='Give actual log file to pre-format')
 
     args = parserargs.parse_args()
-    load_corda_object_definition('%s/conf/logwatcher_rules.json' % (app_path,))
+    # load_corda_object_definition('%s/conf/logwatcher_rules.json' % (app_path,))
     Configs.load_config()
     load_rules()
+
+    alternate_name_found = False
+    # x500_list = []
+    test_list = []
+    # in this case I'm removing initial branch 'UML_SETUP' because final config is a collection of configuration settings
+    # that removes this.
+    rules = Configs.get_config_for('UML_DEFINITIONS.participant')
+    parser = X500NameParser(rules)
 
     if not args.log_file:
         print('You must provide a log file to scan')
@@ -139,5 +152,25 @@ if __name__ == "__main__":
         with open(log_file, "r") as fh_log_file:
             for each_line in fh_log_file:
                co = get_ref_ids(each_line)
-               pass
+               parsed_names = parser.parse_line(each_line, test_list)
+
+            print("-------------\nParsed X500 Names:")
+
+            for each_name in parsed_names:
+                print(f"* {each_name.string()}")
+                if each_name.has_alternate_names():
+                    for each_alternatename in each_name.get_alternate_names():
+                        print(f'   Alternate Name: {each_alternatename}')
+
+        if CordaObject.list:
+            print('-------------')
+            for each_type in CordaObject.list:
+                print(f'* Found {len(CordaObject.list[each_type])} {each_type}(S)')
+
+            saving_tracing_ref_data(CordaObject.get_all_objects(), log_file=args.log_file)
+
+            trace_id()
+
+    pass
+
 
