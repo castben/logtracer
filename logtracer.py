@@ -122,18 +122,19 @@ class Table:
                 self.table_corners = '+'
 
         # Command line override (this is being set at the command line)
-        if args.simple_tables:
-            self.row_delimiter = ' '
-            self.table_corners = ' '
-            self.column_delimiter = '|'
-        if args.no_tables:
-            self.row_delimiter = ' '
-            self.table_corners = ''
-            self.column_delimiter = ' '
-        if args.full_tables:
-            self.column_delimiter = '|'
-            self.row_delimiter = '-'
-            self.table_corners = '+'
+        if 'args' in globals():
+            if args.simple_tables:
+                self.row_delimiter = ' '
+                self.table_corners = ' '
+                self.column_delimiter = '|'
+            if args.no_tables:
+                self.row_delimiter = ' '
+                self.table_corners = ''
+                self.column_delimiter = ' '
+            if args.full_tables:
+                self.column_delimiter = '|'
+                self.row_delimiter = '-'
+                self.table_corners = '+'
         #
         self.start_end_table_delimiter = None
         self.alt_table_corner = '+'
@@ -2064,7 +2065,7 @@ class Configs:
             with open(file, "r") as fconfig:
                 # Configs.config = json.load(fconfig)["CONFIG"]
                 Configs.config = json.load(fconfig)
-            print("Configuration loaded!")
+            print("Rules loaded")
             Rules.load()
         except IOError as io:
             print("ERROR loading config file: %s" % io)
@@ -2189,6 +2190,17 @@ class Configs:
 
         return configs
 
+    @staticmethod
+    def get_config_for(path_value):
+        """
+        A simplified method to get access to a final variable
+        :param path_value: dot noted version for variable to access
+        :return: value of such variable, or None otherwise
+        """
+
+        _,access = generate_internal_access(Configs.config, path_value)
+
+        return access
 
 class Rules:
     rule_list = {}
@@ -2394,9 +2406,12 @@ def load_rules():
 
 def draw_results(title, script_txt, file):
     import subprocess
-
-    base_dir = os.path.dirname(file)
+    global app_path
+    # base_dir = os.path.dirname(file)
     #if not file:
+    if 'app_path' not in globals():
+        app_path = os.path.dirname(os.path.abspath(__file__))
+
     save_path = f"{app_path}/plugins/plantuml_cmd/data"
     if file:
         tmp_file = os.path.basename(file)
@@ -2683,6 +2698,16 @@ class CordaObject:
         CordaObject.id_ref = []
         CordaObject.relations = {}
 
+    @staticmethod
+    def set_log_owner(log_owner):
+        """
+        Set actual log owner for analysed log
+        :param log_owner: party which is owner/producer of log being analised
+        :return: None
+        """
+
+        CordaObject.log_owner = log_owner
+        # Party.party_expected_role_list.remove('log_owner')
 
     def get_reference_id(self):
         return self.data['ref_id']
@@ -2893,39 +2918,49 @@ class CordaObject:
         :return: void
         """
         party = Party.get_party(participant)
-
+        party.set_corda_role(role)
         if role == "log_owner":
-            CordaObject.log_owner = participant
+            CordaObject.set_log_owner(participant)
 
         if attach_usages:
-            if Configs.get_config(section="UML_ENTITY", param="OBJECTS", sub_param="log_owner"):
-                default_endpoint = Configs.get_config(section="UML_ENTITY", param="OBJECTS", sub_param=role)
-                if "USAGES" in default_endpoint:
-                    # CordaObject.default_uml_endpoints[CordaObject.log_owner] = default_endpoint["USAGES"]
-                    # CordaObject.default_uml_endpoints[CordaObject.log_owner]["ROLE"] = role
-                    CordaObject.default_uml_endpoints[participant] = default_endpoint["USAGES"]
-                    CordaObject.default_uml_endpoints[participant]["ROLE"] = role
+            for each_crole in party.get_corda_roles():
+                if Configs.get_config(section="UML_ENTITY", param="OBJECTS", sub_param=each_crole):
+                    default_endpoint = Configs.get_config(section="UML_ENTITY", param="OBJECTS", sub_param=each_crole)
+                    if "USAGES" in default_endpoint:
+                        if participant not in CordaObject.default_uml_endpoints:
+                            CordaObject.default_uml_endpoints[participant] = default_endpoint["USAGES"]
+                            CordaObject.default_uml_endpoints[participant]["ROLE"] = [each_crole]
+                        else:
+
+                            additional_endpoints = Configs.get_config_for(f"UML_ENTITY.OBJECTS.{each_crole}.ROLE")
+                            check_roles = CordaObject.default_uml_endpoints[participant]['ROLE']
+                            if each_crole in check_roles:
+                                # if usage group was already added for this role, skip
+                                continue
+                            additional_endpoints = Configs.get_config_for(f"UML_ENTITY.OBJECTS.{each_crole}")
+
+
+                    else:
+                        print("Unable to attach default usages for '%s': %s" % (each_crole, participant))
+                        print("Configuration file is not having this config section!")
                 else:
-                    print("Unable to attach default usages for '%s': %s" % (role, participant))
-                    print("Configuration file is not having this config section!")
-            else:
-                print("There's no config section for '%s' unable to define default properly" % (role,))
-                print("Default destination/source will be shown as 'None' at UML")
+                    print("There's no config section for '%s' unable to define default properly" % (each_crole,))
+                    print("Default destination/source will be shown as 'None' at UML")
 
         # Check if this participant has extra endpoints to attach (A notary for example)
         #
-        if party.get_corda_role():
-            additional_endpoints = Configs.get_config(section="UML_ENTITY", param="OBJECTS",
-                                                      sub_param=party.get_corda_role().lower())
-            if party.get_corda_role().lower() in additional_endpoints:
-                additional_endpoints = additional_endpoints[party.get_corda_role().lower()]
-            else:
-                additional_endpoints = None
-
-            if additional_endpoints and 'USAGES' in additional_endpoints:
-                for each_endpoint in additional_endpoints['USAGES']:
-                    additional_usages = additional_endpoints['USAGES'][each_endpoint]['EXPECT']
-                    CordaObject.default_uml_endpoints[participant][each_endpoint]['EXPECT'].extend(additional_usages)
+        # if party.get_corda_role():
+        #     additional_endpoints = Configs.get_config(section="UML_ENTITY", param="OBJECTS",
+        #                                               sub_param=party.get_corda_role().lower())
+        #     if party.get_corda_role().lower() in additional_endpoints:
+        #         additional_endpoints = additional_endpoints[party.get_corda_role().lower()]
+        #     else:
+        #         additional_endpoints = None
+        #
+        #     if additional_endpoints and 'USAGES' in additional_endpoints:
+        #         for each_endpoint in additional_endpoints['USAGES']:
+        #             additional_usages = additional_endpoints['USAGES'][each_endpoint]['EXPECT']
+        #             CordaObject.default_uml_endpoints[participant][each_endpoint]['EXPECT'].extend(additional_usages)
 
 
     @staticmethod
@@ -3761,12 +3796,14 @@ class Party:
     A class to represent parties on a log
     """
     party_list = []
+    party_expected_role_list = ['notary', 'log_owner']
 
     def __init__(self):
         self.name = None
         self.role = ''
-        self.corda_role = ''
+        self.corda_role = []
         self.default_endpoint = None
+        self.notaries = []
 
     def set_name(self, name):
         """
@@ -3778,7 +3815,7 @@ class Party:
 
     def set_role(self, role):
         """
-        Set party role
+        Set party role for UML setup
         :param role: role
         :return: void
         """
@@ -3788,19 +3825,36 @@ class Party:
     def set_corda_role(self, corda_role):
         """
         Set party corda role
-        :param corda_role: set actual corda role like participant, Notary, etc
+        :param corda_role: set actual corda role like participant, Notary, etc, a node may have more than a role
+        for example if log is being produced by a Notary, then role should be "notary/log_owner"
         :return: void
         """
 
-        self.corda_role = corda_role
+        if corda_role in self.corda_role:
+            return
+
+        if corda_role in Party.party_expected_role_list:
+            # remove given party expected role from pending list
+            Party.party_expected_role_list.remove(corda_role)
+
+        self.corda_role.append(corda_role)
 
     def get_corda_role(self):
         """
-        Return actual corda role assigned to this party
+        Return actual corda role assigned to this party, if multiple roles are will be separated by "/"
         :return: String
         """
 
+        return "/".join(self.corda_role)
+
+    def get_corda_roles(self):
+        """
+        Return a list of roles
+        :return: list of string representing each assigned role
+        """
+
         return self.corda_role
+
 
     def add_endpoint(self, endpoints, endpoint_type="source"):
         """
@@ -4655,28 +4709,48 @@ def trace_id():
         pass
 
     lcount = 0
-
+    selection = ""
+    participant_list = None
     if CordaObject.uml_init:
-        if not CordaObject.get_log_owner():
+        if Party.party_expected_role_list:
             counter = 0
-
             print("\n-----------------------------------------------------------------------------------")
-            print("I was not able to determine who is the owner of given logs,"
-                  " please can you choose it from below...\n")
-            participant_list = []
-            counter = 0
-            for each_item in CordaObject.uml_init:
-                # if "uml_object" in each_item:
-                # counter += 1
-                #     party = each_item.replace("uml_object", "").replace('"', '').strip()
-                if "participant" in each_item:
+            print("I was not able to identify following roles by myself:")
+            for each_crole in Party.party_expected_role_list:
+                print(f"  * {each_crole}")
+            role_setup = len(Party.party_expected_role_list)
+            while role_setup>0:
+                participant_list = []
+                for each_crole in Party.party_expected_role_list:
+                    print(f"For role of {each_crole} please can you choose it from below...\n")
+                    counter = 0
+                    for each_item in CordaObject.uml_init:
+                        # if "uml_object" in each_item:
+                        # counter += 1
+                        #     party = each_item.replace("uml_object", "").replace('"', '').strip()
+                        if "participant" in each_item:
+                            counter += 1
+                            party = clear_participant_str(each_item)
+                            print("[%s] %s" % (counter, party))
+                            participant_list.append(party)
                     counter += 1
-                    party = clear_participant_str(each_item)
-                    print("[%s] %s" % (counter, party))
-                    participant_list.append(party)
-            counter += 1
-            print(f"[{counter}] - Need to define new party for this file")
-            selection = input("Please let me know which one is the producer of this log file [1-%s]:" % (counter,))
+                    print(f"[{counter}] - Need to define new party for this role")
+                    print("Enter None, to do not setup this role: ")
+                    while True:
+                        selection = input(f"Please let me know which one is {each_crole} of this log file [1-{counter}]:")
+                        if selection.isalpha():
+                            if selection == 'NONE':
+                                role_setup -= 1
+                                break
+                            print('Please select a valid number')
+                        if selection.isdigit() and 0 < int(selection) <= len(participant_list):
+                            break
+                        else:
+                            print('Please select a valid number')
+                    if selection.isdigit():
+                        CordaObject.set_participant_role(participant_list[int(selection)-1], role=each_crole, attach_usages=True)
+                        role_setup -= 1
+
             if int(selection) == counter:
                 party_roles = [
                     "Notary",
@@ -4714,7 +4788,8 @@ def trace_id():
                 # party = each_item.replace("uml_object", "").replace('"', '').strip()
                 party = clear_participant_str(each_item)
                 if CordaObject.get_log_owner() and party == CordaObject.get_log_owner():
-                    note = "[ LOG OWNER ]"
+                    cparty = Party.get_party(party)
+                    note = cparty.get_corda_role()
                 else:
                     if party in CordaObject.default_uml_endpoints and \
                             "ROLE" in CordaObject.default_uml_endpoints[party]:
@@ -5704,14 +5779,17 @@ def get_ref_ids_NEW(each_line):
     except IOError as io:
         print('Sorry unable to open %s due to %s' % (log_file, io))
 
-def saving_tracing_ref_data(data):
+def saving_tracing_ref_data(data, log_file=None):
     """
     Will save actual collected reference data to be able to load it quickly
     :param data:
     :return:
     """
-    logdir = os.path.dirname(args.log_file)
-    log_file = os.path.basename(args.log_file)
+    if log_file:
+        logdir = os.path.dirname(log_file)
+    else:
+        logdir = os.path.dirname(args.log_file)
+
     tracer_cache = f'{logdir}/cache'
 
     if not os.path.exists(tracer_cache):

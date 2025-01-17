@@ -250,7 +250,7 @@ if __name__ == "__main__":
                 for each_line in h_x500:
                     parsed_names = parser.parse_line(each_line, test_list)
 
-                print("Parsed X500 Names:")
+                print("X500 Entity Names found:")
 
                 for each_name in parsed_names:
                     print(f"* {each_name.string()}")
