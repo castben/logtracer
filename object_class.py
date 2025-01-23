@@ -5,7 +5,6 @@ import re
 from collections import OrderedDict
 from multiprocessing import Pool
 
-
 class CordaObject:
     """
     This class object will hold all transaction results and many other useful objects
@@ -75,7 +74,7 @@ class CordaObject:
         no_group_list = []
         for each_item in raw_list:
             # Expand all macro variables from their pseudo form
-            expand_macro = build_regex(each_item, nogroup_name=True)
+            expand_macro = RegexLib.build_regex(each_item, nogroup_name=True)
             # Check how many "group names" are within the given string
             #
             clear_groups = expand_macro
@@ -437,9 +436,9 @@ class CordaObject:
                 continue
 
             regex_expect = uml_definition[each_uml_definition]["EXPECT"][expect_to_use]
-            each_expect = build_regex(regex_expect)
+            each_expect = RegexLib.build_regex(regex_expect)
             # each_expect = RegexLib.use(each_expect)
-            match = RegexLib.Search(build_regex(each_expect), original_line)
+            match = RegexLib.Search(RegexLib.build_regex(each_expect), original_line)
             # match = each_expect.search(original_line)
             if match:
                 # rx = RegexLib.Search(build_regex(each_expect), original_line)
@@ -603,7 +602,7 @@ class CordaObject:
                     #
                     for each_expect in expect_list:
                         # Make sure all regex substitution are done
-                        fill_regex = build_regex(each_expect)
+                        fill_regex = RegexLib.build_regex(each_expect)
                         # now with proper regex, check message to see if we can gather field data
                         field_match = re.search(fill_regex, original_line)
 
@@ -692,7 +691,7 @@ class CordaObject:
             if "EXPECT" in uml_defaults[each_default]:
                 usage_expect_counter = 0
                 for each_usage_expect in uml_defaults[each_default]["EXPECT"]:
-                    nregex = build_regex(each_usage_expect)
+                    nregex = RegexLib.build_regex(each_usage_expect)
                     match = re.search(nregex, line)
                     if match and each_default not in CordaObject.default_uml_endpoints:
                         if each_default in match.groupdict():
@@ -1179,11 +1178,31 @@ class FileManagement:
     """
     A class to help to read big files...
     """
+
     def __init__(self, filename, block_size):
         self.filename = filename
         self.block_size = block_size
         self.logfile_format = None
+        self.scan_lines = 100
+        self.parallel_process = {}
+        self.rules = None
+        self.parser = None
 
+        if not self.rules:
+            self.rules = Configs.get_config_for('UML_DEFINITIONS.participant')
+        if not self.parser:
+            self.parser = X500NameParser(self.rules['RULES-D'])
+
+    def set_process_to_execute(self, name, method):
+        """
+        This will set actual method to be executed.
+        :param name: a key name to refer to this method
+        :param method: Class/object which represents and have an internal method called
+        "execute" which will instruct what need to be performed
+        :return:
+        """
+
+        self.parallel_process[name] = method
 
     def divide_file(self):
         """
@@ -1193,36 +1212,68 @@ class FileManagement:
         with open(self.filename, "r") as fh_file:
             while True:
                 start_pos = fh_file.tell()
-                lines = fh_file.readlines(self.filename)
-                if not lines:
+                chunk = fh_file.read(self.block_size)
+                if not chunk:
                     break
-                yield start_pos, fh_file.tell() - start_pos
+                yield start_pos, len(chunk)
 
-    def process_block(args):
-        filename, start, size = args
+    def process_block(self, args):
+        start, size = args
         results = []
-        with open(filename, "r") as file:
+        with open(self.filename, "r") as file:
             file.seek(start)
             lines = file.read(size).splitlines()
             for line in lines:
-                result = CordaObject.analyse(line)  # Tu lógica aquí
+                result = self.parallel_process['ID_Refs'].execute(line) # Tu lógica aquí
                 if result:
                     results.append(result)
         return results
 
-    def parallel_processing(self,filename, block_size):
-        tasks = [(filename, start, size) for start, size in self.divide_file(filename, block_size)]
+    def parallel_processing(self):
+        tasks = [(start, size) for start, size in self.divide_file()]
         with Pool() as pool:
             results = pool.map(self.process_block, tasks)
         return results
 
-    def set_fileformat(self,fileformat):
+    def set_file_format(self, file_format):
         """
         Corda file format recognized
-        :param fileformat: file format found at json config file
+        :param file_format: file format found at json config file
         :return:
         """
-        self.log_fileformat = fileformat
+        self.log_fileformat = file_format
+
+    def get_file_format(self):
+        """
+        Return actual file format
+        :return: String, this file format is actual label being set in json file
+        """
+
+        if self.log_fileformat:
+            return self.log_fileformat
+        else:
+            return "UNKNOWN"
+
+    def discover_file_format(self):
+        """
+        Will try to find out what is file format in the file reading first 100 lines from that file.
+        :return:
+        """
+
+        try:
+            with open(self.filename, "r") as hfile:
+                for line, each_line in enumerate(hfile):
+                    if not self.logfile_format and line <=100:
+                        for each_version in Configs.get_config_for("VERSION.IDENTITY_FORMAT"):
+                            try_version = Configs.get_config_for(f"VERSION.IDENTITY_FORMAT.{each_version}")
+                            check_version = re.search(try_version["EXPECT"], each_line)
+                            if check_version:
+                                self.logfile_format = each_version
+                                print("Log file format recognized as: %s" % self.logfile_format)
+                                break
+        except IOError as io:
+            print(f'Unable to open {self.filename} due to {io}')
+            exit(0)
 
 class UMLObject:
     """
@@ -1450,21 +1501,21 @@ class Party:
             # able to get correct regex patter to look for
 
             # Expand regex:
-            for each_expect in expect:
-                real_regex = RegexLib.build_regex(each_expect)
+            # for each_expect in expect:
+            # real_regex = RegexLib.build_regex(each_expect)
 
-                check_pattern = RegexLib.regex_to_use(real_regex, line)
+            check_pattern = RegexLib.regex_to_use(expect, line)
 
-                if  check_pattern is None:
-                    # No role found for this entity
-                    continue
+            if  check_pattern is None:
+                # No role found for this entity
+                continue
 
-                    validate = re.search(expect[check_pattern], line)
+                validate = re.search(expect[check_pattern], line)
 
-                    if validate:
-                        pass
-                        self.set_corda_role(validate)
+                if validate:
                     pass
+                    self.set_corda_role(validate)
+                pass
 
 
 
@@ -1480,104 +1531,6 @@ class Party:
                 return each_party
 
         return None
-
-
-# class X500Name:
-#     """
-#     This represents x500 names
-#     """
-#
-#     def __init__(self, x500name):
-#         """
-#         This represents an actual x500 valid name
-#         """
-#
-#         self.alternate_names = []
-#         self.original_string = x500name
-#         self.regex = re.compile(r"([CNSTLOU]{1,2}=[^\[\]^,]*)")
-#         self.attributes = self.extract_attributes()
-#
-#     def extract_attributes(self, name=None):
-#         """
-#         Try to extract actual attributes for given name
-#         Extract attributes from a given line using a regex.
-#         """
-#
-#         if not name:
-#             name = self.original_string
-#
-#         matches = self.regex.findall(name)
-#         # attributes = [match.split('=') for match in matches]
-#         attributes = matches
-#         return attributes
-#
-#     def compare_name(self, name_to_compare):
-#         """
-#         Will try to compare given name to actual x500 name to see if it is the same,
-#         x500 names can have their attributes shifted, but they are still same regardless to their order.
-#         this method will tell if given name is same
-#         :param name_to_compare: other x500 name to compare
-#         :return: true if it is same, false otherwise
-#         """
-#
-#         other_attributes = self.extract_attributes(name_to_compare)
-#
-#         if set(other_attributes) == set(self.attributes):
-#             return True
-#
-#         return False
-#
-#     def add_alternate_name(self, other_x500_name):
-#         """
-#         This will add a new alias for given name
-#         :param other_x500_name:
-#         :return:
-#         """
-#
-#         # first check if alias is already here
-#         if other_x500_name == self.original_string:
-#             return
-#
-#         if other_x500_name in self.alternate_names:
-#             return
-#
-#
-#         self.alternate_names.append(other_x500_name)
-#
-#     def get_attributes(self):
-#         """
-#         Return all attributes
-#         :return:
-#         """
-#
-#         return self.attributes
-#
-#     def get_alternate_names(self):
-#         """
-#         Return all aliases found for this name
-#         :return:
-#         """
-#
-#         return self.alternate_names
-#
-#     def string(self):
-#         """
-#         Returns actual x500 name in string format
-#         :return:
-#         """
-#
-#         return ', '.join(f"{k}" for k in self.attributes).strip()
-#
-#     def has_alternate_names(self):
-#         """
-#         Will return wether current name has alternate names
-#         :return: true if it has, false otherwise
-#         """
-#
-#         if self.alternate_names:
-#             return True
-#
-#         return False
 
 class X500NameParser:
     def __init__(self, rules):
@@ -2786,7 +2739,6 @@ class RegexLib:
 
             return ltr
 
-
 def generate_internal_access(variable_dict, variable_to_get):
     """
     This method will try to generate internal access to given variable
@@ -2813,80 +2765,6 @@ def generate_internal_access(variable_dict, variable_to_get):
             return None, None
     return None,None
 
-def build_regex(regex, nogroup_name=False):
-    """
-    This method will scan given regex to check if a "macro"(regex inside a regex) was included, if so will look for that
-    and replace it with its value; then will return complete regex expression
-    :param regex: regex to examine
-    :return: complete regex expression if a variable needs to be replaced, original regex expression otherwise
-    """
-    return_regex = regex
-
-    if not Configs.get_config(section="CORDA_OBJECT_DEFINITIONS", param="OBJECTS"):
-        return return_regex
-
-    # cregex = RegexLib.use(r'__([a-zA-Z0-9-_]+)__')
-    # check_variable = cregex.findall(regex)
-    # check_variable = re.findall(r"__([a-zA-Z0-9-_]+)__", regex)
-    ccheck_variable = re.compile(r"__([a-zA-Z0-9-_]+)__")
-    check_variable = ccheck_variable.findall(regex)
-
-    if check_variable:
-        for each_variable in check_variable:
-            # Search where this variable could be applicable to then extract the proper regex replacement for such
-            # variable
-            #
-            for each_object in Configs.get_config(section="CORDA_OBJECT_DEFINITIONS", param="OBJECTS").keys():
-                apply_to = None
-                #
-                if "APPLY_TO" in Configs.get_config(section="CORDA_OBJECT_DEFINITIONS",
-                                                    param="OBJECTS", sub_param=each_object):
-                    apply_to = Configs.get_config(section="CORDA_OBJECT_DEFINITIONS",
-                                                  param="OBJECTS",
-                                                  sub_param=each_object)["APPLY_TO"]
-                else:
-                    print("Warning: %s has no 'APPLY_TO' parameter,"
-                          " so I'm not able to identify the match for this label..." %
-                          (each_object,))
-                #
-                # if apply_to list has a content, and check_variable appear in such list, then proceed to do replacement
-                if apply_to and each_variable in apply_to:
-                    list_expects = "|".join(Configs.get_config(
-                        section="CORDA_OBJECT_DEFINITIONS",
-                        param="OBJECTS",
-                        sub_param=each_object
-                    )["EXPECT"])
-
-                    if nogroup_name:
-                        regex_replace = "(%s)" % (list_expects,)
-                    else:
-                        regex_replace = "(?P<%s>%s)" % (
-                            each_variable,
-                            list_expects
-                        )
-                    return_regex = regex.replace("__%s__" % each_variable, regex_replace)
-
-                    # if more than one variable is being found make sure to keep previous change before replacing
-                    # following variable
-
-                    regex = return_regex
-    else:
-        # If I do not find the macro variable in the form of "__macro-variable__" then I will need to do a reverse
-        # search, to find the actual object... because what I'm sending then is probably a raw Object  definition
-        object_definition = Configs.get_config(section="CORDA_OBJECT_DEFINITIONS", param="OBJECTS")
-        for each_object in object_definition:
-            if regex in object_definition[each_object]['EXPECT']:
-                if nogroup_name:
-                    regex_replace = "(%s)" % (regex,)
-                else:
-                    regex_replace = "(?P<%s>%s)" % (
-                        each_object,
-                        regex
-                    )
-                return_regex = regex_replace
-
-    return return_regex
-
 def generate_hash(stringData):
     hashstring = ""
     try:
@@ -2894,62 +2772,6 @@ def generate_hash(stringData):
     except UnicodeDecodeError as be:
         print("Error: %s" % be)
     return hashstring
-
-# def regex_to_use(regex_list, message_line):
-#     """
-#     Given a regex_list, which will contain all regex; and the line to find out which regex can be applied into it
-#     :param regex_list: a regex list with all possible regex to try
-#     :param message_line: the actual message that need to be parsed
-#     :return: regex index to be used or None if there're no possible regex matches.
-#     """
-#     #
-#     # In order to join all regex into one, I need to remove any group names as it can make conflicts
-#     no_group_names = clear_groupnames(regex_list)
-#     #
-#     # I need to get actual group references for the concatenated regex. this will help to
-#     # identify correct regex to use
-#     concatenated_idx_groups = RegexLib.set_concatenated_index_groups(no_group_names)
-#     # Join all regex into one
-#
-#     # all_expects = ''
-#     # for each_item in no_group_names:
-#     #     all_expects += '|' + each_item
-#     #
-#     # tall_expects = all_expects[1:]
-#     # all_expects = tall_expects
-#
-#     all_expects = '|'.join(no_group_names)
-#
-#     group_idx_match = None
-#
-#     try:
-#         # Check if given line has a valid regex to be applied
-#         expression = RegexLib.use(all_expects)
-#         check_match = expression.findall(message_line)
-#         # check_match = re.findall(all_expects, message_line)
-#         #
-#         # Using result from findall; search which group was valid
-#         #
-#         if not check_match:
-#             return None
-#         match_expression_index = next(a for a, b in enumerate(check_match[0]) if b)
-#         # I've found a good group save it for reference
-#         group_idx_match = match_expression_index
-#     except BaseException as be:
-#         # No regex has a match with given line
-#         return None
-#
-#     # If we don't match any regex for this line, then doesn't make sense to continue with it... return None
-#     if group_idx_match is None:
-#         return None
-#
-#     expect_to_use = concatenated_idx_groups[group_idx_match]
-#
-#     # A matching regex was found, return actual index that will work:
-#
-#     return expect_to_use
-
-
 
 def clear_groupnames(regex_list):
     """

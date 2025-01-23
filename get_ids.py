@@ -1,11 +1,23 @@
-from object_class import  build_regex, CordaObject, get_fields_from_log
+from object_class import CordaObject, get_fields_from_log, FileManagement
+from object_class import RegexLib
+
 import re
 
 class GetRefIds:
     def __init__(self, get_configs):
         self.Configs = get_configs
+        self.file = None
+        self.x500list = []
 
-    def get_ref_ids(self,each_line, file):
+    def set_file(self, file):
+        """
+        Setting actual file to work with
+        :param file: a FileManager object type
+        :return:
+        """
+        self.file = file
+
+    def get_ref_ids(self,each_line):
         """
         Search for all identifiable ids on a log
 
@@ -32,20 +44,21 @@ class GetRefIds:
                 if "EXPECT" in self.Configs.get_config(sub_param=each_type, section="CORDA_OBJECTS")[each_type]:
                     regex_list = self.Configs.get_config(sub_param=each_type, section="CORDA_OBJECTS")[each_type]["EXPECT"]
                     for each_rgx in regex_list:
-                        all_regex.append(build_regex(each_rgx, nogroup_name=True))
+                        # Before adding it into list, will replace any macrovariable within (like __txid__ or __participant__ etc...)
+                        all_regex.append(RegexLib.build_regex(each_rgx, nogroup_name=True))
                         all_regex_type.append(each_type)
 
             # Prepare full regex for quick detection (combine all "forms" of references ID's defined)
             corda_object_detection = "|".join(all_regex)
 
         try:
-            if not file.logfile_format:
+            if not self.file.logfile_format:
                 for each_version in self.Configs.get_config_for("VERSION.IDENTITY_FORMAT"):
                     try_version = self.Configs.get_config_for(f"VERSION.IDENTITY_FORMAT.{each_version}")
                     check_version = re.search(try_version["EXPECT"], each_line)
                     if check_version:
-                        file.logfile_format = each_version
-                        print("Log file format recognized as: %s" % file.logfile_format)
+                        self.file.logfile_format = each_version
+                        print("Log file format recognized as: %s" % self.file.logfile_format)
                         break
 
             # This will try to match given line with all possible patterns for required ID's these patterns came
@@ -71,7 +84,7 @@ class GetRefIds:
                             #
                             # Also create this object to be identified later:
                             # first extract line features (timestamp, severity, etc)
-                            log_line_fields = get_fields_from_log(each_line, file.logfile_format, file)
+                            log_line_fields = get_fields_from_log(each_line, self.file.logfile_format, self.file)
                             # Create object:
                             co = CordaObject()
                             # TODO: Hay un bug que ocurre cuando el programa detecta un corda_object que esta
@@ -90,11 +103,11 @@ class GetRefIds:
                                 co.set_type(all_regex_type[groupNum-1])
                                 co.add_object()
 
-            if not file.logfile_format:
+            if not self.file.logfile_format:
                 print("Sorry I can't find a proper log template to parse this log terminating program")
                 exit(0)
 
-            return co
+            # return co
 
             # if len(CordaObject.id_ref) > 0:
             #     print('%s file contains %s ids' % (log_file, len(CordaObject.id_ref)))
@@ -111,7 +124,21 @@ class GetRefIds:
 
             # print('Finished.')
         except IOError as io:
-            print('Sorry unable to open %s due to %s' % (file.logfile_format, io))
+            print('Sorry unable to open %s due to %s' % (self.file.logfile_format, io))
+
+    def execute(self, each_line):
+        """
+        Process that need to be executed in parallel
+        :param each_line: line from log file
+        :return: a list x500 name found
+        """
+
+        self.get_ref_ids(each_line)
+        parsed_names = self.file.parser.parse_line(each_line, self.x500list)
+        for each_name in parsed_names:
+            each_name.identify_party_role(each_line)
+
+        return parsed_names
 
 #
 # if __name__ == "__main__":
