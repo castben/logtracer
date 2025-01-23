@@ -4265,7 +4265,6 @@ def regex_to_use(regex_list, message_line):
 
     return expect_to_use
 
-
 def set_concatenated_index_groups(regex_list):
     """
     This method will create an array with list of regex indexes, this will help to locate the proper regex,
@@ -4297,7 +4296,6 @@ def set_concatenated_index_groups(regex_list):
         group_pos += no_groups
 
     return index_grp
-
 
 def clear_groupnames(regex_list):
     """
@@ -4662,7 +4660,7 @@ def get_uml_values(each_uml_step, what_to_look_for):
     return value
 
 
-def trace_id():
+def trace_id(logfile=None):
     """
     Trace a particular corda object over all logs
     :return:
@@ -4671,6 +4669,8 @@ def trace_id():
 
     global log_file, logfile_format
 
+    if logfile:
+        log_file = logfile
     # Create keyword search tree
     kwtree = KeywordTree(case_insensitive=True)
     for id_ref in CordaObject.id_ref:
@@ -5801,7 +5801,6 @@ def saving_tracing_ref_data(data, log_file=None):
         print(f'Unable to create cache file {tracer_cache}/references.json due to: {io}')
 
     return
-
 
 
 def build_regex(regex, nogroup_name=False):
