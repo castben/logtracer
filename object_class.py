@@ -1179,19 +1179,52 @@ class FileManagement:
     A class to help to read big files...
     """
 
-    def __init__(self, filename, block_size):
+    unique_results = set()
+
+    def __init__(self, filename, block_size_in_mb):
         self.filename = filename
-        self.block_size = block_size
+        self.block_size = block_size_in_mb * 1024 * 1024
         self.logfile_format = None
         self.scan_lines = 100
         self.parallel_process = {}
         self.rules = None
         self.parser = None
+        self.lock = threading.Lock()
+        self.chunk_info = []
+        self.file_size = None
 
         if not self.rules:
             self.rules = Configs.get_config_for('UML_DEFINITIONS.participant')
         if not self.parser:
             self.parser = X500NameParser(self.rules['RULES-D'])
+
+    def pre_analysis(self):
+        """
+        Pre analyse file, to accommodate correctly block size to read full lines and prevent
+        breaking lines or reading blocks with a trunked line
+        :return: None
+        """
+        file_size = os.path.getsize(self.filename)
+        print(f'Pre-analysing file size {file_size / 1024 / 1024:.2f} Mbytes calculating block sizes')
+        with open(self.filename, 'r') as file:
+            while True:
+                start_pos = file.tell()
+                chunk = file.read(self.block_size)
+                if not chunk:
+                    break
+                # Find the end of the last line to avoid splitting lines
+                last_newline = chunk.rfind('\n')
+                if last_newline != -1:
+                    end_pos = start_pos + last_newline + 1  # include newline character
+                else:
+                    end_pos = start_pos + len(chunk)
+                self.chunk_info.append((start_pos, end_pos - start_pos))
+                file.seek(end_pos)
+
+            print(f'will launch {len(self.chunk_info)} threads to read full file...')
+            # for index,each_file_block in enumerate(self.chunk_info):
+            #     print(f'Thread {index} block size to read {each_file_block[1] / 1024 / 1024:.2f} Mbytes ({each_file_block[0], each_file_block[1]}')
+            # print("")
 
     def set_process_to_execute(self, name, method):
         """
@@ -1219,21 +1252,55 @@ class FileManagement:
 
     def process_block(self, args):
         start, size = args
-        results = []
         with open(self.filename, "r") as file:
             file.seek(start)
-            lines = file.read(size).splitlines()
+            chunk = file.read(size)
+            lines = chunk.splitlines()
             for line in lines:
-                result = self.parallel_process['ID_Refs'].execute(line) # Tu lógica aquí
+                result = self.parallel_process['ID_Refs'].execute(line)
                 if result:
-                    results.append(result)
-        return results
+                    with self.lock:
+                        for each_result in result:
+                            FileManagement.unique_results.add(each_result)
+
+        return FileManagement.unique_results
 
     def parallel_processing(self):
-        tasks = [(start, size) for start, size in self.divide_file()]
-        with Pool() as pool:
-            results = pool.map(self.process_block, tasks)
-        return results
+        tasks = [(start, size) for start, size in self.chunk_info]
+        futures = []
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            for index, each_task in enumerate(tasks):
+                start_time = time.time()
+                future = pool.submit(self.process_block, each_task)
+                future.thread_index = index
+                future.start_time = start_time
+                future.info = each_task[1]
+                futures.append(future)
+
+            for future in concurrent.futures.as_completed(futures):
+                thread_index = future.thread_index
+                elapsed_time = time.time() - future.start_time
+                data = future.info / 1024 / 1024
+                if elapsed_time > 60:
+                    time_msg = f'{elapsed_time / 60:.2f} minute(s).'
+                else:
+                    time_msg = f'{elapsed_time:.4f} seconds.'
+
+                print(f"Thread {thread_index} completed in {time_msg} Read {data:.2f} Mbytes.")
+
+            # futures = {pool.submit(self.process_block, task): task for task in tasks}
+
+        #     results = []
+        #     for future in as_completed(futures):
+        #         partial_results = future.result()
+        #         if partial_results:
+        #             for each_result in partial_results:
+        #                 # if each_result in FileManagement.unique_results:
+        #                 #     continue
+        #                 # else:
+        #                     results.extend(partial_results)
+        #
+        # return results
 
     def set_file_format(self, file_format):
         """
@@ -1339,6 +1406,13 @@ class Party:
             Party.party_expected_role_list.remove(corda_role)
 
         self.corda_role.append(corda_role)
+
+    def get_alternate_names(self):
+        """
+        Return all names that match with current main Name
+        :return: list x500 names
+        """
+        return self.alternate_names
 
     def get_corda_role(self):
         """
