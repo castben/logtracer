@@ -1,8 +1,13 @@
+import concurrent.futures
 import hashlib
 import json
 import os
 import re
+import threading
+import time
+from asyncio import as_completed
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import Pool
 
 class CordaObject:
@@ -1584,12 +1589,12 @@ class Party:
                 # No role found for this entity
                 continue
 
-                validate = re.search(expect[check_pattern], line)
+            validate = re.search(expect[check_pattern], line)
 
-                if validate:
-                    pass
-                    self.set_corda_role(validate)
+            if validate:
                 pass
+                self.set_corda_role(validate)
+            pass
 
 
 
