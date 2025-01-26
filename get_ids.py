@@ -24,9 +24,6 @@ class GetRefIds:
         :return:
         """
 
-        #TODO: transformar esta rutina para que trabaje con una sola linea antes lo hacia haciendo un bucle
-
-        co = None
         corda_objects = self.Configs.get_config(section='CORDA_OBJECTS')
         corda_object_detection = None
         # Complete list of corda object regex definition
@@ -52,14 +49,14 @@ class GetRefIds:
             corda_object_detection = "|".join(all_regex)
 
         try:
-            if not self.file.logfile_format:
-                for each_version in self.Configs.get_config_for("VERSION.IDENTITY_FORMAT"):
-                    try_version = self.Configs.get_config_for(f"VERSION.IDENTITY_FORMAT.{each_version}")
-                    check_version = re.search(try_version["EXPECT"], each_line)
-                    if check_version:
-                        self.file.logfile_format = each_version
-                        print("Log file format recognized as: %s" % self.file.logfile_format)
-                        break
+            # if not self.file.logfile_format:
+            #     for each_version in self.Configs.get_config_for("VERSION.IDENTITY_FORMAT"):
+            #         try_version = self.Configs.get_config_for(f"VERSION.IDENTITY_FORMAT.{each_version}")
+            #         check_version = re.search(try_version["EXPECT"], each_line)
+            #         if check_version:
+            #             self.file.logfile_format = each_version
+            #             print("Log file format recognized as: %s" % self.file.logfile_format)
+            #             break
 
             # This will try to match given line with all possible patterns for required ID's these patterns came
             # from definition file at CORDA_OBJECT in there you will see all definitions program is looking for to
@@ -107,22 +104,6 @@ class GetRefIds:
                 print("Sorry I can't find a proper log template to parse this log terminating program")
                 exit(0)
 
-            # return co
-
-            # if len(CordaObject.id_ref) > 0:
-            #     print('%s file contains %s ids' % (log_file, len(CordaObject.id_ref)))
-            #
-            # if len(CordaObject.id_ref) > 50 and not args.web_style:
-            #     print('**WARNING** this may take long time to complete...')
-            #     print('Do you want to track all id\'s in %s file ?' % (log_file,))
-            #
-            #     response = input('> ')
-            #     if response != 'y':
-            #         exit(0)
-
-            # Flows.flow_summary()
-
-            # print('Finished.')
         except IOError as io:
             print('Sorry unable to open %s due to %s' % (self.file.logfile_format, io))
 
@@ -133,7 +114,7 @@ class GetRefIds:
         :return: a list x500 name found
         """
 
-        self.get_ref_ids(each_line)
+        # self.get_ref_ids(each_line)
         parsed_names = self.file.parser.parse_line(each_line, self.x500list)
         for each_name in parsed_names:
             each_name.identify_party_role(each_line)
