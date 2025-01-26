@@ -47,15 +47,15 @@ if __name__ == "__main__":
         log_file = args.log_file
 
     if log_file:
-        file = FileManagement(log_file, block_size=512*1024)
-        file.rules = rules
-        file.parser = parser
+        file = FileManagement(log_file, block_size_in_mb=6)
+        # file.rules = rules
+        # file.parser = parser
         file.discover_file_format()
         ref_ids = GetRefIds(Configs)
         ref_ids.set_file(file)
+        file.pre_analysis() # Calculate on fly proper chunk sizes to accommodate lines correctly
         file.set_process_to_execute('ID_Refs',ref_ids)
-
-        results = file.parallel_processing()
+        file.parallel_processing()
 
         # with open(file.filename, "r") as fh_log_file:
         #     for each_line in fh_log_file:
@@ -83,5 +83,10 @@ if __name__ == "__main__":
 
 
             # trace_id(args.log_file)
-
+    print("\n X500 names found: ")
+    for each_id in FileManagement.unique_results:
+        print(f"  * {each_id.name}")
+        if each_id.has_alternate_names():
+            for each_alternate_name in each_id.alternate_names():
+                print(f" `--> {each_alternate_name}")
     pass
