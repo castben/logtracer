@@ -1067,7 +1067,7 @@
             "Node ready, info.*legalIdentitiesAndCerts=\\[__participant__\\]*",
             "Setting status to [A-Z]+ for.*legalIdentitiesAndCerts=\\[__participant__\\]",
             "ourIdentity:__participant__",
-            "\"myLegalName\": \"__participant__\""
+            "\"myLegalName\"\\s*: \"__participant__\""
           ],
           "USAGES": {
             "default_source": {
