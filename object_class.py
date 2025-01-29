@@ -1184,9 +1184,9 @@ class FileManagement:
     A class to help to read big files...
     """
 
-    unique_results = set()
+    unique_results = {}
 
-    def __init__(self, filename, block_size_in_mb):
+    def __init__(self, filename, block_size_in_mb, debug=False):
         self.filename = filename
         self.block_size = block_size_in_mb * 1024 * 1024
         self.logfile_format = None
@@ -1197,16 +1197,173 @@ class FileManagement:
         self.lock = threading.Lock()
         self.chunk_info = []
         self.file_size = None
+        self.statistics = {}
+        self.identified_roles = {}
+        self.debug = debug
 
         if not self.rules:
             self.rules = Configs.get_config_for('UML_DEFINITIONS.participant')
         if not self.parser:
             self.parser = X500NameParser(self.rules['RULES-D'])
 
+    def identify_party_role(self, line):
+        """
+        This method will try to identify a specific party like a Notary or log producer (low_owner)
+        :return:
+        """
+
+        get_role_definitions = Configs.get_config_for("UML_ENTITY.OBJECTS")
+        for each_role in get_role_definitions:
+            expect = Configs.get_config_for(f"UML_ENTITY.OBJECTS.{each_role}.EXPECT")
+            if not expect:
+                continue
+
+            # list of patterns from configuration *may* have macrovariables used to replace parties and
+            # other stuff like "__notary__" or "__participant__" this need to be "expanded" into real one, to be
+            # able to get correct regex patter to look for
+
+            # Expand regex:
+            # for each_expect in expect:
+            # real_regex = RegexLib.build_regex(each_expect)
+
+            check_pattern = RegexLib.regex_to_use(expect, line)
+
+            if  check_pattern is None:
+                # No role found for this entity
+                continue
+            real_regex = RegexLib.build_regex(expect[check_pattern])
+            validate = re.search(real_regex, line)
+
+
+            # TODO: actual regext to pull x500 still buggy and it doesn't collect x500 names correctly
+            #
+            if validate:
+
+
+                x = X500NameParser(rules=self.rules['RULES-D'])
+
+                x500 = x.parse_line(validate.group(each_role), [])
+                self.add_party_role(x500[0].string(), each_role)
+
+    def add_party_role(self, party, role):
+        """
+        this method will collect all roles found on file, when running x500name identification
+        this will help to save time for this step verifying same line
+        :param party: party you want to add
+        :param role: role assigned to this party
+        :return:
+        """
+
+        if role not in self.identified_roles:
+            self.identified_roles[role] = set()
+
+        self.identified_roles[role].add(party)
+
+    def get_party_role(self, role=None):
+        """
+        Return roles found
+        :param role: role name
+        :return: list party found under that role, if not role defined, it will return actual roles found
+        """
+
+        if role and role in self.identified_roles:
+            return list(self.identified_roles[role])
+
+        return list(self.identified_roles.keys())
+
+    @staticmethod
+    def get_party(x500name):
+        """
+        Return party object from FileManager.unique_results
+        :param x500name:
+        :return:
+        """
+
+        if x500name in FileManagement.unique_results:
+            return FileManagement.unique_results[x500name]
+
+        return None
+
+    @staticmethod
+    def get_all_unique_results():
+        """
+        Return a list of all unique results
+        :return:
+        """
+
+        return FileManagement.unique_results.values()
+
+
+    @staticmethod
+    def add_party(party):
+        """
+        Add new party into list of unique parties found
+        :param party: party object
+        :return: None
+        """
+
+        FileManagement.unique_results.setdefault(party.name, party)
+
+    def assign_roles(self):
+        """
+        Will gather roles found at given file,  and will assign corresponding role to each one of them
+        Actual roles to assign are defined in json file (ie notary, log_owner, etc)
+        :return: None
+        """
+
+        # Get roles found
+        for each_role in self.get_party_role():
+            for each_party in self.get_party_role(each_role):
+                party = FileManagement.get_party(each_party)
+                if party:
+                    party.set_corda_role(each_role)
+
+
+    def start_stop_watch(self, process_name, start=False):
+        """
+        A method to measure time between processes
+        :param start: True Will start Chrono, False will stop it
+        :param process_name: process you want to chrono, this is to keep an inventory of all processes
+        in an ordered way
+        :return: Time spent -- only when start is False
+        """
+        if process_name not in self.statistics:
+            self.statistics[process_name] = {}
+
+        if start:
+            self.statistics[process_name]['chrono-start'] = time.time()
+        else:
+            self.statistics[process_name]['chrono-stop'] = time.time()
+            elapsed_time =   self.statistics[process_name]['chrono-stop'] - self.statistics[process_name]['chrono-start']
+
+            if elapsed_time > 60:
+                time_msg = f'{elapsed_time / 60:.2f} minute(s).'
+            else:
+                time_msg = f'{elapsed_time:.4f} seconds.'
+
+            self.statistics[process_name]['chrono-elapsed-time'] = elapsed_time
+            self.statistics[process_name]['chrono-elapsed-time-message'] = time_msg
+
+            return time_msg
+
+    def get_statistics_data(self, process_name, data_name):
+        """
+        Return saved statistic data from process given
+        :param process_name: process name for statistic data
+        :param data_name: data name
+        :return: statistic data value
+        """
+
+        if process_name in self.statistics and data_name in self.statistics[process_name]:
+            return self.statistics[process_name][data_name]
+
+        return None
+
+
     def pre_analysis(self):
         """
         Pre analyse file, to accommodate correctly block size to read full lines and prevent
-        breaking lines or reading blocks with a trunked line
+        breaking lines or reading blocks with a truncated line.
         :return: None
         """
         file_size = os.path.getsize(self.filename)
