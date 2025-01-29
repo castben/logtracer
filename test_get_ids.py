@@ -3,18 +3,18 @@
 
 import os
 import argparse
+from object_class import Party
+
 
 from sqlalchemy.sql.visitors import iterate
-
-from logtracer import get_ref_ids
 from object_class import Configs, X500NameParser, FileManagement
 from object_class import CordaObject,saving_tracing_ref_data
 from tracer_id import TracerId
-
+from get_ids import GetRefIds
 
 def get_configs():
     return Configs
-from get_ids import GetRefIds
+
 
 
 if __name__ == "__main__":
@@ -47,15 +47,20 @@ if __name__ == "__main__":
         log_file = args.log_file
 
     if log_file:
-        file = FileManagement(log_file, block_size_in_mb=6)
-        # file.rules = rules
-        # file.parser = parser
+        # -l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
+        file = FileManagement(log_file, block_size_in_mb=5, debug=True)
+        # Analyse first 100 (by default) lines from given file to determine which Corda log format is
+        # This is done to be able to separate key components from lines like Time stamp, severity level, and log
+        # message
         file.discover_file_format()
         ref_ids = GetRefIds(Configs)
         ref_ids.set_file(file)
         file.pre_analysis() # Calculate on fly proper chunk sizes to accommodate lines correctly
         file.set_process_to_execute('ID_Refs',ref_ids)
+        file.start_stop_watch('Main-search', True)
         file.parallel_processing()
+        time_msg = file.start_stop_watch('Main-search', False)
+        file.assign_roles()
 
         # with open(file.filename, "r") as fh_log_file:
         #     for each_line in fh_log_file:
@@ -83,10 +88,17 @@ if __name__ == "__main__":
 
 
             # trace_id(args.log_file)
-    print("\n X500 names found: ")
-    for each_id in FileManagement.unique_results:
-        print(f"  * {each_id.name}")
-        if each_id.has_alternate_names():
-            for each_alternate_name in each_id.alternate_names():
-                print(f" `--> {each_alternate_name}")
-    pass
+
+        print("\n X500 names found: ")
+        for each_id in FileManagement.get_all_unique_results():
+            if each_id.get_corda_role():
+                role = f'{each_id.get_corda_role()}'
+            else:
+                role = 'party'
+            print(f" [{role:^8}] {each_id.name}")
+            if each_id.has_alternate_names():
+                for each_alternate_name in each_id.get_alternate_names():
+                    print(f"     `--> {each_alternate_name}")
+
+        print(f'Elapsed time {time_msg}.')
+        pass
