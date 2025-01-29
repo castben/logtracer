@@ -1461,16 +1461,19 @@ class FileManagement:
         else:
             return "UNKNOWN"
 
-    def discover_file_format(self):
+    def discover_file_format(self, lines=None):
         """
-        Will try to find out what is file format in the file reading first 100 lines from that file.
+        Analyse first 100 (by default) lines from given file to determine which Corda log format is
+        This is done to be able to separate key components from lines like Time stamp, severity level, and log
+        message
         :return:
         """
-
+        if not lines:
+            lines = 100
         try:
             with open(self.filename, "r") as hfile:
                 for line, each_line in enumerate(hfile):
-                    if not self.logfile_format and line <=100:
+                    if not self.logfile_format and line <= lines:
                         for each_version in Configs.get_config_for("VERSION.IDENTITY_FORMAT"):
                             try_version = Configs.get_config_for(f"VERSION.IDENTITY_FORMAT.{each_version}")
                             check_version = re.search(try_version["EXPECT"], each_line)
