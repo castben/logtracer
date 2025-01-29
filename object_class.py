@@ -1423,12 +1423,13 @@ class FileManagement:
             lines = chunk.splitlines()
             for line in lines:
                 result = self.parallel_process['ID_Refs'].execute(line)
+                self.identify_party_role(line)
                 if result:
                     with self.lock:
                         for each_result in result:
-                            FileManagement.unique_results.add(each_result)
+                            FileManagement.add_party(each_result)
 
-        return FileManagement.unique_results
+        return FileManagement.get_all_unique_results()
 
     def parallel_processing(self):
         tasks = [(start, size) for start, size in self.chunk_info]
