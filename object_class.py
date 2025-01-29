@@ -1456,8 +1456,8 @@ class FileManagement:
         :return: String, this file format is actual label being set in json file
         """
 
-        if self.log_fileformat:
-            return self.log_fileformat
+        if self.logfile_format:
+            return self.logfile_format
         else:
             return "UNKNOWN"
 
