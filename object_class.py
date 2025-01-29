@@ -1565,7 +1565,7 @@ class Party:
 
         return "/".join(self.corda_role)
 
-    def get_corda_roles(self):
+    def get_corda_roles_as_list(self):
         """
         Return a list of roles
         :return: list of string representing each assigned role
@@ -1674,14 +1674,6 @@ class Party:
 
         return self.attributes
 
-    def get_alternate_names(self):
-        """
-        Return all aliases found for this name
-        :return:
-        """
-
-        return self.alternate_names
-
     def string(self):
         """
         Returns actual x500 name in string format
@@ -1700,40 +1692,6 @@ class Party:
             return True
 
         return False
-
-    def identify_party_role(self, line):
-        """
-        This method will try to identify a specific party like a Notary or log producer (low_owner)
-        :return:
-        """
-
-        get_role_definitions = Configs.get_config_for("UML_ENTITY.OBJECTS")
-        for each_role in get_role_definitions:
-            expect = Configs.get_config_for(f"UML_ENTITY.OBJECTS.{each_role}.EXPECT")
-            if not expect:
-                continue
-
-            # list of patterns from configuration *may* have macrovariables used to replace parties and
-            # other stuff like "__notary__" or "__participant__" this need to be "expanded" into real one, to be
-            # able to get correct regex patter to look for
-
-            # Expand regex:
-            # for each_expect in expect:
-            # real_regex = RegexLib.build_regex(each_expect)
-
-            check_pattern = RegexLib.regex_to_use(expect, line)
-
-            if  check_pattern is None:
-                # No role found for this entity
-                continue
-
-            validate = re.search(expect[check_pattern], line)
-
-            if validate:
-                pass
-                self.set_corda_role(validate)
-            pass
-
 
 
     @staticmethod
@@ -1853,6 +1811,38 @@ class X500NameParser:
 
         # return rx500_names
         return x500_list
+
+    def identify_party_role(self, line):
+        """
+        This method will try to identify a specific party like a Notary or log producer (low_owner)
+        :return:
+        """
+
+        get_role_definitions = Configs.get_config_for("UML_ENTITY.OBJECTS")
+        for each_role in get_role_definitions:
+            expect = Configs.get_config_for(f"UML_ENTITY.OBJECTS.{each_role}.EXPECT")
+            if not expect:
+                continue
+
+            # list of patterns from configuration *may* have macrovariables used to replace parties and
+            # other stuff like "__notary__" or "__participant__" this need to be "expanded" into real one, to be
+            # able to get correct regex patter to look for
+
+            # Expand regex:
+            # for each_expect in expect:
+            # real_regex = RegexLib.build_regex(each_expect)
+
+            check_pattern = RegexLib.regex_to_use(expect, line)
+
+            if  check_pattern is None:
+                # No role found for this entity
+                continue
+            real_regex = RegexLib.build_regex(expect[check_pattern])
+            validate = re.search(real_regex, line)
+
+            if validate:
+                x500 = self.parse_line(line, [])
+                pass
 
 class Configs:
     config = {}
