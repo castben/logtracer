@@ -1,7 +1,7 @@
 from ahocorapy.keywordtree import KeywordTree
 
 
-class TracerId():
+class TracerId:
     """
     Trace a particular corda object over all logs
     :return:
