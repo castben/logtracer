@@ -1369,7 +1369,7 @@ class FileManagement:
         file_size = os.path.getsize(self.filename)
         print(f'Pre-analysing file size {file_size / 1024 / 1024:.2f} Mbytes calculating block sizes')
         with open(self.filename, 'r') as file:
-            while True:
+            while file.tell() < file_size:
                 start_pos = file.tell()
                 chunk = file.read(self.block_size)
                 if not chunk:
@@ -1380,13 +1380,16 @@ class FileManagement:
                     end_pos = start_pos + last_newline + 1  # include newline character
                 else:
                     end_pos = start_pos + len(chunk)
+
+                # Make sure I'm not going beyond file size.
+                if end_pos >= file_size:
+                     break
+
+                # Add the chunk to chunk_info and adjust the file position
                 self.chunk_info.append((start_pos, end_pos - start_pos))
                 file.seek(end_pos)
 
-            print(f'will launch {len(self.chunk_info)} threads to read full file...')
-            # for index,each_file_block in enumerate(self.chunk_info):
-            #     print(f'Thread {index} block size to read {each_file_block[1] / 1024 / 1024:.2f} Mbytes ({each_file_block[0], each_file_block[1]}')
-            # print("")
+            print(f'Will launch {len(self.chunk_info)} threads to read full file...')
 
     def set_process_to_execute(self, name, method):
         """
