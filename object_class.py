@@ -1402,19 +1402,6 @@ class FileManagement:
 
         self.parallel_process[name] = method
 
-    def divide_file(self):
-        """
-        Divide file in defined block_sizes
-        :return:
-        """
-        with open(self.filename, "r") as fh_file:
-            while True:
-                start_pos = fh_file.tell()
-                chunk = fh_file.read(self.block_size)
-                if not chunk:
-                    break
-                yield start_pos, len(chunk)
-
     def process_block(self, args):
         start, size = args
         with open(self.filename, "r") as file:
@@ -1432,41 +1419,28 @@ class FileManagement:
         return FileManagement.get_all_unique_results()
 
     def parallel_processing(self):
+        """
+        Launch all assigned threads in parallel to process each block of log file
+        :return:
+        """
         tasks = [(start, size) for start, size in self.chunk_info]
         futures = []
         with ThreadPoolExecutor(max_workers=5) as pool:
             for index, each_task in enumerate(tasks):
-                start_time = time.time()
+                self.start_stop_watch(f'Thread-{index}', start=True)
                 future = pool.submit(self.process_block, each_task)
                 future.thread_index = index
-                future.start_time = start_time
+                future.start_time = self.get_statistics_data(f'Thread-{index}', 'chrono-start')
                 future.info = each_task[1]
                 futures.append(future)
 
             for future in concurrent.futures.as_completed(futures):
                 thread_index = future.thread_index
-                elapsed_time = time.time() - future.start_time
+                time_msg = self.start_stop_watch(f'Thread-{thread_index}', start=False)
+                # elapsed_time = time.time() - future.start_time
                 data = future.info / 1024 / 1024
-                if elapsed_time > 60:
-                    time_msg = f'{elapsed_time / 60:.2f} minute(s).'
-                else:
-                    time_msg = f'{elapsed_time:.4f} seconds.'
-
-                print(f"Thread {thread_index} completed in {time_msg} Read {data:.2f} Mbytes.")
-
-            # futures = {pool.submit(self.process_block, task): task for task in tasks}
-
-        #     results = []
-        #     for future in as_completed(futures):
-        #         partial_results = future.result()
-        #         if partial_results:
-        #             for each_result in partial_results:
-        #                 # if each_result in FileManagement.unique_results:
-        #                 #     continue
-        #                 # else:
-        #                     results.extend(partial_results)
-        #
-        # return results
+                if self.debug:
+                    print(f"Thread {thread_index} completed in {time_msg} Read {data:.2f} Mbytes.")
 
     def set_file_format(self, file_format):
         """
