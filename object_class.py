@@ -1448,7 +1448,7 @@ class FileManagement:
         :param file_format: file format found at json config file
         :return:
         """
-        self.log_fileformat = file_format
+        self.logfile_format = file_format
 
     def get_file_format(self):
         """
