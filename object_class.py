@@ -2009,6 +2009,7 @@ class Configs:
     config = {}
     count = 0
     compiled_regex = {}
+    config_access_cache = {}
 
     config_variables = {
         "VERSION": {
@@ -2457,6 +2458,31 @@ class Configs:
     }
 
     @staticmethod
+    def add_config_cache(variable_to_get, value):
+        """
+        Create a dictionary of frequently accessed variables.
+        :param variable_to_get: actual variable to get
+        :param value: value to store
+        :return: None
+        """
+
+        Configs.config_access_cache[variable_to_get] = value
+
+    @staticmethod
+    def get_config_cached_variable(variable_to_get):
+        """
+        Access variable saved in memory
+        :param variable_to_get: actual variable required
+        :return: value contained
+        """
+
+        if variable_to_get in Configs.config_access_cache:
+            return Configs.config_access_cache[variable_to_get]
+
+        return None
+
+
+    @staticmethod
     def load_config():
         """
         Cargar todas las definiciones y configuraciones,
@@ -2568,13 +2594,6 @@ class Configs:
             else:
                 return None
 
-        # if param and sub_param:
-        #     if param in Configs.config and sub_param in Configs.config[param]:
-        #         return Configs.config[param][sub_param]
-        #     else:
-        #         # print("[CONFIGURATION] %s parameter do not exist under %s section" % (sub_param, param))
-        #         return None
-
         if param in Configs.config[section]:
             return Configs.config[section][param]
         else:
@@ -2624,8 +2643,12 @@ class Configs:
         :param path_value: dot noted version for variable to access
         :return: value of such variable, or None otherwise
         """
+        value = Configs.get_config_cached_variable(path_value)
+        if value:
+            return value
 
         _,access = generate_internal_access(Configs.config, path_value)
+        Configs.add_config_cache(path_value,access)
 
         return access
 
@@ -2822,7 +2845,7 @@ class RegexLib:
     """
 
     compiled_regex_cache = {}
-
+    check_variable = re.compile(r"__([a-zA-Z0-9-_]+)__")
     @staticmethod
     def use(rx_expression):
         """
@@ -2943,21 +2966,19 @@ class RegexLib:
 
         if not Configs.get_config(section="CORDA_OBJECT_DEFINITIONS", param="OBJECTS"):
             return return_regex
-
-        # cregex = RegexLib.use(r'__([a-zA-Z0-9-_]+)__')
-        # check_variable = cregex.findall(regex)
-        # check_variable = re.findall(r"__([a-zA-Z0-9-_]+)__", regex)
-        ccheck_variable = re.compile(r"__([a-zA-Z0-9-_]+)__")
-        check_variable = ccheck_variable.findall(regex)
+        check_variable = RegexLib.check_variable.findall(regex)
 
         if check_variable:
             for each_variable in check_variable:
                 # Search where this variable could be applicable to then extract the proper regex replacement for such
                 # variable
                 #
-                for each_object in Configs.get_config(section="CORDA_OBJECT_DEFINITIONS", param="OBJECTS").keys():
+                for each_object in Configs.get_config_for("CORDA_OBJECT_DEFINITIONS.OBJECTS").keys():
+                # for each_object in Configs.get_config(section="CORDA_OBJECT_DEFINITIONS", param="OBJECTS").keys():
                     apply_to = None
-                    #
+                    # cfg_setup = Configs.get_config_for(f"CORDA_OBJECT_DEFINITIONS.OBJECTS.{each_object}")
+                    # if "APPLY_TO" in cfg_setup:
+                    #     apply_to = cfg_setup["APPLY_TO"]
                     if "APPLY_TO" in Configs.get_config(section="CORDA_OBJECT_DEFINITIONS",
                                                         param="OBJECTS", sub_param=each_object):
                         apply_to = Configs.get_config(section="CORDA_OBJECT_DEFINITIONS",
@@ -3106,6 +3127,7 @@ class RegexLib:
                             ltr.append(each_dict)
 
             return ltr
+
 
 def generate_internal_access(variable_dict, variable_to_get):
     """
