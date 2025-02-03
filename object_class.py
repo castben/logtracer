@@ -1404,54 +1404,176 @@ class FileManagement:
         :return: None
         """
         file_size = os.path.getsize(self.filename)
-        print(f'Pre-analysing file size {file_size / 1024 / 1024:.2f} Mbytes calculating block sizes')
+        fsize = file_size / 1024 / 1024
+        bsize = self.block_size / 1024 / 1024
+        print(f'Block size for reading: {bsize:.2f} Mbytes')
+        print(f'Pre-analysing file size {fsize:.2f} Mbytes calculating block sizes')
+
+        if self.block_size > file_size:
+            print(f'Adjusting blocksize to {fsize:.2f}Mb because blocksize given({bsize:.2f}Mb) is too big')
+            self.block_size = file_size
+
+        line_counter = 1  # Contador global de líneas
+        self.chunk_info = []  # Limpiar el caché de información de bloques
+
         with open(self.filename, 'r') as file:
             while file.tell() < file_size:
                 start_pos = file.tell()
+                start_line = line_counter  # Guardar el número de línea al inicio del bloque
+
                 chunk = file.read(self.block_size)
                 if not chunk:
                     break
-                # Find the end of the last line to avoid splitting lines
+
+                # Encontrar el final de la última línea completa
                 last_newline = chunk.rfind('\n')
                 if last_newline != -1:
-                    end_pos = start_pos + last_newline + 1  # include newline character
+                    end_pos = start_pos + last_newline + 1  # Incluye el carácter de nueva línea
                 else:
                     end_pos = start_pos + len(chunk)
 
-                # Make sure I'm not going beyond file size.
-                if end_pos >= file_size:
-                     break
+                # Contar las líneas en este bloque
+                lines_in_chunk = chunk[:last_newline + 1].count('\n')  # Solo contar hasta la última línea completa
+                end_line = start_line + lines_in_chunk - 1  # Última línea del bloque
 
-                # Add the chunk to chunk_info and adjust the file position
-                self.chunk_info.append((start_pos, end_pos - start_pos))
+                # Asegurarse de no exceder el tamaño del archivo
+                if end_pos >= file_size:
+                    break
+
+                # Guardar la información del bloque con el rango de líneas
+                self.chunk_info.append((start_pos, end_pos - start_pos, start_line, end_line))
+
+                # Actualizar el contador de líneas
+                line_counter += lines_in_chunk
+
+                # Mover el puntero del archivo al final del bloque
                 file.seek(end_pos)
 
-            print(f'Will launch {len(self.chunk_info)} threads to read full file...')
+                # Mensaje de depuración
+                print(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
 
-    def set_process_to_execute(self, name, method):
+        print(f'Will launch {len(self.chunk_info)} threads to read full file...')
+
+    def add_process_to_execute(self, method):
         """
-        This will set actual method to be executed.
-        :param name: a key name to refer to this method
+        This will add a method to be executed.
         :param method: Class/object which represents and have an internal method called
         "execute" which will instruct what need to be performed
         :return:
         """
+        if not method.type:
+            method_type = 'Unknown'
+        else:
+            method_type = method.type
 
-        self.parallel_process[name] = method
+        self.parallel_process[method_type] = method
 
-    def process_block(self, args):
+    def get_methods_type(self):
+        """
+        Return all methods defined for execution
+        :return: list
+        """
+        return list(self.parallel_process.keys())
+
+    def get_method(self, method_type):
+        """
+
+        :param method_type: method you want to get
+        :return:
+        """
+        if method_type in self.parallel_process:
+            return self.parallel_process[method_type]
+        else:
+            return None
+
+    def process_block_nommap(self, args):
         start, size = args
+        local_results = []  # Acumulador local para evitar el lock en cada línea
+
         with open(self.filename, "r") as file:
             file.seek(start)
             chunk = file.read(size)
             lines = chunk.splitlines()
+
             for line in lines:
                 result = self.parallel_process['ID_Refs'].execute(line)
                 self.identify_party_role(line)
                 if result:
-                    with self.lock:
-                        for each_result in result:
-                            FileManagement.add_party(each_result)
+                    local_results.extend(result)
+
+        # Solo usar lock una vez para agregar todos los resultados
+        with self.lock:
+            for each_result in local_results:
+                FileManagement.add_element('Party', each_result)
+
+        return FileManagement.get_all_unique_results('Party')
+
+    def process_block_nolinenumbers(self, args):
+        start, size = args
+        local_results = {}
+
+        with open(self.filename, "r") as file:
+            with mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ) as mmapped_file:
+                chunk = mmapped_file[start:start+size].decode('utf-8', errors='ignore')
+                lines = chunk.splitlines()
+
+                for line in lines:
+                    for each_method in self.get_methods_type():
+                        result = self.get_method(each_method).execute(line)
+
+                        if each_method == 'Party':
+                            # if method running is related to parties, line below will run an extra
+                            # analysis on that line to see if this line is able to identify a role (like owner of log
+                            # or notary...
+                            self.identify_party_role(line)
+
+                        if result:
+                            if each_method not in local_results:
+                                local_results[each_method] = []
+                            if isinstance(result, list):
+                                local_results[each_method].extend(result)
+                            else:
+                                local_results[each_method].append(result)
+
+        with self.lock:
+            for each_method in self.get_methods_type():
+                for each_result in local_results[each_method]:
+                    FileManagement.add_element(each_method, each_result)
+
+        return FileManagement.get_all_unique_results()
+
+    def process_block(self, args):
+        start, size, start_line, end_line = args
+        local_results = {}
+        current_line = start_line
+        with open(self.filename, "r") as file:
+            with mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ) as mmapped_file:
+                chunk = mmapped_file[start:start+size].decode('utf-8', errors='ignore')
+                lines = chunk.splitlines()
+
+                for line in lines:
+                    for each_method in self.get_methods_type():
+                        result = self.get_method(each_method).execute(line, current_line)
+
+                        if each_method == 'Party':
+                            # if method running is related to parties, line below will run an extra
+                            # analysis on that line to see if this line is able to identify a role (like owner of log
+                            # or notary...
+                            self.identify_party_role(line)
+
+                        if result:
+                            if each_method not in local_results:
+                                local_results[each_method] = []
+                            if isinstance(result, list):
+                                local_results[each_method].extend(result)
+                            else:
+                                local_results[each_method].append(result)
+                    current_line += 1
+
+        with self.lock:
+            for each_method in self.get_methods_type():
+                for each_result in local_results[each_method]:
+                    FileManagement.add_element(each_method, each_result)
 
         return FileManagement.get_all_unique_results()
 
@@ -1460,7 +1582,7 @@ class FileManagement:
         Launch all assigned threads in parallel to process each block of log file
         :return:
         """
-        tasks = [(start, size) for start, size in self.chunk_info]
+        tasks = [(start, size, start_line, end_line) for start, size, start_line, end_line in self.chunk_info]
         futures = []
         with ThreadPoolExecutor(max_workers=5) as pool:
             for index, each_task in enumerate(tasks):
@@ -1477,7 +1599,8 @@ class FileManagement:
                 # elapsed_time = time.time() - future.start_time
                 data = future.info / 1024 / 1024
                 if self.debug:
-                    print(f"Thread {thread_index} completed in {time_msg} Read {data:.2f} Mbytes.")
+                    print(f"Thread {thread_index} completed in {time_msg} Processed {data:.2f} Mbytes, "
+                          f"from line {tasks[thread_index][2]} to line {tasks[thread_index][3]}")
 
     def set_file_format(self, file_format):
         """
@@ -1498,19 +1621,18 @@ class FileManagement:
         else:
             return "UNKNOWN"
 
-    def discover_file_format(self, lines=None):
+    def discover_file_format(self):
         """
-        Analyse first 100 (by default) lines from given file to determine which Corda log format is
+        Analyse first self.scan_lines ( 25 by default) lines from given file to determine which Corda log format is
         This is done to be able to separate key components from lines like Time stamp, severity level, and log
         message
         :return:
         """
-        if not lines:
-            lines = 100
+
         try:
             with open(self.filename, "r") as hfile:
                 for line, each_line in enumerate(hfile):
-                    if not self.logfile_format and line <= lines:
+                    if not self.logfile_format and line <= self.scan_lines:
                         for each_version in Configs.get_config_for("VERSION.IDENTITY_FORMAT"):
                             try_version = Configs.get_config_for(f"VERSION.IDENTITY_FORMAT.{each_version}")
                             check_version = re.search(try_version["EXPECT"], each_line)
