@@ -1281,37 +1281,65 @@ class FileManagement:
         return list(self.identified_roles.keys())
 
     @staticmethod
-    def get_party(x500name):
+    def get_element(element_type, element_reference_id):
         """
         Return party object from FileManager.unique_results
-        :param x500name:
-        :return:
+        :param element_type: identify which type element you want to get
+        :param element_reference_id: specify actual element you want to get
+        :return: element required, None otherwise
         """
 
-        if x500name in FileManagement.unique_results:
-            return FileManagement.unique_results[x500name]
+        if element_type in FileManagement.unique_results:
+            if element_reference_id in FileManagement.unique_results[element_type]:
+                return FileManagement.unique_results[element_type][element_reference_id]
 
         return None
 
     @staticmethod
-    def get_all_unique_results():
+    def get_all_unique_results(element_type=None):
         """
         Return a list of all unique results
-        :return:
+        :param element_type: Specify which kind of data you want to retrieve
+        :return: return a list of element values from given type
         """
 
-        return FileManagement.unique_results.values()
+        if not element_type:
+            return FileManagement.unique_results
+
+        if element_type in FileManagement.unique_results:
+            return FileManagement.unique_results[element_type].values()
+        else:
+            print(f'Error: Unable to retrieve elements for type {element_type}')
+            return None
+
+    @staticmethod
+    def result_has_element(element_type):
+        """
+        Method to check if given element exist on results
+        :param element_type:  Element type, which is one supported at the moment Flows&Transactions or Party
+        :return: True if elemets exists, false otherwise
+        """
+
+        return element_type in FileManagement.unique_results
+
+
 
 
     @staticmethod
-    def add_party(party):
+    def add_element(element_type, item):
         """
-        Add new party into list of unique parties found
-        :param party: party object
+        This method will add given element into unique repository for all elements collected
+        this repository will hold all types of elements, "Party" elements and Flow & Transactions Elements
+        for this to work all element types should share same property 'item.reference_id' because this
+        will setup proper name/id to search for it.
+        :param element_type: element, which will be defined as "Party" or "Flow&Txns"  object
+        :param item: Item to store
         :return: None
         """
+        if element_type not in FileManagement.unique_results:
+            FileManagement.unique_results[element_type] = {}
 
-        FileManagement.unique_results.setdefault(party.name, party)
+        FileManagement.unique_results[element_type].setdefault(item.reference_id, item)
 
     def assign_roles(self):
         """
@@ -1323,7 +1351,7 @@ class FileManagement:
         # Get roles found
         for each_role in self.get_party_role():
             for each_party in self.get_party_role(each_role):
-                party = FileManagement.get_party(each_party)
+                party = FileManagement.get_element('Party', each_party)
                 if party:
                     party.set_corda_role(each_role)
 
