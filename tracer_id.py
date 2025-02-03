@@ -1,4 +1,5 @@
 from ahocorapy.keywordtree import KeywordTree
+from object_class import CordaObject
 
 
 class TracerId:
@@ -127,7 +128,7 @@ class TracerId:
                         CordaObject.add_uml_object(party_name, "participant")
                         participant_list.append(party_name)
                         add_participant(party_name, party_role)
-                        party_object = Party.get_party(party_name)
+                        party_object = Party.get_element(party_name)
                         if party_object:
                             party_object.set_corda_role(party_role)
 
@@ -142,7 +143,7 @@ class TracerId:
                     # party = each_item.replace("uml_object", "").replace('"', '').strip()
                     party = clear_participant_str(each_item)
                     if CordaObject.get_log_owner() and party == CordaObject.get_log_owner():
-                        cparty = Party.get_party(party)
+                        cparty = Party.get_element(party)
                         note = cparty.get_corda_role()
                     else:
                         if party in CordaObject.default_uml_endpoints and \
