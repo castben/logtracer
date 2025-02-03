@@ -1199,11 +1199,11 @@ class FileManagement:
 
     unique_results = {}
 
-    def __init__(self, filename, block_size_in_mb, debug=False):
+    def __init__(self, filename, block_size_in_mb, debug=False,scan_lines=25):
         self.filename = filename
         self.block_size = block_size_in_mb * 1024 * 1024
         self.logfile_format = None
-        self.scan_lines = 100
+        self.scan_lines = scan_lines
         self.parallel_process = {}
         self.rules = None
         self.parser = None
@@ -1247,15 +1247,11 @@ class FileManagement:
             real_regex = RegexLib.build_regex(expect[check_pattern])
             validate = re.search(real_regex, line)
 
-
             # TODO: actual regext to pull x500 still buggy and it doesn't collect x500 names correctly
             #
             if validate:
-
-
                 x = X500NameParser(rules=self.rules['RULES-D'])
-
-                x500 = x.parse_line(validate.group(each_role), [])
+                x500 = x.parse_line(validate.group(1), [])
                 self.add_party_role(x500[0].string(), each_role)
 
     def add_party_role(self, party, role):
