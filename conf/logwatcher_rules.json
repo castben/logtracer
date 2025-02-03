@@ -882,7 +882,7 @@
               "length": "2",
               "mandatory": true,
               "occurrences": "1",
-              "expect": "(C=[^\\[\\]=\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]{1,2})"
+              "expect": "(C=[A-Z]{1,2})"
             },
             "ST": {
               "length": "20",
@@ -1273,7 +1273,7 @@
       "OBJECTS": {
         "participant": {
           "EXPECT": [
-            "([OLUNCST]{1,2}=[a-zA-Z0-9 &._,-=]+,\\s*C=[A-Z]{2})"
+            "(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"]+)*"
           ],
           "APPLY_TO": [
             "source",
@@ -1294,7 +1294,7 @@
         },
         "notary": {
           "EXPECT": [
-            "([OLUNCST]{1,2}=[a-zA-Z0-9 &._,-=]+,\\s*C=[A-Z]{2})"
+            "(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"]+)*"
           ],
           "APPLY_TO": [
             "source",
