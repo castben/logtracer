@@ -169,10 +169,23 @@ class CordaObject:
         if cproperty == 'id_ref':
             self.reference_id = value
 
+        if cproperty in self.data:
+            # If property already exist, I need to keep its previous value, and add new one
+            if not isinstance(self.data[cproperty], list):
+                tmpdata = self.data[cproperty]
+                # convert this field to a list
+                self.data[cproperty] = [tmpdata]
+                return
+
+            if isinstance(self.data[cproperty], list):
+                self.data[cproperty].append(value)
+                return
+
+
         self.data[cproperty] = value
 
         # Extract extra data
-        if "=" in value:
+        if isinstance(value, str) and  "=" in value:
             if ";" in value:
                 for each_data in value.split(";"):
                     if not each_data:
