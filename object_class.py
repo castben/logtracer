@@ -1666,10 +1666,11 @@ class Party:
 
     def __init__(self, x500name=None):
         self.name = x500name
+        self.reference_id = self.name
         self.role = ''
+        self.type = 'Party'
         self.corda_role = []
         self.default_endpoint = None
-        self.notaries = []
         self.alternate_names = []
         self.original_string = x500name
         self.regex = re.compile(r"([CNSTLOU]{1,2}=[^\[\]^,]*)")
@@ -1682,6 +1683,7 @@ class Party:
         :return: void
         """
         self.name = name
+        self.reference_id = name
 
     def set_role(self, role):
         """
