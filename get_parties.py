@@ -43,8 +43,4 @@ class GetParties:
 
         parsed_names = self.file.parser.parse_line(each_line, self.x500list)
 
-        # for each_name in parsed_names:
-        #     each_name.identify_party_role(each_line)
-        # self.file.identify_party_role(each_line)
-
         return parsed_names
