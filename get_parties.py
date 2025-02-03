@@ -3,7 +3,7 @@ from object_class import RegexLib
 
 import re
 
-class GetRefIds:
+class GetParties:
     def __init__(self, get_configs):
         self.Configs = get_configs
         self.file = None
