@@ -3131,29 +3131,31 @@ class RegexLib:
 
 def generate_internal_access(variable_dict, variable_to_get):
     """
-    This method will try to generate internal access to given variable
-    :type variable_dict: Actual dictionary object to access
-    :param variable_to_get: dot representation to reach such variable
-    :return: access representation to get into that variable,value of variable asked for
+    This method generates internal access to a given variable in a nested dictionary.
+    :param variable_dict: The dictionary object to access.
+    :param variable_to_get: Dot-separated string representing the path to the variable.
+    :return: A tuple containing the access representation and the value of the variable.
     """
-    if not '.' in variable_to_get:
-        variable_to_get += '.'
-    if '.' in variable_to_get:
-        variables = variable_to_get.split('.')
-        fvariable = ""
-        for each_var in variables:
-            if each_var:
-                fvariable = fvariable + f"['{each_var}']"
+    if not variable_to_get:
+        return None, None  # No variable to get
 
-        try:
-            fvariable_value = eval(f"variable_dict{fvariable}")
-            # final_output = final_output + f"{variables[len(variables)-1]}: {final_variable} "
-            return fvariable, fvariable_value
-        except KeyError as be:
+    keys = variable_to_get.split('.')
+    current_level = variable_dict
+    access_representation = []
 
-            # print(f"Unable to access variable_dict{fvariable} from this line: {variable_dict}")
-            return None, None
-    return None,None
+    try:
+        for key in keys:
+            if key:  # Ignorar claves vacías (por ejemplo, por puntos consecutivos)
+                access_representation.append(f"['{key}']")
+                current_level = current_level[key]
+    except KeyError:
+        # Si alguna clave no existe, retornar None
+        return None, None
+
+    # Construir la representación de acceso
+    access_string = ''.join(access_representation)
+    return access_string, current_level
+
 
 def generate_hash(stringData):
     hashstring = ""
