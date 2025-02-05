@@ -1663,6 +1663,8 @@ class FileManagement:
 
                 # Asegurarse de no exceder el tamaño del archivo
                 if end_pos >= file_size:
+                    if not self.chunk_info:
+                        self.chunk_info.append((start_pos, end_pos - start_pos, start_line, end_line))
                     break
 
                 # Guardar la información del bloque con el rango de líneas
