@@ -1324,7 +1324,24 @@ class FileManagement:
 
         return element_type in FileManagement.unique_results
 
+    @staticmethod
+    def delete_element(element_type, element_id):
+        """
+        Delete an element from mail element list
+        :param element_type: element type you want to delete
+        :param element_id: element ID to delete
+        :return:
+        """
 
+        elements = list(FileManagement.get_all_unique_results(element_type))
+
+        for index, each_element in enumerate(FileManagement.get_all_unique_results(element_type)):
+            if element_id == each_element.reference_id:
+                elements.remove(index)
+
+        FileManagement.unique_results[element_type] =  elements
+
+        pass
 
 
     @staticmethod
