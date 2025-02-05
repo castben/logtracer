@@ -1145,7 +1145,9 @@ class CordaObject:
         :return:
         """
         global x500_build_list
-        rulesx = Configs.get_config("participant", "RULES-D", "UML_DEFINITIONS")
+
+        rulesx = Configs.get_config_for("CORDA_OBJECT_DEFINITION.OBJECT.participant.RULES")
+
         list_to_return = []
         parser = X500NameParser(rulesx)
         parsed_names = parser.parse_line(original_line, x500_build_list)
