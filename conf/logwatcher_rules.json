@@ -1281,7 +1281,63 @@
             "participant",
             "log_owner",
             "notary"
-          ]
+          ],
+          "RULES": {
+            "supported-attributes": {
+              "CN": {
+                "length": "20",
+                "mandatory": false,
+                "occurrences": "1",
+                "expect": "(CN=[^\\[\\]=\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+              },
+              "OU": {
+                "length": "20",
+                "mandatory": false,
+                "occurrences": ">1",
+                "expect": "(OU=[^\\[\\]=\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+              },
+              "O": {
+                "length": "<128",
+                "mandatory": true,
+                "occurrences": "1",
+                "expect": "(O=[^=\\[\\]\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+              },
+              "L": {
+                "length": "<64",
+                "mandatory": true,
+                "occurrences": "1",
+                "expect": "(L=[^=;\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+              },
+              "C": {
+                "length": "2",
+                "mandatory": true,
+                "occurrences": "1",
+                "expect": "(C=[A-Z]{1,2})"
+              },
+              "ST": {
+                "length": "20",
+                "mandatory": false,
+                "occurrences": "1",
+                "expect": "(ST=[^\\[\\]=;\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+              }
+            },
+            "special-cases": {
+              "issued by": {
+                "expect": "(.*) issued by (.*)"
+              }
+            },
+            "X500-attributes-order": {
+              "DESCRIPTION": "This is order of how fields will be expected, this is order is not mandatory, it also establish which fields are expected",
+              "CONTENT": [
+                "CN",
+                "OU",
+                "O",
+                "L",
+                "ST",
+                "C"
+              ]
+            }
+          }
         },
         "actor": {
           "EXPECT": [
