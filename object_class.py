@@ -1252,7 +1252,7 @@ class FileManagement:
             # TODO: actual regext to pull x500 still buggy and it doesn't collect x500 names correctly
             #
             if validate:
-                x = X500NameParser(rules=self.rules['RULES-D'])
+                x = X500NameParser(rules=self.rules['RULES'])
                 x500 = x.parse_line(validate.group(1), [])
                 self.add_party_role(x500[0].string(), each_role)
 
