@@ -1906,6 +1906,56 @@ class Party:
         self.regex = re.compile(r"([CNSTLOU]{1,2}=[^\[\]^,]*)")
         self.attributes = self.extract_attributes()
 
+    @staticmethod
+    def assign_roles_manually(party_list):
+        """
+        Assign roles manually; this should be used only when there're expected roles to assign
+        :return:
+        """
+
+        pending = Party.get_pending_roles()
+
+        if pending:
+
+            pass
+
+    @staticmethod
+    def define_custom_party(rules_set, assigned_role):
+        """
+        Create a new party that wasn't recognized automatically
+        :type rules_set: set rules used to validate a x500 name
+        :return: Party object with given name
+        """
+        print('Creating new party:')
+        att_list = []
+        for each_attribute in rules_set['RULES']['supported-attributes']:
+            att = input(f'   * {each_attribute}=')
+            if att:
+                att_list.append(f"{each_attribute}={att}")
+
+        new_party = ', '.join(att_list)
+
+        party = Party(new_party)
+
+        party.set_corda_role(assigned_role)
+
+        print(f'New party to add: [{new_party}] with role [{assigned_role}]')
+        return party
+
+
+
+    @staticmethod
+    def get_pending_roles():
+        """
+        Will return any missing expected role. these roles are required to do a proper tracing.
+        log_owner role is mandatory, notary role is optional
+        """
+        if Party.party_expected_role_list:
+            return Party.party_expected_role_list
+
+        return None
+
+
     def set_name(self, name):
         """
         Set party name
