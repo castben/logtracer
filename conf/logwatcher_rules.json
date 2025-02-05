@@ -882,7 +882,7 @@
               "length": "2",
               "mandatory": true,
               "occurrences": "1",
-              "expect": "(C=[A-Z]{1,2})"
+              "expect": "(C=[A-Z]{2})"
             },
             "ST": {
               "length": "20",
