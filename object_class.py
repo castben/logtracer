@@ -2075,7 +2075,7 @@ class Party:
         attributes = matches
         return attributes
 
-    def compare_name(self, name_to_compare):
+    def is_same_name(self, name_to_compare):
         """
         Will try to compare given name to actual x500 name to see if it is the same,
         x500 names can have their attributes shifted, but they are still same regardless to their order.
