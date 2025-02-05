@@ -1351,7 +1351,7 @@ class FileManagement:
         this repository will hold all types of elements, "Party" elements and Flow & Transactions Elements
         for this to work all element types should share same property 'item.reference_id' because this
         will setup proper name/id to search for it.
-        :param element_type: element, which will be defined as "Party" or "Flow&Txns"  object
+        :param element_type: element, which will be defined as "Party" or "Flow&Transactions"  object
         :param item: Item to store
         :return: None
         """
