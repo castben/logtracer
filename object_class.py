@@ -1217,9 +1217,9 @@ class FileManagement:
         self.debug = debug
 
         if not self.rules:
-            self.rules = Configs.get_config_for('UML_DEFINITIONS.participant')
+            self.rules = Configs.get_config_for('CORDA_OBJECT_DEFINITIONS.OBJECTS.participant')
         if not self.parser:
-            self.parser = X500NameParser(self.rules['RULES-D'])
+            self.parser = X500NameParser(self.rules['RULES'])
 
     def identify_party_role(self, line):
         """
