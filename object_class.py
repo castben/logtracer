@@ -1889,7 +1889,10 @@ class Party:
     A class to represent parties on a log
     """
     party_list = []
-    party_expected_role_list = ['notary', 'log_owner']
+    party_expected_role_list = {
+        'notary': 'optional',
+        'log_owner': 'mandatory'
+    }
 
     def __init__(self, x500name=None):
         self.name = x500name
