@@ -1987,7 +1987,8 @@ class Party:
 
         if corda_role in Party.party_expected_role_list:
             # remove given party expected role from pending list
-            Party.party_expected_role_list.remove(corda_role)
+            if corda_role in Party.party_expected_role_list:
+                Party.party_expected_role_list.pop(corda_role, None)
 
         self.corda_role.append(corda_role)
 
