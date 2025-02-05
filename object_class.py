@@ -1418,6 +1418,212 @@ class FileManagement:
 
     def pre_analysis(self):
         """
+        Pre analyse file to accommodate correctly block size to read full lines and prevent
+        breaking lines or reading blocks with a truncated line.
+        :return: None
+        """
+        file_size = os.path.getsize(self.filename)
+        fsize = file_size / 1024 / 1024
+        bsize = self.block_size / 1024 / 1024
+        print(f'Block size for reading: {bsize:.2f} Mbytes')
+        print(f'Pre-analysing file size {fsize:.2f} Mbytes calculating block sizes')
+
+        if self.block_size > file_size:
+            print(f'Adjusting blocksize to {fsize:.2f}Mb because blocksize given({bsize:.2f}Mb) is too big')
+            self.block_size = file_size
+
+        line_counter = 1  # Global line counter
+        self.chunk_info = []  # Clear chunk info cache
+
+        with open(self.filename, 'r') as file:
+            while file.tell() < file_size:
+                start_pos = file.tell()
+                start_line = line_counter  # Save the starting line number for this block
+
+                chunk = file.read(self.block_size)
+                if not chunk:
+                    break
+
+                # Find the end of the last complete line
+                last_newline = chunk.rfind('\n')
+                if last_newline != -1:
+                    end_pos = start_pos + last_newline + 1  # Include the newline character
+                else:
+                    end_pos = start_pos + len(chunk)
+
+                # Count the lines in this chunk up to the last complete line
+                lines_in_chunk = chunk[:last_newline + 1].count('\n') if last_newline != -1 else 0
+
+                end_line = start_line + lines_in_chunk - 1  # Last line of the chunk
+
+                # Ensure we don't exceed the file size
+                if end_pos >= file_size:
+                    end_pos = file_size
+
+                    # Evitar agregar un bloque innecesario
+                    if self.chunk_info and self.chunk_info[-1][0] == start_pos:
+                        break
+
+                        # Ajustar la cantidad de líneas en caso necesario
+                    if last_newline != -1:
+                        lines_in_chunk = chunk[:last_newline + 1].count('\n')
+                    else:
+                        lines_in_chunk = chunk.count('\n')
+
+                    end_line = start_line + lines_in_chunk - 1
+
+                # Store the chunk information with line ranges
+                self.chunk_info.append((start_pos, end_pos - start_pos, start_line, end_line))
+
+                # Update the line counter
+                line_counter += lines_in_chunk
+
+                # Move the file pointer to the end of this chunk
+                file.seek(end_pos)
+
+                # Debug message
+                print(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
+
+        print(f'Will launch {len(self.chunk_info)} threads to read full file...')
+
+
+
+
+    def pre_analysis_localAI(self):
+        """
+        Pre analyse file to accommodate correctly block size to read full lines and prevent
+        breaking lines or reading blocks with a truncated line.
+        :return: None
+        """
+        file_size = os.path.getsize(self.filename)
+        fsize = file_size / 1024 / 1024
+        bsize = self.block_size / 1024 / 1024
+        print(f'Block size for reading: {bsize:.2f} Mbytes')
+        print(f'Pre-analysing file size {fsize:.2f} Mbytes calculating block sizes')
+
+        if self.block_size > file_size:
+            print(f'Adjusting blocksize to {fsize:.2f}Mb because blocksize given({bsize:.2f}Mb) is too big')
+            self.block_size = file_size
+
+        line_counter = 1  # Global line counter
+        self.chunk_info = []  # Clear chunk info cache
+
+        with open(self.filename, 'r') as file:
+            while file.tell() < file_size:
+                start_pos = file.tell()
+                start_line = line_counter  # Save the starting line number for this block
+
+                chunk = file.read(self.block_size)
+                if not chunk:
+                    break
+
+                # Find the end of the last complete line
+                last_newline = chunk.rfind('\n')
+                if last_newline != -1:
+                    end_pos = start_pos + last_newline + 1  # Include the newline character
+                else:
+                    end_pos = start_pos + len(chunk)
+
+                # Count the lines in this chunk up to the last complete line
+                lines_in_chunk = chunk[:last_newline + 1].count('\n') if last_newline != -1 else 0
+
+                end_line = start_line + lines_in_chunk - 1  # Last line of the chunk
+
+
+                # Ensure we don't exceed the file size
+                if end_pos >= file_size:
+                    end_pos = file_size
+
+                    # Evitar agregar un bloque innecesario
+                    if self.chunk_info and self.chunk_info[-1][0] == start_pos:
+                         break
+
+                    # Ajustar la cantidad de líneas en caso necesario
+                    if last_newline != -1:
+                        lines_in_chunk = chunk[:last_newline + 1].count('\n')
+                    else:
+                        lines_in_chunk = chunk.count('\n')
+
+                    end_line = start_line + lines_in_chunk - 1
+
+                # Store the chunk information with line ranges
+                self.chunk_info.append((start_pos, end_pos - start_pos, start_line, end_line))
+
+                # Update the line counter
+                line_counter += lines_in_chunk
+
+                # Move the file pointer to the end of this chunk
+                file.seek(end_pos)
+
+                # Debug message
+                print(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
+
+        print(f'Will launch {len(self.chunk_info)} threads to read full file...')
+
+
+    def pre_analysis_bug_last_line(self):
+        """
+        Pre analyse file, to accommodate correctly block size to read full lines and prevent
+        breaking lines or reading blocks with a truncated line.
+        :return: None
+        """
+        file_size = os.path.getsize(self.filename)
+        fsize = file_size / 1024 / 1024
+        bsize = self.block_size / 1024 / 1024
+        print(f'Block size for reading: {bsize:.2f} Mbytes')
+        print(f'Pre-analysing file size {fsize:.2f} Mbytes calculating block sizes')
+
+        if self.block_size > file_size:
+            print(f'Adjusting blocksize to {fsize:.2f}Mb because blocksize given({bsize:.2f}Mb) is too big')
+            self.block_size = file_size
+
+        line_counter = 1  # Contador global de líneas
+        self.chunk_info = []  # Limpiar el caché de información de bloques
+
+        with open(self.filename, 'r') as file:
+            while file.tell() < file_size:
+                start_pos = file.tell()
+                start_line = line_counter  # Guardar el número de línea al inicio del bloque
+
+                chunk = file.read(self.block_size)
+                if not chunk:
+                    break
+
+                # Encontrar el final de la última línea completa
+                last_newline = chunk.rfind('\n')
+                if last_newline != -1:
+                    end_pos = start_pos + last_newline + 1  # Incluye el carácter de nueva línea
+                else:
+                    end_pos = start_pos + len(chunk)  # No hay '\n', el bloque termina aquí
+
+                # Contar las líneas en este bloque
+                lines_in_chunk = chunk[:last_newline + 1].count('\n')  # Contar solo líneas completas
+                end_line = start_line + lines_in_chunk - 1 if lines_in_chunk > 0 else start_line
+
+                # Guardar la información del bloque
+                self.chunk_info.append((start_pos, end_pos - start_pos, start_line, end_line))
+
+                # Actualizar el contador de líneas
+                line_counter += lines_in_chunk
+
+                # Mover el puntero del archivo al final del bloque
+                file.seek(end_pos)
+
+                # Mensaje de depuración
+                print(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
+
+            # 💡 **Manejar el último fragmento si no fue procesado**
+            if self.chunk_info and self.chunk_info[-1][1] + self.chunk_info[-1][0] < file_size:
+                last_start_pos = self.chunk_info[-1][0] + self.chunk_info[-1][1]
+                last_chunk_size = file_size - last_start_pos
+                self.chunk_info.append((last_start_pos, last_chunk_size, line_counter, line_counter))
+                print(f"Processed last small block: start_pos={last_start_pos}, size={last_chunk_size} bytes")
+
+        print(f'Will launch {len(self.chunk_info)} threads to read full file...')
+
+
+    def pre_analysis_bug(self):
+        """
         Pre analyse file, to accommodate correctly block size to read full lines and prevent
         breaking lines or reading blocks with a truncated line.
         :return: None
