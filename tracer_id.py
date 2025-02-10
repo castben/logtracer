@@ -1,5 +1,5 @@
 from ahocorapy.keywordtree import KeywordTree
-from object_class import CordaObject
+from object_class import CordaObject, UMLEntity, Configs, FileManagement
 
 
 class TracerId:
@@ -16,14 +16,14 @@ class TracerId:
         self.file = file
         self.Configs = get_configs
 
-    def tracer(self):
+    def tracerx(self):
         """
         start actual id tracking
         :return:
         """
 
         global log_file, logfile_format
-
+        # SEL SGG 58J
         if logfile:
             log_file = logfile
         # Create keyword search tree
@@ -195,3 +195,30 @@ class TracerId:
                 script = build_uml_script(corda_o)
                 draw_results("%s-%s" % (corda_o.type, corda_o.data["id_ref"]), script, log_file)
                 print("===============================")
+
+    def tracer(self, file):
+        """
+        Do tracking for each flow and TX found.
+        :param file:
+        :return:
+        """
+
+        # TODO: Load all uml entities which will give to me what to look for
+        # TODO: loop over all items in "Flows&Transactions" type
+
+
+        # Load uml entities:
+
+        uml_entities_list = Configs.get_config_for('UML_SETUP.UML_ENTITY.OBJECTS')
+
+        for each_entity in uml_entities_list:
+            uml_entity = UMLEntity()
+
+        flows_n_txs = file.FileManagement.get_all_unique_results('Flows&Transactions')
+        parties = file.FileManagement.get_all_unique_results('Party')
+
+        #
+
+
+        for each_item in flows_n_txs:
+            pass
