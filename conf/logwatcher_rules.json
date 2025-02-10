@@ -1227,44 +1227,6 @@
               "default_source": "OUT"
             }
           }
-        },
-        "actor-source": {
-          "DESCRIPTION": "A test to identify nodes",
-          "USAGES": {
-            "default_destination": {
-              "EXPECT": [
-              ],
-              "RETURN_OBJECT": [
-                "actor"
-              ]
-            },
-            "default_source": {
-              "EXPECT": [
-              ],
-              "RETURN_OBJECT": [
-                "actor"
-              ]
-            }
-          }
-        },
-        "actor-destination": {
-          "DESCRIPTION": "A test to identify nodes",
-          "USAGES": {
-            "default_destination": {
-              "EXPECT": [
-              ],
-              "RETURN_OBJECT": [
-                "actor"
-              ]
-            },
-            "default_source": {
-              "EXPECT": [
-              ],
-              "RETURN_OBJECT": [
-                "actor"
-              ]
-            }
-          }
         }
       }
     },
