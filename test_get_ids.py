@@ -79,7 +79,7 @@ def main():
         # /Users/larry.castro/IdeaProjects/logtracer/client-logs/Finteum/CS-3462/notary-issue/node-bull-759dc59895-j7rmw.log
 
         file = FileManagement(log_file, block_size_in_mb=15, debug=True)
-        # Analyse first 100 (by default) lines from given file to determine which Corda log format is
+        # Analyse first 15 (by default) lines from given file to determine which Corda log format is
         # This is done to be able to separate key components from lines like Time stamp, severity level, and log
         # message
         file.discover_file_format()
