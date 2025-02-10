@@ -4,7 +4,7 @@
 import os
 import argparse
 from get_refIds import GetRefIds
-from object_class import Configs, X500NameParser, FileManagement
+from object_class import Configs, X500NameParser, FileManagement, UMLEntity
 from object_class import CordaObject,saving_tracing_ref_data
 # from tracer_id import TracerId
 from get_parties import GetParties
@@ -37,8 +37,6 @@ def test_refids(log_file):
             total_ids += len(CordaObject.list[each_type])
         print(f'Total ids: {total_ids}')
         # saving_tracing_ref_data(CordaObject.get_all_objects(), log_file=args.log_file)
-
-
     # trace_id(args.log_file)
 
 def print_parties():
@@ -85,20 +83,38 @@ def main():
         # This is done to be able to separate key components from lines like Time stamp, severity level, and log
         # message
         file.discover_file_format()
+        #
+        # Setup party collection
+        #
+        # Set actual configuration to use
         collect_parties = GetParties(Configs)
+        # Set file that will be used to extract information from
         collect_parties.set_file(file)
+        # Set specific type we are going to collect
         collect_parties.set_element_type('Party')
+        #
+        # Setting up collection of other data like Flows and Transactions
+        #
+        # Setup corresponding Config to use
         collect_refIds = GetRefIds(Configs)
+        # Set actual file that will be used to pull data from
         collect_refIds.set_file(file)
+        # Set specific type of element we are going to extract
         collect_refIds.set_element_type('Flows&Transactions')
-
+        #
+        # Pre-analyse the file to figure out how to read it, if file is bigger than blocksize then file will be
+        # Divided by chunks and will be created a thread for each one of them to read it
         file.pre_analysis() # Calculate on fly proper chunk sizes to accommodate lines correctly
-        # Add proper methods to collect info
+        #
+        # Add proper methods to handle each collection
+        #
         file.add_process_to_execute(collect_parties)
         file.add_process_to_execute(collect_refIds)
-
+        # start a time watch
         file.start_stop_watch('Main-search', True)
+        # Start all threads required
         file.parallel_processing()
+        # Stopping timewatch process and get time spent
         time_msg = file.start_stop_watch('Main-search', False)
 
         if file.result_has_element('Party'):
