@@ -211,8 +211,11 @@ def main():
                 print(f'  * {each_result_type}: {len(results[each_result_type])}')
 
         print(f'Elapsed time {time_msg}.')
-        pass
+        return file
+
+
+
 
 if __name__ == "__main__":
-    main()
+    file = main()
     # cProfile.run("main()", 'profile-results.prof')
