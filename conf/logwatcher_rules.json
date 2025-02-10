@@ -1149,26 +1149,6 @@
             }
           }
         },
-        "vnode": {
-          "DESCRIPTION": "This a reference to actual sandbox where flows are being executed",
-          "USAGES": {
-            "default_source": {
-              "EXPECT": [
-                "Caching flow sandbox for __participant__"
-              ],
-              "RETURN_OBJECT": [
-                "vnode"
-              ]
-            },
-            "default_destination": {
-              "EXPECT": [],
-              "RETURN_OBJECT": [
-                "vnode"
-              ]
-            }
-
-          }
-        },
         "vault": {
           "DESCRIPTION": "This section define database entity (Node Vault)",
           "USAGES": {
