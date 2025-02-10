@@ -8,6 +8,7 @@ import threading
 from asyncio import as_completed
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from enum import Enum
 from multiprocessing import Pool
 
 class CordaObject:
@@ -1883,6 +1884,43 @@ class UMLObject:
         self.type = ""
         self.name = ""
         self.definition = None
+
+class UMLEntity:
+    """
+    Entity definition for UML
+    """
+
+    class EntityProperty(Enum):
+        DESCRIPTION = 0
+        ACTIVATE_ROLE = 1
+        EXPECT = 2
+        USAGES = 3
+        REGISTER_REFERENCE = 4
+
+    def __init__(self):
+        self.attribute = {}
+
+    def set(self, att,value):
+        """
+        Set attribute
+        :param att: name
+        :param value: value
+        :return:
+        """
+
+        self.attribute[att] = value
+
+    def get(self, att):
+        """
+        Return value from att name
+        :param att: attribute name
+        :return: value
+        """
+
+        if att in self.attribute:
+            return self.attribute[att]
+
+        return None
 
 class Party:
     """
