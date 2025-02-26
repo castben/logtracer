@@ -56,10 +56,7 @@ def print_parties():
 def main():
     log_file = None
     Configs.load_config()
-    parserargs = argparse.ArgumentParser()
-    parserargs.add_argument('-l', '--log-file',
-                            help='Give actual log file to pre-format')
-    args = parserargs.parse_args()
+
 
     # in this case I'm removing initial branch 'UML_SETUP' because final config is a collection of configuration settings
     # that removes this.
@@ -219,6 +216,17 @@ def main():
 
 
 if __name__ == "__main__":
+    #-l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
+    # TODO: Hay 2 flow-ids que no son identificados en este log:
+    # TODO: -l "/home/r3support/www/uploads/customers/Grow Super/CS-3992/20250225103248_pack"/corda-node-dev0-ri-hes-admin-node.2025-02-19-1.log
+    # TODO:  flow-id=e00ff18b-3440-491d-b9b2-ff99bda16d8b (se puede ver en la linea 2215)
+    # TODO:  flow-id=c9d2e2de-ac10-4a59-9ee5-cae35f4c24b2 (se puede ver en la linea 2210)
+
+    parserargs = argparse.ArgumentParser()
+    parserargs.add_argument('-l', '--log-file',
+                            help='Give actual log file to analyse')
+    args = parserargs.parse_args()
+
     file = main()
     tracer = TracerId(file, get_configs())
 
