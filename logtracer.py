@@ -4150,7 +4150,7 @@ class X500NameParser:
                 x500name = X500Name(rname)
                 if x500_list:
                     for each_xname in x500_list:
-                        if each_xname.compare_name(rname):
+                        if each_xname.is_same_name(rname):
                             each_xname.add_alternate_name(rname)
                             alternate_name_found = True
 
