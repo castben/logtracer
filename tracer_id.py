@@ -208,14 +208,27 @@ class TracerId:
 
 
         # Load uml entities:
+        uml_entity = UMLEntity()
+        uml_entity.initialize(self.Configs)
 
-        uml_entities_list = Configs.get_config_for('UML_SETUP.UML_ENTITY.OBJECTS')
+        # uml_entities_list = Configs.get_config_for('UML_ENTITY.OBJECTS')
+        # entity_list = {}
+        # for each_entity in uml_entities_list:
+        #     uml_entity = UMLEntity(Configs)
+        #     uml_entity_att_list = uml_entities_list[each_entity]
+        #     for each_entity_att in uml_entity_att_list:
+        #         uml_entity.set(each_entity_att, uml_entity_att_list[each_entity_att])
+        #
+        #     entity_list[each_entity] = uml_entity
 
-        for each_entity in uml_entities_list:
-            uml_entity = UMLEntity()
+        # Load UML objects/commands
 
-        flows_n_txs = file.FileManagement.get_all_unique_results('Flows&Transactions')
-        parties = file.FileManagement.get_all_unique_results('Party')
+        # Get all transactions
+        flows_n_txs = self.file.FileManagement.get_all_unique_results('Flows&Transactions')
+        # Get list of all parties involved
+        parties = self.file.FileManagement.get_all_unique_results('Party')
+
+
 
         #
 
