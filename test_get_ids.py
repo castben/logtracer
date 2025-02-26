@@ -8,6 +8,8 @@ from object_class import Configs, X500NameParser, FileManagement, UMLEntity
 from object_class import CordaObject,saving_tracing_ref_data
 # from tracer_id import TracerId
 from get_parties import GetParties
+from tracer_id import TracerId
+
 
 # import cProfile
 # from line_profiler import LineProfiler
@@ -218,4 +220,8 @@ def main():
 
 if __name__ == "__main__":
     file = main()
+    tracer = TracerId(file, get_configs())
+
+    tracer.tracer(file)
+
     # cProfile.run("main()", 'profile-results.prof')
