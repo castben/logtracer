@@ -1342,8 +1342,6 @@ class FileManagement:
 
         FileManagement.unique_results[element_type] =  elements
 
-        pass
-
 
     @staticmethod
     def add_element(element_type, item):
@@ -1872,33 +1870,28 @@ class FileManagement:
             print(f'Unable to open {self.filename} due to {io}')
             exit(0)
 
-class UMLObject:
+    @staticmethod
+    def print_parties():
+
+        for index,each_id in enumerate(FileManagement.get_all_unique_results('Party')):
+            if each_id.get_corda_role():
+                role = f'{each_id.get_corda_role()}'
+            else:
+                role = 'party'
+            print(f"[{index+1:>3}] [{role:^11}] {each_id.name}")
+            if each_id.has_alternate_names():
+                for each_alternate_name in each_id.get_alternate_names():
+                    print(f"              `-->  {each_alternate_name}")
+
+
+class UMLCommand:
     """
-    Container for all uml objects
+    Container for all uml commands, like '->','<-', etc...
     """
 
-    def __init__(self):
-        """
-
-        """
-        self.type = ""
-        self.name = ""
-        self.definition = None
-
-class UMLEntity:
-    """
-    Entity definition for UML
-    """
-
-    class EntityProperty(Enum):
-        DESCRIPTION = 0
-        ACTIVATE_ROLE = 1
-        EXPECT = 2
-        USAGES = 3
-        REGISTER_REFERENCE = 4
-
-    def __init__(self):
+    def __init__(self,configs):
         self.attribute = {}
+        self.configs = configs
 
     def set(self, att,value):
         """
@@ -1913,14 +1906,103 @@ class UMLEntity:
     def get(self, att):
         """
         Return value from att name
-        :param att: attribute name
-        :return: value
+        :param att: attribute name, if attribute is within a nested dictionary, you can use 'dot' notation to reach
+        any parameter in lower levels, for example 'USAGES.default_source.EXPECT'
+        :return: value none otherwise
         """
 
-        if att in self.attribute:
-            return self.attribute[att]
+        _,value = generate_internal_access(self.attribute,att)
+        if value:
+            return value
 
         return None
+
+class UMLEntity:
+    """
+    Entity definition for UML
+    """
+
+    uml_entity_list = None
+    entity_list = {}
+    config = None
+
+    def __init__(self):
+        self.attribute = {}
+
+    @staticmethod
+    def initialize(config):
+
+        UMLEntity.config = config
+        if not UMLEntity.uml_entity_list:
+            UMLEntity.uml_entities_list = config.get_config_for('UML_ENTITY.OBJECTS')
+
+        for each_entity in UMLEntity.uml_entities_list:
+            uml_entity = UMLEntity()
+            uml_entity_att_list = UMLEntity.uml_entities_list[each_entity]
+            for each_entity_att in uml_entity_att_list:
+                uml_entity.set(each_entity_att, uml_entity_att_list[each_entity_att])
+
+            uml_entity.add(each_entity)
+
+
+    def add(self, name):
+        """
+        Add this instance to internal instances list
+        :return:
+        """
+        UMLEntity.entity_list[name] = self
+
+    def set(self, att,value):
+        """
+        Set attribute
+        :param att: name
+        :param value: value
+        :return:
+        """
+
+        self.attribute[att] = value
+
+    def get(self, att):
+        """
+        Return value from att name
+        :param att: attribute name, if attribute is within a nested dictionary, you can use 'dot' notation to reach
+        any parameter in lower levels, for example 'USAGES.default_source.EXPECT'
+        :return: value none otherwise
+        """
+
+        _,value = generate_internal_access(self.attribute,att)
+        if value:
+            return value
+
+        return None
+
+    @property
+    def get_list(self):
+        """
+        List loaded entities
+        :return:
+        """
+
+        return UMLEntity.entity_list
+
+    @staticmethod
+    def get_entity(name, att=None):
+        """
+        Return entity instance class for given name
+        :param name: name of instance stored
+        :param att: attribute required from given stored instance
+        :return:
+        """
+        if name not in UMLEntity.entity_list:
+            return None
+
+        if not att:
+            return UMLEntity.entity_list[name]
+
+        _, value = generate_internal_access(UMLEntity.entity_list[name].get(f'UML_ENTITY.OBJECTS.{name}'), att)
+
+        if value:
+            return value
 
 class Party:
     """
