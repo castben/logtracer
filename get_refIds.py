@@ -151,6 +151,10 @@ class GetRefIds:
         From result, classify each object found
         :return:
         """
+
+        # TODO: Revisar esta rutina parece que no esta tomando todos los objetos que se consiuen
+        # TODO: He descubierto una discrepancia en los objetos "unicos" y los que reporta CordaObject.list
+        # TODO: En este presente ejemplo hay 2 flows que no son tomados en cuenta en los resultados finales, pero si estan en CordaObject.list
         classified_results = {}
         for each_item in results:
             if each_item.type not in classified_results:

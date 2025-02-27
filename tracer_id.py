@@ -224,9 +224,9 @@ class TracerId:
         # Load UML objects/commands
 
         # Get all transactions
-        flows_n_txs = self.file.FileManagement.get_all_unique_results('Flows&Transactions')
+        flows_n_txs = self.file.get_all_unique_results('Flows&Transactions')
         # Get list of all parties involved
-        parties = self.file.FileManagement.get_all_unique_results('Party')
+        parties = self.file.get_all_unique_results('Party')
 
 
 
