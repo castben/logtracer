@@ -1794,7 +1794,7 @@ class FileManagement:
                 for line in lines:
                     for each_method in self.get_methods_type():
                         result = self.get_method(each_method).execute(line, current_line)
-
+                        #print(f"{each_method} -- {result}")
                         if each_method == 'Party':
                             # if method running is related to parties, line below will run an extra
                             # analysis on that line to see if this line is able to identify a role (like owner of log
