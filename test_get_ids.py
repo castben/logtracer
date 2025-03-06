@@ -1,4 +1,4 @@
-
+import cProfile
 # Program to test extraction and validation of X500 names.
 
 import os
@@ -68,15 +68,6 @@ def main():
         log_file = args.log_file
 
     if log_file:
-        # -l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
-        # -l/home/larry/IdeaProjects/logtracer/client-logs/Grow-super/CS-3873/logsinsurance/corda-node-cordaprimary-prod-growadmin-i-0bb90aaa48c7b6b88.dlta.internal.2024-12-02-7.log
-        # Office
-        # -l
-        # /Users/larry.castro/IdeaProjects/logtracer/client-logs/Grow-super/logsinsurance/corda-node-cordaprimary-prod-growadmin-i-0bb90aaa48c7b6b88.dlta.internal.2024-12-02-23.log
-        # Small size and have all roles:
-        # -l
-        # /Users/larry.castro/IdeaProjects/logtracer/client-logs/Finteum/CS-3462/notary-issue/node-bull-759dc59895-j7rmw.log
-
         file = FileManagement(log_file, block_size_in_mb=15, debug=True)
         # Analyse first 15 (by default) lines from given file to determine which Corda log format is
         # This is done to be able to separate key components from lines like Time stamp, severity level, and log
@@ -213,14 +204,18 @@ def main():
         return file
 
 
-
-
 if __name__ == "__main__":
-    #-l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
-    # TODO: Hay 2 flow-ids que no son identificados en este log:
-    # TODO: -l "/home/r3support/www/uploads/customers/Grow Super/CS-3992/20250225103248_pack"/corda-node-dev0-ri-hes-admin-node.2025-02-19-1.log
-    # TODO:  flow-id=e00ff18b-3440-491d-b9b2-ff99bda16d8b (se puede ver en la linea 2215)
-    # TODO:  flow-id=c9d2e2de-ac10-4a59-9ee5-cae35f4c24b2 (se puede ver en la linea 2210)
+    # -l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
+    # -l/home/larry/IdeaProjects/logtracer/client-logs/Grow-super/CS-3873/logsinsurance/corda-node-cordaprimary-prod-growadmin-i-0bb90aaa48c7b6b88.dlta.internal.2024-12-02-7.log
+    # Office
+    # -l
+    # /Users/larry.castro/IdeaProjects/logtracer/client-logs/Grow-super/logsinsurance/corda-node-cordaprimary-prod-growadmin-i-0bb90aaa48c7b6b88.dlta.internal.2024-12-02-23.log
+    # Small size and have all roles:
+    # -l
+    # /Users/larry.castro/IdeaProjects/logtracer/client-logs/Finteum/CS-3462/notary-issue/node-bull-759dc59895-j7rmw.log
+    # ===
+    # -l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
+    # -l "/home/r3support/www/uploads/customers/Grow Super/CS-3992/20250225103248_pack"/corda-node-dev0-ri-hes-admin-node.2025-02-19-1.log
 
     parserargs = argparse.ArgumentParser()
     parserargs.add_argument('-l', '--log-file',
@@ -228,8 +223,8 @@ if __name__ == "__main__":
     args = parserargs.parse_args()
 
     file = main()
-    tracer = TracerId(file, get_configs())
+    # tracer = TracerId(file, get_configs())
+    #
+    # tracer.tracer(file)
 
-    tracer.tracer(file)
-
-    # cProfile.run("main()", 'profile-results.prof')
+    # cProfile.run("main()")#, 'profile-results.prof')
