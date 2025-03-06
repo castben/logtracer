@@ -3544,21 +3544,24 @@ class RegexLib:
             return ltr
 
 
-def get_first_not_null(list_or_tuple, start=0):
+def get_not_null(list_or_tuple, start=0):
     """
-    Returns first not null object within a tuple or list
+    Returns List of  not null object within a tuple or list
     :param list_or_tuple: list or tuple object to check
     :param start: it will indicate how this routine will start from, normally a list start in 0 but in some cases
     (like sending tuple list from re.groups() this should start in 1
     :return: int or None
     """
 
-    try:
-        index = next(i for i, value in enumerate(list_or_tuple) if value is not None)
-        return index + start
+    # try:
+    #     index = next(i for i, value in enumerate(list_or_tuple) if value is not None)
+    #     return index + start
+    #
+    # except StopIteration:
+    #     return None
 
-    except StopIteration:
-        return None
+    indices = [i + start for i, value in enumerate(list_or_tuple) if value is not None]
+    return indices
 
 
 
