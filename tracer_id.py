@@ -1,5 +1,5 @@
 from ahocorapy.keywordtree import KeywordTree
-from object_class import CordaObject, UMLEntity, Configs, FileManagement
+from object_class import CordaObject, UMLEntity, Configs, FileManagement, get_fields_from_log
 
 
 class TracerId:
