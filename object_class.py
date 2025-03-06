@@ -1770,6 +1770,19 @@ class FileManagement:
     #     return FileManagement.get_all_unique_results()
 
     def process_block(self, args):
+        """
+        Method in charge to do actual processing of data, searching for required information and
+        storing it
+        :param args:
+        :return:
+        """
+
+        # TODO: Este metodo guarda los resultados; necesito hacer una revision de esto, ya que el hecho de ejecutar
+        # el metodo que procesa la informacion en el caso de los ref_ids ya esta guardando los resultados, asi que
+        # probablemente este repitiendo el proceso sin necesidad aqui.
+
+
+
         start, size, start_line, end_line = args
         local_results = {}
         current_line = start_line
