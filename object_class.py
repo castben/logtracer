@@ -1354,6 +1354,7 @@ class FileManagement:
         :param item: Item to store
         :return: None
         """
+
         if element_type not in FileManagement.unique_results:
             FileManagement.unique_results[element_type] = {}
 
@@ -1712,61 +1713,61 @@ class FileManagement:
         else:
             return None
 
-    def process_block_nommap(self, args):
-        start, size = args
-        local_results = []  # Acumulador local para evitar el lock en cada línea
+    # def process_block_nommap(self, args):
+    #     start, size = args
+    #     local_results = []  # Acumulador local para evitar el lock en cada línea
+    #
+    #     with open(self.filename, "r") as file:
+    #         file.seek(start)
+    #         chunk = file.read(size)
+    #         lines = chunk.splitlines()
+    #
+    #         for line in lines:
+    #             result = self.parallel_process['ID_Refs'].execute(line)
+    #             self.identify_party_role(line)
+    #             if result:
+    #                 local_results.extend(result)
+    #
+    #     # Solo usar lock una vez para agregar todos los resultados
+    #     with self.lock:
+    #         for each_result in local_results:
+    #             FileManagement.add_element('Party', each_result)
+    #
+    #     return FileManagement.get_all_unique_results('Party')
 
-        with open(self.filename, "r") as file:
-            file.seek(start)
-            chunk = file.read(size)
-            lines = chunk.splitlines()
-
-            for line in lines:
-                result = self.parallel_process['ID_Refs'].execute(line)
-                self.identify_party_role(line)
-                if result:
-                    local_results.extend(result)
-
-        # Solo usar lock una vez para agregar todos los resultados
-        with self.lock:
-            for each_result in local_results:
-                FileManagement.add_element('Party', each_result)
-
-        return FileManagement.get_all_unique_results('Party')
-
-    def process_block_nolinenumbers(self, args):
-        start, size = args
-        local_results = {}
-
-        with open(self.filename, "r") as file:
-            with mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ) as mmapped_file:
-                chunk = mmapped_file[start:start+size].decode('utf-8', errors='ignore')
-                lines = chunk.splitlines()
-
-                for line in lines:
-                    for each_method in self.get_methods_type():
-                        result = self.get_method(each_method).execute(line)
-
-                        if each_method == 'Party':
-                            # if method running is related to parties, line below will run an extra
-                            # analysis on that line to see if this line is able to identify a role (like owner of log
-                            # or notary...
-                            self.identify_party_role(line)
-
-                        if result:
-                            if each_method not in local_results:
-                                local_results[each_method] = []
-                            if isinstance(result, list):
-                                local_results[each_method].extend(result)
-                            else:
-                                local_results[each_method].append(result)
-
-        with self.lock:
-            for each_method in self.get_methods_type():
-                for each_result in local_results[each_method]:
-                    FileManagement.add_element(each_method, each_result)
-
-        return FileManagement.get_all_unique_results()
+    # def process_block_nolinenumbers(self, args):
+    #     start, size = args
+    #     local_results = {}
+    #
+    #     with open(self.filename, "r") as file:
+    #         with mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ) as mmapped_file:
+    #             chunk = mmapped_file[start:start+size].decode('utf-8', errors='ignore')
+    #             lines = chunk.splitlines()
+    #
+    #             for line in lines:
+    #                 for each_method in self.get_methods_type():
+    #                     result = self.get_method(each_method).execute(line)
+    #
+    #                     if each_method == 'Party':
+    #                         # if method running is related to parties, line below will run an extra
+    #                         # analysis on that line to see if this line is able to identify a role (like owner of log
+    #                         # or notary...
+    #                         self.identify_party_role(line)
+    #
+    #                     if result:
+    #                         if each_method not in local_results:
+    #                             local_results[each_method] = []
+    #                         if isinstance(result, list):
+    #                             local_results[each_method].extend(result)
+    #                         else:
+    #                             local_results[each_method].append(result)
+    #
+    #     with self.lock:
+    #         for each_method in self.get_methods_type():
+    #             for each_result in local_results[each_method]:
+    #                 FileManagement.add_element(each_method, each_result)
+    #
+    #     return FileManagement.get_all_unique_results()
 
     def process_block(self, args):
         start, size, start_line, end_line = args
