@@ -79,44 +79,47 @@ class GetRefIds:
                 for matchNum, match in enumerate(cordaobject_id_match, start=1):
                     # for groupNum in range(0, len(match.groups())):
                     # groupNum = groupNum + 1
-                    groupNum = object_class.get_first_not_null(match.groups(), start=1)
-                    each_group = match.group(groupNum)
-                    if each_group:
-                        if each_group in CordaObject.id_ref:
-                            # Store this  line involving current reference
-                            cob = CordaObject.get_object(each_group)
-                            cob.add_data('references', current_line)
-                            continue #org_cordaobject = CordaObject
-                        else:
-                            # print("id {group} identified as {type}".format(
-                            #     group=match.group(groupNum),
-                            #     type=all_regex_type[groupNum-1]
-                            # ))
+                    groupNum_list = object_class.get_not_null(match.groups(), start=1)
+                    for groupNum in groupNum_list:
+                        each_group = match.group(groupNum)
 
-                            # Add a new reference found into the list
-                            CordaObject.id_ref.append(each_group)
-                            #
-                            # Also create this object to be identified later:
-                            # first extract line features (timestamp, severity, etc)
-                            log_line_fields = get_fields_from_log(each_line, self.file.logfile_format, self.file)
-                            # Create object:
-                            co = CordaObject()
-                            # TODO: Hay un bug que ocurre cuando el programa detecta un corda_object que esta
-                            #  en una linea que esta fuera (tiene retorno de carro) de la linea principal del
-                            #  log lo que provoca que el objeto no sea creado... por los momentos voy a
-                            #  ignorar estas referencias...
-                            if log_line_fields:
-                                if not 'error_level' in log_line_fields:
-                                    log_line_fields['error_level'] = 'INFO'
-                                # Create object
-                                co.add_data("id_ref", each_group)
-                                co.add_data("Original line", each_line)
-                                co.add_data("error_level", log_line_fields["error_level"])
-                                co.add_data("timestamp", log_line_fields["timestamp"])
-                                co.add_data("type", all_regex_type[groupNum-1])
-                                co.add_data("line_number", current_line)
-                                co.set_type(all_regex_type[groupNum-1])
-                                co.add_object()
+                        if each_group:
+                            if each_group in CordaObject.id_ref:
+                                # Store this  line involving current reference
+                                cob = CordaObject.get_object(each_group)
+                                cob.add_data('references', current_line)
+                                self.file.add_element(self.get_element_type(),cob)
+                                continue
+                            else:
+                                # print("id {group} identified as {type}".format(
+                                #     group=match.group(groupNum),
+                                #     type=all_regex_type[groupNum-1]
+                                # ))
+
+                                # Add a new reference found into the list
+                                CordaObject.id_ref.append(each_group)
+                                #
+                                # Also create this object to be identified later:
+                                # first extract line features (timestamp, severity, etc)
+                                log_line_fields = get_fields_from_log(each_line, self.file.logfile_format, self.file)
+                                # Create object:
+                                co = CordaObject()
+                                # TODO: Hay un bug que ocurre cuando el programa detecta un corda_object que esta
+                                #  en una linea que esta fuera (tiene retorno de carro) de la linea principal del
+                                #  log lo que provoca que el objeto no sea creado... por los momentos voy a
+                                #  ignorar estas referencias...
+                                if log_line_fields:
+                                    if not 'error_level' in log_line_fields:
+                                        log_line_fields['error_level'] = 'INFO'
+                                    # Create object
+                                    co.add_data("id_ref", each_group)
+                                    co.add_data("Original line", each_line)
+                                    co.add_data("error_level", log_line_fields["error_level"])
+                                    co.add_data("timestamp", log_line_fields["timestamp"])
+                                    co.add_data("type", all_regex_type[groupNum-1])
+                                    co.add_data("line_number", current_line)
+                                    co.set_type(all_regex_type[groupNum-1])
+                                    co.add_object()
 
             if not self.file.logfile_format:
                 print("Sorry I can't find a proper log template to parse this log terminating program")
