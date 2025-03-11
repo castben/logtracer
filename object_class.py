@@ -2018,13 +2018,13 @@ class UMLEntity:
         :param att: attribute required from given stored instance
         :return:
         """
-        if name not in UMLEntity.entity_list:
+        if name not in UMLEntity.entity_role:
             return None
 
         if not att:
-            return UMLEntity.entity_list[name]
+            return UMLEntity.entity_role[name]
 
-        _, value = generate_internal_access(UMLEntity.entity_list[name].get(f'UML_ENTITY.OBJECTS.{name}'), att)
+        _, value = generate_internal_access(UMLEntity.entity_role[name].get(f'UML_ENTITY.OBJECTS.{name}'), att)
 
         if value:
             return value
