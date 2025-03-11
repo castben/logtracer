@@ -430,13 +430,13 @@ class CordaObject:
         return CordaObject.log_owner
 
     @staticmethod
-    def analyse(original_line):
+    def analyse(original_line, uml_definition):
         """
         Analyse line and covert it into UML
         :return:
         """
 
-        uml_definition = Configs.get_config(section="UML_DEFINITIONS")
+        # uml_definition = Configs.get_config(section="UML_DEFINITIONS")
         uml_rtn = {}
         uml_step = {}
         # Loop over all UML definitions
@@ -1906,6 +1906,17 @@ class UMLCommand:
     def __init__(self,configs):
         self.attribute = {}
         self.configs = configs
+        self.command_action = {}
+
+        self.initialize()
+
+    def initialize(self):
+        """Load all commands into memory
+        """
+
+        self.command_action = self.configs
+
+
 
     def set(self, att,value):
         """
@@ -1936,8 +1947,8 @@ class UMLEntity:
     Entity definition for UML
     """
 
-    uml_entity_list = None
-    entity_list = {}
+    uml_entity_role_definition = None
+    entity_role = {}
     config = None
 
     def __init__(self):
@@ -1947,7 +1958,7 @@ class UMLEntity:
     def initialize(config):
 
         UMLEntity.config = config
-        if not UMLEntity.uml_entity_list:
+        if not UMLEntity.uml_entity_role_definition:
             UMLEntity.uml_entities_list = config.get_config_for('UML_ENTITY.OBJECTS')
 
         for each_entity in UMLEntity.uml_entities_list:
@@ -1964,7 +1975,7 @@ class UMLEntity:
         Add this instance to internal instances list
         :return:
         """
-        UMLEntity.entity_list[name] = self
+        UMLEntity.entity_role[name] = self
 
     def set(self, att,value):
         """
