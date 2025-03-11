@@ -2004,11 +2004,11 @@ class UMLEntity:
     @property
     def get_list(self):
         """
-        List loaded entities
+        List loaded entities roles
         :return:
         """
 
-        return UMLEntity.entity_list
+        return UMLEntity.entity_role
 
     @staticmethod
     def get_entity(name, att=None):
