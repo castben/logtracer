@@ -91,6 +91,8 @@ def main():
         collect_refIds.set_file(file)
         # Set specific type of element we are going to extract
         collect_refIds.set_element_type('Flows&Transactions')
+        # Now setting up analysis to get associated UML step for this line (if it exists)
+        collect_uml_steps = TracerId(Configs)
         #
         # Pre-analyse the file to figure out how to read it, if file is bigger than blocksize then file will be
         # Divided by chunks and will be created a thread for each one of them to read it
@@ -223,8 +225,8 @@ if __name__ == "__main__":
     args = parserargs.parse_args()
 
     file = main()
-    # tracer = TracerId(file, get_configs())
+    tracer = TracerId(file, get_configs())
     #
-    # tracer.tracer(file)
+    tracer.tracer(file)
 
     # cProfile.run("main()")#, 'profile-results.prof')
