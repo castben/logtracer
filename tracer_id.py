@@ -1,5 +1,6 @@
 from ahocorapy.keywordtree import KeywordTree
-from object_class import CordaObject, UMLEntity, Configs, FileManagement, get_fields_from_log
+from object_class import CordaObject, UMLEntity, Configs, FileManagement, get_fields_from_log, UMLCommand
+
 
 
 class TracerId:
@@ -7,14 +8,38 @@ class TracerId:
     Trace a particular corda object over all logs
     :return:
     """
-
-    def __init__(self, file, get_configs):
+    uml_definitions = None
+    def __init__(self, get_configs):
         """
-        class initialization getting file object which is a FileManager object..
-        :param file:
+        class initialization getting file object which is a FileManager object...
+        """
+        self.file = None
+        self.Configs = get_configs
+        TracerId.uml_definitions = Configs.get_config(section="UML_DEFINITIONS")
+        self.file = None
+        self.type = None
+
+    def get_element_type(self):
+        """
+        Return element type for this item; element type could be "Party" which represents party element, or
+        'Flows&Transactions' which represents all tx and flows found.
+        """
+        return self.type
+
+    def set_element_type(self, element_type):
+        """
+        Set actual type of element being processed
+        :return: None
+        """
+        self.type = element_type
+
+    def set_file(self, file):
+        """
+        Setting actual file to work with
+        :param file: a FileManager object type
+        :return:
         """
         self.file = file
-        self.Configs = get_configs
 
     # def tracerx(self):
     #     """
@@ -209,6 +234,7 @@ class TracerId:
 
         # Load uml entities:
         uml_entity = UMLEntity()
+        uml_commands = UMLCommand(self.Configs)
         uml_entity.initialize(self.Configs)
 
         # uml_entities_list = Configs.get_config_for('UML_ENTITY.OBJECTS')
@@ -228,10 +254,26 @@ class TracerId:
         # Get list of all parties involved
         parties = self.file.get_all_unique_results('Party')
 
+        # Generate participant UML list
 
-
-        #
-
+        if parties:
+            for each_party in parties:
+                print(each_party.name)
+                CordaObject.add_uml_object(each_party.name, each_party.role)
 
         for each_item in flows_n_txs:
             pass
+
+    @staticmethod
+    def execute(each_line):
+        """
+        Analyse given line and determine UML step to represent it if it is found
+        :param each_line: log line to analyse
+        :return:
+        """
+
+        uml_step = CordaObject.analyse(each_line,TracerId.uml_definitions)
+
+        return uml_step
+
+
