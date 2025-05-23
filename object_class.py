@@ -1302,9 +1302,11 @@ class FileManagement:
         return None
 
     @staticmethod
-    def get_all_unique_results(element_type=None):
+    def get_all_unique_results(element_type=None, get_values=True):
         """
         Return a list of all unique results
+        :param get_values: if it is true, will return a list with values, if it is false, will return a dictionary
+        with key and value
         :param element_type: Specify which kind of data you want to retrieve
         :return: return a list of element values from given type
         """
@@ -1313,7 +1315,10 @@ class FileManagement:
             return FileManagement.unique_results
 
         if element_type in FileManagement.unique_results:
-            return FileManagement.unique_results[element_type].values()
+            if get_values:
+                return FileManagement.unique_results[element_type].values()
+            else:
+                return FileManagement.unique_results[element_type]
         else:
             print(f'Error: Unable to retrieve elements for type {element_type}')
             return None
@@ -1337,14 +1342,11 @@ class FileManagement:
         :return:
         """
 
-        elements = list(FileManagement.get_all_unique_results(element_type))
+        elements = FileManagement.get_all_unique_results(element_type, False)
 
-        for index, each_element in enumerate(FileManagement.get_all_unique_results(element_type)):
-            if element_id == each_element.reference_id:
-                elements.remove(index)
+        del elements[element_id.reference_id]
 
         FileManagement.unique_results[element_type] =  elements
-
 
     @staticmethod
     def add_element(element_type, item):
