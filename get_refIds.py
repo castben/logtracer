@@ -5,6 +5,8 @@ from object_class import RegexLib
 import re
 
 class GetRefIds:
+
+
     def __init__(self, get_configs):
         self.Configs = get_configs
         self.file = None
@@ -84,7 +86,7 @@ class GetRefIds:
                         each_group = match.group(groupNum)
 
                         if each_group:
-                            if each_group in CordaObject.id_ref:
+                            if each_group in CordaObject.id_ref and CordaObject.get_object(each_group) :
                                 # Store this  line involving current reference
                                 cob = CordaObject.get_object(each_group)
                                 cob.add_data('references', current_line)
@@ -120,6 +122,19 @@ class GetRefIds:
                                     co.add_data("line_number", current_line)
                                     co.set_type(all_regex_type[groupNum-1])
                                     co.add_object()
+                                else:
+                                    # This is in case read line is not recognized and this could be because
+                                    # line is broken, ie it is part of previous line, which means it won't be recognized
+                                    # properly to pull metadata like timestamp etc...
+                                    co.add_data("id_ref", each_group)
+                                    co.add_data("Original line", each_line)
+                                    co.add_data("error_level", "INFO")
+                                    co.add_data("timestamp", "UNKNOWN")
+                                    co.add_data("type", all_regex_type[groupNum-1])
+                                    co.add_data("line_number", current_line)
+                                    co.set_type(all_regex_type[groupNum-1])
+                                    co.add_object()
+
 
             if not self.file.logfile_format:
                 print("Sorry I can't find a proper log template to parse this log terminating program")
@@ -139,7 +154,7 @@ class GetRefIds:
         """
         Process that need to be executed in parallel
         :param each_line: line from log file
-        :param current_line: line from log file
+        :param current_line: line number from log file
         :return: a list x500 name found
         """
 
