@@ -11,6 +11,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 from multiprocessing import Pool
 
+import numpy as np
+
+
 class CordaObject:
     """
     This class object will hold all transaction results and many other useful objects
@@ -440,6 +443,7 @@ class CordaObject:
         uml_rtn = {}
         uml_step = {}
         # Loop over all UML definitions
+
         for each_uml_definition in uml_definition:
             # now for each uml definition, try to see if we have a match
             #
@@ -948,7 +952,8 @@ class CordaObject:
         # standard_party = check_party(uml_object)
 
         # Verify if this UML object definition has a rule to accomplish
-        rules = Configs.get_config(uml_role, "RULES", "UML_DEFINITIONS")
+        # rules = Configs.get_config(uml_role, "RULES-D", "UML_DEFINITIONS")
+        rules = Configs.get_config_for(f'CORDA_OBJECT_DEFINITIONS.OBJECTS.{uml_role}.RULES')
         if rules:
             uml_list = CordaObject.uml_apply_rules(incoming_uml_object, rules)
         else:
@@ -1147,10 +1152,8 @@ class CordaObject:
         """
         global x500_build_list
 
-        rulesx = Configs.get_config_for("CORDA_OBJECT_DEFINITION.OBJECT.participant.RULES")
-
         list_to_return = []
-        parser = X500NameParser(rulesx)
+        parser = X500NameParser(rules)
         parsed_names = parser.parse_line(original_line, x500_build_list)
 
         for each_name in parsed_names:
