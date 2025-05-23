@@ -19,6 +19,21 @@
           ]
         }
       },
+      "CUSTOM_CHAINTHAT": {
+        "EXPECT": "(\\d{2}:\\d{2}:\\d{2}\\.[0-9]+) \\[[A-Za-z0-9- \\(\\)]+\\] ([A-Z ]+)  [a-zA-Z0-9.]* \\| (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
       "CUSTOM_nexi01": {
         "EXPECT": "([0-9-T:,]*)\\s\\|\\s([A-Z]*)\\s*[\\| ]*\\|.*\\|(.*)",
         "FIELDS": [
@@ -922,6 +937,7 @@
         "OPTIONS": "SINGLE_DEFINITION"
       },
       "database": {
+        "COMMAND": "Database",
         "DESCRIPTION": "This represent Node Vault",
         "EXPECT": [
           "Sending it to the (?P<database>vault) for processing",
@@ -992,6 +1008,7 @@
         "MAX_LEN": 50
       },
       "note left": {
+        "COMMAND": "Note",
         "EXPECT": [
           "(?P<message>Node for \\\"[a-zA-Z0-9]+\\\" started up and registered in [0-9.]+ sec)",
 	      "(?P<message>admitted to hospital in state StateMachineState)",
@@ -1033,6 +1050,7 @@
         "MAX_LEN": 64
       },
       "note right": {
+        "COMMAND": "Note",
         "EXPECT": [
           ".*WARN.*(?P<message>Propagating error).*flow-id=__flow_id__.*tx_id=__tx_id__"
         ],
@@ -1410,7 +1428,6 @@
           "unspentOutputs=\\[__tx_id__,?\\]",
           "spentOutputs=\\[__tx_id__,?\\]",
           "NotaryException: Unable to notarise transaction __tx_id__ :",
-          "hashOfTransactionId=__tx_id__",
           "__tx_id__\\([0-9]+\\)\\s+->\\sStateConsumptionDetails\\(hashOfTransactionId=",
           "The duplicate key value is\\s*\\(__tx_id__\\)",
           "ref=__tx_id__",
