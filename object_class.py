@@ -1492,8 +1492,6 @@ class FileManagement:
         print(f'Will launch {len(self.chunk_info)} threads to read full file...')
 
 
-
-
     def pre_analysis_localAI(self):
         """
         Pre analyse file to accommodate correctly block size to read full lines and prevent
@@ -1565,7 +1563,6 @@ class FileManagement:
 
         print(f'Will launch {len(self.chunk_info)} threads to read full file...')
 
-
     def pre_analysis_bug_last_line(self):
         """
         Pre analyse file, to accommodate correctly block size to read full lines and prevent
@@ -1625,7 +1622,6 @@ class FileManagement:
                 print(f"Processed last small block: start_pos={last_start_pos}, size={last_chunk_size} bytes")
 
         print(f'Will launch {len(self.chunk_info)} threads to read full file...')
-
 
     def pre_analysis_bug(self):
         """
@@ -1700,6 +1696,18 @@ class FileManagement:
 
         self.parallel_process[method_type] = method
 
+    def remove_process_to_execute(self, method_type):
+        """
+        Remove process/task to execute
+        :type method_type: method type to be removed
+        :return:
+        """
+        if method_type in self.parallel_process:
+            del self.parallel_process[method_type]
+
+    def clean_all_processes_to_execute(self):
+        self.parallel_process = {}
+
     def get_methods_type(self):
         """
         Return all methods defined for execution
@@ -1717,62 +1725,6 @@ class FileManagement:
             return self.parallel_process[method_type]
         else:
             return None
-
-    # def process_block_nommap(self, args):
-    #     start, size = args
-    #     local_results = []  # Acumulador local para evitar el lock en cada línea
-    #
-    #     with open(self.filename, "r") as file:
-    #         file.seek(start)
-    #         chunk = file.read(size)
-    #         lines = chunk.splitlines()
-    #
-    #         for line in lines:
-    #             result = self.parallel_process['ID_Refs'].execute(line)
-    #             self.identify_party_role(line)
-    #             if result:
-    #                 local_results.extend(result)
-    #
-    #     # Solo usar lock una vez para agregar todos los resultados
-    #     with self.lock:
-    #         for each_result in local_results:
-    #             FileManagement.add_element('Party', each_result)
-    #
-    #     return FileManagement.get_all_unique_results('Party')
-
-    # def process_block_nolinenumbers(self, args):
-    #     start, size = args
-    #     local_results = {}
-    #
-    #     with open(self.filename, "r") as file:
-    #         with mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ) as mmapped_file:
-    #             chunk = mmapped_file[start:start+size].decode('utf-8', errors='ignore')
-    #             lines = chunk.splitlines()
-    #
-    #             for line in lines:
-    #                 for each_method in self.get_methods_type():
-    #                     result = self.get_method(each_method).execute(line)
-    #
-    #                     if each_method == 'Party':
-    #                         # if method running is related to parties, line below will run an extra
-    #                         # analysis on that line to see if this line is able to identify a role (like owner of log
-    #                         # or notary...
-    #                         self.identify_party_role(line)
-    #
-    #                     if result:
-    #                         if each_method not in local_results:
-    #                             local_results[each_method] = []
-    #                         if isinstance(result, list):
-    #                             local_results[each_method].extend(result)
-    #                         else:
-    #                             local_results[each_method].append(result)
-    #
-    #     with self.lock:
-    #         for each_method in self.get_methods_type():
-    #             for each_result in local_results[each_method]:
-    #                 FileManagement.add_element(each_method, each_result)
-    #
-    #     return FileManagement.get_all_unique_results()
 
     def process_block(self, args):
         """
@@ -1822,7 +1774,41 @@ class FileManagement:
 
         return FileManagement.get_all_unique_results()
 
+
     def parallel_processing(self):
+        """
+        Launch all assigned threads in parallel to process each block of log file.
+        TODO: AI Corrections/advices
+        :return:
+        """
+        tasks = [(start, size, start_line, end_line) for start, size, start_line, end_line in self.chunk_info]
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+            futures = []
+
+            # Submit all tasks to the executor and store future objects.
+            for index, each_task in enumerate(tasks):
+                self.start_stop_watch(f'Thread-{index}', start=True)
+                future = pool.submit(self.process_block, each_task)
+                future.thread_index = index
+                future.start_time = self.get_statistics_data(f'Thread-{index}', 'chrono-start')
+                future.info = each_task[1]
+                futures.append(future)
+
+            # Shutdown the executor to ensure all tasks are completed.
+            pool.shutdown(wait=True)  # Ensures that the loop waits for all submitted tasks to complete
+
+        # Process results once all threads have completed execution
+        if self.debug:
+            for future in futures:  # Loop over stored futures
+                thread_index = future.thread_index
+                time_msg = self.start_stop_watch(f'Thread-{thread_index}', start=False)
+                data = future.info / (1024 * 1024)  # Processed data calculation
+                print(f"Thread {thread_index} completed in {time_msg}, "
+                      f"Processed {data:.2f} Mbytes, from line {tasks[thread_index][2]} to line {tasks[thread_index][3]}")
+
+
+    def parallel_processingX(self):
         """
         Launch all assigned threads in parallel to process each block of log file
         :return:
@@ -1866,6 +1852,37 @@ class FileManagement:
         else:
             return "UNKNOWN"
 
+    def discover_file_formatX(self):
+        """
+        Analyse first self.scan_lines (25 by default) lines from given file to determine which Corda log format is
+        This is done to be able to separate key components from lines like Time stamp, severity level, and log message
+        TODO: Method suggested by IA
+        :return:
+        """
+
+        # Proposed optimization:
+        # Use NumPy's vectorized operations to replace the nested for loops.
+        try:
+            with open(self.filename, "r") as hfile:
+                lines = [line.strip() for line in hfile]
+
+                if not self.logfile_format and 0 < len(lines) <= self.scan_lines:
+                    versions = Configs.get_config_for("VERSION.IDENTITY_FORMAT")
+
+                    # Use NumPy's where function to avoid explicit for loops.
+                    version_matches = np.vectorize(lambda x: re.search(x["EXPECT"], lines[0]))
+                    matches = [version_matches(version) for version in versions]
+
+                    if any(matches):
+                        self.logfile_format = next((version for match, version in zip(matches, versions) if match), "UNKNOWN")
+                        print("Log file format recognized as: %s" % self.logfile_format)
+                else:
+                    self.logfile_format = "UNKNOWN"
+        except IOError as io:
+            print(f'Unable to open {self.filename} due to {io}')
+            exit(0)
+
+
     def discover_file_format(self):
         """
         Analyse first self.scan_lines ( 25 by default) lines from given file to determine which Corda log format is
@@ -1873,13 +1890,13 @@ class FileManagement:
         message
         :return:
         """
-
+        versions = Configs.get_config_for("VERSION.IDENTITY_FORMAT")
         try:
             with open(self.filename, "r") as hfile:
                 for line, each_line in enumerate(hfile):
                     if not self.logfile_format and line <= self.scan_lines:
-                        for each_version in Configs.get_config_for("VERSION.IDENTITY_FORMAT"):
-                            try_version = Configs.get_config_for(f"VERSION.IDENTITY_FORMAT.{each_version}")
+                        for each_version in versions:
+                            try_version = versions[each_version]
                             check_version = re.search(try_version["EXPECT"], each_line)
                             if check_version:
                                 self.logfile_format = each_version
@@ -1947,6 +1964,134 @@ class UMLCommand:
 
         return None
 
+
+class UMLStep:
+
+
+    def __init__(self):
+        """
+        UMLStep attributes
+        """
+        self.attribute = {}
+
+
+    class Attribute(Enum):
+        """
+        Allowed attributes to set
+        """
+        LINE_NUMBER = 0
+        LINE_MESSAGE = 1
+        UML_COMMAND = 2
+        UML_COMMAND_DEFINITION = 3
+        ROLE = 4
+        TYPE = 5
+        REGEX_TO_APPLY = 6
+        REGEX_COMPILED = 7
+        REGEX_INDEX = 8
+
+    def set_attribute(self, name, value):
+        """
+        Property to set
+        :param name:
+        :param value:
+        :return:
+        """
+        if isinstance(name, UMLStep.Attribute):
+            self.attribute[name] = value
+
+
+    def get_attribute(self, attribute):
+        """
+        Get property stored
+        :param attribute: property name to get
+        :return:
+        """
+        if isinstance(attribute, UMLStep.Attribute):
+            return  self.attribute[attribute]
+
+
+class UMLStepSetup:
+    uml_candidate_steps = []
+    Configs = None
+    file = None
+    uml_definitions = {}
+    full_rule_search = None
+
+    def __init__(self, get_configs):
+        """
+        Class initialization
+        """
+
+        UMLStepSetup.Configs = get_configs
+        UMLStepSetup.file = None
+        self.type = None
+        # Load actual "patterns" to look for that can identify a potential UML step...
+        #
+        if not UMLStepSetup.uml_definitions:
+            tmp = UMLStepSetup.Configs.get_config_for("UML_DEFINITIONS")
+            for each_cmd in tmp:
+                if 'COMMAND' in tmp[each_cmd]:
+                    UMLStepSetup.uml_definitions[each_cmd] = tmp[each_cmd]
+
+    @staticmethod
+    def check_for_uml_step(original_line, current_line_no):
+        """
+        Pre-load all required regex to speed up searches.
+        :return:
+        """
+        for each_uml_definition in UMLStepSetup.uml_definitions:
+            # now for each uml definition, try to see if we have a match
+            #
+            # Stage 1: Find out which UML command should be applied to given line, as all UML_DEFINITIONS are
+            # created as "meta-definitions" I need below line to extract actual regex that need to be used...
+            # In this section, i will loop over all defined UML commands, and find out if this line match any of them
+            #
+
+            expect_to_use = RegexLib.regex_to_use(UMLStepSetup.uml_definitions[each_uml_definition]["EXPECT"], original_line)
+
+            if expect_to_use is None:
+                # If we do not have any valid regex for this line, try next list
+                continue
+
+            regex_expect = UMLStepSetup.uml_definitions[each_uml_definition]["EXPECT"][expect_to_use]
+
+            each_expect = RegexLib.build_regex(regex_expect)
+            umlstep = UMLStep()
+            umlstep.set_attribute(UMLStep.Attribute.LINE_NUMBER, current_line_no)
+            umlstep.set_attribute(UMLStep.Attribute.LINE_MESSAGE, original_line)
+            # umlstep.set_attribute(UMLStep.Attribute.TYPE, UMLStepSetup.uml_definitions[each_uml_definition]["EXPECT"][expect_to_use])
+            umlstep.set_attribute(UMLStep.Attribute.UML_COMMAND, each_uml_definition)
+            umlstep.set_attribute(UMLStep.Attribute.REGEX_TO_APPLY, each_expect)
+            umlstep.set_attribute(UMLStep.Attribute.REGEX_COMPILED, re.compile(each_expect))
+            umlstep.set_attribute(UMLStep.Attribute.REGEX_INDEX, expect_to_use)
+
+            UMLStepSetup.uml_candidate_steps.append(umlstep)
+
+    def set_element_type(self, element_type):
+        """
+        Set actual type of element being processed
+        :return: None
+        """
+        self.type = element_type
+
+    def get_element_type(self):
+        """
+        Return element type for this item; element type could be "Party" which represents party element, or
+        'Flows&Transactions' which represents all tx and flows found.
+        """
+        return self.type
+
+    @staticmethod
+    def execute(each_line, current_line):
+        """
+
+        :param each_line:
+        :param current_line:
+        :return:
+        """
+        return UMLStepSetup.check_for_uml_step(each_line, current_line)
+
+
 class UMLEntity:
     """
     Entity definition for UML
@@ -1955,6 +2100,7 @@ class UMLEntity:
     uml_entity_role_definition = None
     entity_role = {}
     config = None
+    uml_line_candidate = {}
 
     def __init__(self):
         self.attribute = {}
@@ -1973,7 +2119,6 @@ class UMLEntity:
                 uml_entity.set(each_entity_att, uml_entity_att_list[each_entity_att])
 
             uml_entity.add(each_entity)
-
 
     def add(self, name):
         """
@@ -2033,6 +2178,25 @@ class UMLEntity:
 
         if value:
             return value
+
+    class EndPoints:
+
+        def __init__(self, entity_name, entity):
+            """
+            Definition entity endpoint, this will add entity attributes directly
+            into instance to access them directly.
+            :type entity_name: entity name to setup
+            :type entity: entity content to be defined
+            """
+            self.name = entity_name
+            for key in entity:
+                if key == 'USAGES':
+                    for each_usage in entity['USAGES']:
+                        setattr(self, each_usage, entity['USAGES'][each_usage])
+                else:
+                    setattr(self, key, entity[key])
+
+
 
 class Party:
     """
@@ -2322,17 +2486,19 @@ class X500NameParser:
             key, value = each_match.split('=')
             valid_value = value
             if key not in self.rules:
-                print(f'Invalid x500 attribute, not supported... {key}={value} ')
-                print(f"There're no rules to check {key}")
-                print('Unable to verify this x500 attribute')
+                pass
+                # print(f'Invalid x500 attribute, not supported... {key}={value} ')
+                # print(f"There're no rules to check {key}")
+                # print('Unable to verify this x500 attribute')
             else:
                 valid = re.search(self.rules[key]['expect'], each_match)
                 if valid:
                     _,valid_value = valid.group(1).split('=')
                 else:
-                    print(f'Invalid x500 attribute, not supported... {key}={valid_value} ')
-                    print('Unable to verify this x500 attribute')
-                    print(f'Key/value do is not on expected format {key}={self.rules[key]["expect"]}')
+                    pass
+                    # print(f'Invalid x500 attribute, not supported... {key}={valid_value} ')
+                    # print('Unable to verify this x500 attribute')
+                    # print(f'Key/value do is not on expected format {key}={self.rules[key]["expect"]}')
 
             attributes.append((key, valid_value))
 
@@ -2412,7 +2578,8 @@ class X500NameParser:
 
         get_role_definitions = Configs.get_config_for("UML_ENTITY.OBJECTS")
         for each_role in get_role_definitions:
-            expect = Configs.get_config_for(f"UML_ENTITY.OBJECTS.{each_role}.EXPECT")
+            # expect = Configs.get_config_for(f"UML_ENTITY.OBJECTS.{each_role}.EXPECT")
+            expect = get_role_definitions[each_role]['EXPECT']
             if not expect:
                 continue
 
@@ -3032,21 +3199,21 @@ class Configs:
             return None
 
     @classmethod
-    def set_config(cls, config_attributte=None, config_value=None, section="CONFIG"):
+    def set_config(cls, config_attribute=None, config_value=None, section="CONFIG"):
         """
         Set a value temporarly into config settings in memory, anything that is being set here will not be persistent on
         restarts
-        :param config_attributte: attribute name to setup, if no attributte name is given, then method will expect a
+        :param config_attribute: attribute name to setup, if no attributte name is given, then method will expect a
         tree of values (a dictionary) to be attached to given section directly
         :param config_value: attribute value
         :param section: root section name for this attribute, all by default will be set under "CONFIG" branch section
         :return:
         """
 
-        if config_attributte and config_value:
-            Configs.config[section][config_attributte] = config_value
+        if config_attribute and config_value:
+            Configs.config[section][config_attribute] = config_value
 
-        if not config_attributte and config_value:
+        if not config_attribute and config_value:
             Configs.config[section] = config_value
 
     @staticmethod
@@ -3277,6 +3444,9 @@ class RegexLib:
 
     compiled_regex_cache = {}
     check_variable = re.compile(r"__([a-zA-Z0-9-_]+)__")
+    most_used_regex = {}
+
+
     @staticmethod
     def use(rx_expression):
         """
@@ -3395,11 +3565,16 @@ class RegexLib:
         """
         return_regex = regex
 
+        if regex in RegexLib.most_used_regex:
+            return RegexLib.most_used_regex[regex]
+
         if not Configs.get_config(section="CORDA_OBJECT_DEFINITIONS", param="OBJECTS"):
             return return_regex
+
         check_variable = RegexLib.check_variable.findall(regex)
 
         if check_variable:
+            org_regex = regex
             for each_variable in check_variable:
                 # Search where this variable could be applicable to then extract the proper regex replacement for such
                 # variable
@@ -3441,6 +3616,8 @@ class RegexLib:
                         # following variable
 
                         regex = return_regex
+            # Store this regex combination it is possible will be used later
+            RegexLib.most_used_regex[org_regex] = return_regex
         else:
             # If I do not find the macro variable in the form of "__macro-variable__" then I will need to do a reverse
             # search, to find the actual object... because what I'm sending then is probably a raw Object  definition
