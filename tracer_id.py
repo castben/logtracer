@@ -13,10 +13,9 @@ class TracerId:
         """
         class initialization getting file object which is a FileManager object...
         """
-        self.file = None
         self.Configs = get_configs
-        TracerId.uml_definitions = Configs.get_config(section="UML_DEFINITIONS")
         self.file = None
+        TracerId.uml_definitions = Configs.get_config(section="UML_DEFINITIONS")
         self.type = None
 
     def get_element_type(self):
@@ -265,10 +264,11 @@ class TracerId:
             pass
 
     @staticmethod
-    def execute(each_line):
+    def execute(each_line, current_line):
         """
         Analyse given line and determine UML step to represent it if it is found
         :param each_line: log line to analyse
+        :param current_line: line number from log file
         :return:
         """
 
