@@ -4,7 +4,7 @@ import cProfile
 import os
 import argparse
 from get_refIds import GetRefIds
-from object_class import Configs, X500NameParser, FileManagement, UMLEntity
+from object_class import Configs, X500NameParser, FileManagement, UMLEntity, UMLStepSetup
 from object_class import CordaObject,saving_tracing_ref_data
 # from tracer_id import TracerId
 from get_parties import GetParties
@@ -57,6 +57,11 @@ def main():
     log_file = None
     Configs.load_config()
 
+    ep =  Configs.get_config_for("UML_ENTITY.OBJECTS")
+    for each_entity in ep:
+        z = UMLEntity.EndPoints(each_entity, ep[each_entity])
+
+        pass
 
     # in this case I'm removing initial branch 'UML_SETUP' because final config is a collection of configuration settings
     # that removes this.
@@ -91,9 +96,11 @@ def main():
         collect_refIds.set_file(file)
         # Set specific type of element we are going to extract
         collect_refIds.set_element_type('Flows&Transactions')
-        # Now setting up analysis to get associated UML step for this line (if it exists)
-        collect_uml_steps = TracerId(Configs)
+        # Now setting up analysis to check if current line is candidate for UML steps
+        collect_uml_steps = UMLStepSetup(Configs)
         #
+        # Set element type for this task:
+        collect_uml_steps.set_element_type('UML-Steps')
         # Pre-analyse the file to figure out how to read it, if file is bigger than blocksize then file will be
         # Divided by chunks and will be created a thread for each one of them to read it
         file.pre_analysis() # Calculate on fly proper chunk sizes to accommodate lines correctly
@@ -102,13 +109,20 @@ def main():
         #
         file.add_process_to_execute(collect_parties)
         file.add_process_to_execute(collect_refIds)
+
         # start a time watch
         file.start_stop_watch('Main-search', True)
         # Start all threads required
         file.parallel_processing()
+        # Prepare new execution
+        # Clean up old processes:
+        file.remove_process_to_execute('Party')
+        file.remove_process_to_execute('Flows&Transactions')
+        # Setup new process to run
+        file.add_process_to_execute(collect_uml_steps)
+        file.parallel_processing()
         # Stopping timewatch process and get time spent
         time_msg = file.start_stop_watch('Main-search', False)
-
         if file.result_has_element('Party'):
             print('Setting up roles automatically...')
             file.assign_roles()
@@ -188,13 +202,15 @@ def main():
                             while True:
                                 print_parties()
                                 party_list = list(FileManagement.get_all_unique_results('Party'))
-                                select_party = input(f'Which party do you want to delete [1-{len(party_list)}]:')
+                                select_party = input(f'Which party do you want to delete [1-{len(party_list)}] or just enter to exit:')
                                 if select_party.isdigit():
                                     iselect_party = int(select_party)
                                     if iselect_party>len(party_list):
                                         print('Invalid selection')
                                         continue
                                     FileManagement.delete_element('Party', party_list[iselect_party-1])
+                                if not select_party:
+                                    break
 
         if file.result_has_element('Flows&Transactions'):
             print("\nThese total of other objects found:")
@@ -204,6 +220,7 @@ def main():
 
         print(f'Elapsed time {time_msg}.')
         return file
+    return None
 
 
 if __name__ == "__main__":
@@ -218,6 +235,9 @@ if __name__ == "__main__":
     # ===
     # -l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
     # -l "/home/r3support/www/uploads/customers/Grow Super/CS-3992/20250225103248_pack"/corda-node-dev0-ri-hes-admin-node.2025-02-19-1.log
+    #
+    # Huge file:
+    # -l /home/larry/IdeaProjects/logtracer/client-logs/ChainThat/CS-4002/Success-Transaction-logs.log
 
     parserargs = argparse.ArgumentParser()
     parserargs.add_argument('-l', '--log-file',
@@ -225,8 +245,8 @@ if __name__ == "__main__":
     args = parserargs.parse_args()
 
     file = main()
-    tracer = TracerId(file, get_configs())
-    #
-    tracer.tracer(file)
+    # tracer = TracerId(get_configs())
+    # #
+    # tracer.tracer(file)
 
     # cProfile.run("main()")#, 'profile-results.prof')
