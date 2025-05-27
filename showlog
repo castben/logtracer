@@ -587,7 +587,7 @@ def print_line(line, selected_fields, used_file):
                 if not result[1]:
                     # print(line)
                     # input("Missing fields!...STOPPING")
-                    result = (fld, 'UNKNOWN')
+                    result = (fld, '')
 
                 if result:
                     value = result[1]
