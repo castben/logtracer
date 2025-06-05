@@ -25,6 +25,10 @@ class GetRefIds:
         Set actual type of element being processed
         :return: None
         """
+        if isinstance(element_type, CordaObject.Type):
+            selement_type = element_type.value
+            element_type = selement_type
+
         self.type = element_type
 
     def set_file(self, file):

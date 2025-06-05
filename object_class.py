@@ -1198,6 +1198,15 @@ class CordaObject:
 
         return data
 
+    class Type(Enum):
+        """
+        Allowed Types to set
+        """
+
+        FLOW_AND_TRANSACTIONS = "Flows&Transactions"
+        UML_STEPS = "UML-Steps"
+        PARTY = "Party"
+
 class FileManagement:
     """
     A class to help to read big files...

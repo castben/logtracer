@@ -4,7 +4,7 @@ import cProfile
 import os
 import argparse
 from get_refIds import GetRefIds
-from object_class import Configs, X500NameParser, FileManagement, UMLEntity, UMLStepSetup
+from object_class import Configs, X500NameParser, FileManagement, UMLEntity, UMLStepSetup, UMLEntityEndPoints
 from object_class import CordaObject,saving_tracing_ref_data
 # from tracer_id import TracerId
 from get_parties import GetParties
@@ -57,11 +57,12 @@ def main():
     log_file = None
     Configs.load_config()
 
+    # Define each entity object endpoints...
     ep =  Configs.get_config_for("UML_ENTITY.OBJECTS")
-    for each_entity in ep:
-        z = UMLEntity.EndPoints(each_entity, ep[each_entity])
+    endpoint_list = {}
 
-        pass
+    for each_entity in ep:
+        endpoint_list[each_entity] = UMLEntityEndPoints(each_entity, ep[each_entity])
 
     # in this case I'm removing initial branch 'UML_SETUP' because final config is a collection of configuration settings
     # that removes this.
@@ -86,7 +87,7 @@ def main():
         # Set file that will be used to extract information from
         collect_parties.set_file(file)
         # Set specific type we are going to collect
-        collect_parties.set_element_type('Party')
+        collect_parties.set_element_type(CordaObject.Type.PARTY)
         #
         # Setting up collection of other data like Flows and Transactions
         #
@@ -95,12 +96,12 @@ def main():
         # Set actual file that will be used to pull data from
         collect_refIds.set_file(file)
         # Set specific type of element we are going to extract
-        collect_refIds.set_element_type('Flows&Transactions')
+        collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
         # Now setting up analysis to check if current line is candidate for UML steps
         collect_uml_steps = UMLStepSetup(Configs)
         #
         # Set element type for this task:
-        collect_uml_steps.set_element_type('UML-Steps')
+        collect_uml_steps.set_element_type(CordaObject.Type.UML_STEPS)
         # Pre-analyse the file to figure out how to read it, if file is bigger than blocksize then file will be
         # Divided by chunks and will be created a thread for each one of them to read it
         file.pre_analysis() # Calculate on fly proper chunk sizes to accommodate lines correctly
@@ -116,8 +117,8 @@ def main():
         file.parallel_processing()
         # Prepare new execution
         # Clean up old processes:
-        file.remove_process_to_execute('Party')
-        file.remove_process_to_execute('Flows&Transactions')
+        file.remove_process_to_execute(CordaObject.Type.PARTY)
+        file.remove_process_to_execute(CordaObject.Type.FLOW_AND_TRANSACTIONS)
         # Setup new process to run
         file.add_process_to_execute(collect_uml_steps)
         file.parallel_processing()
@@ -134,7 +135,7 @@ def main():
             pselection = None
             if pending_roles:
                 print('\nI was not able to find all roles, following roles were not assigned, please assign them manually:')
-                print('   [0] -- None')
+                print('   [0] -- Exit')
                 while True:
                     if len(pending_roles) == 0:
                         break
@@ -216,7 +217,20 @@ def main():
             print("\nThese total of other objects found:")
             results = collect_refIds.classify_results(FileManagement.get_all_unique_results('Flows&Transactions'))
             for each_result_type in results:
+                item_count = 0
                 print(f'  * {each_result_type}: {len(results[each_result_type])}')
+
+                if len(results[each_result_type])> max_number_items_fNtx:
+                    item_limit = max_number_items_fNtx
+                else:
+                    item_limit = len(results[each_result_type])
+
+                for each_item in results[each_result_type]:
+                    print(f"    `---> {each_item}")
+                    item_count = item_count + 1
+                    if item_count >= item_limit and (len(results[each_result_type])-item_limit > 0):
+                        print(f"    ... there are {len(results[each_result_type])-item_limit} more...")
+                        break
 
         print(f'Elapsed time {time_msg}.')
         return file
@@ -224,6 +238,8 @@ def main():
 
 
 if __name__ == "__main__":
+    max_number_items_fNtx = 5
+    # Small file with all roles
     # -l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
     # -l/home/larry/IdeaProjects/logtracer/client-logs/Grow-super/CS-3873/logsinsurance/corda-node-cordaprimary-prod-growadmin-i-0bb90aaa48c7b6b88.dlta.internal.2024-12-02-7.log
     # Office
