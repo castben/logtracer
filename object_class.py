@@ -1752,6 +1752,10 @@ class FileManagement:
         :param method_type: method you want to get
         :return:
         """
+        if isinstance(method_type, CordaObject.Type):
+            smethod_type = method_type.value
+            method_type = smethod_type
+
         if method_type in self.parallel_process:
             return self.parallel_process[method_type]
         else:
