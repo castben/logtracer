@@ -2102,6 +2102,10 @@ class UMLStepSetup:
         Set actual type of element being processed
         :return: None
         """
+        if isinstance(element_type, CordaObject.Type):
+            selement_type = element_type.value
+            element_type = selement_type
+
         self.type = element_type
 
     def get_element_type(self):
