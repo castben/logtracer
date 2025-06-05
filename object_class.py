@@ -1972,8 +1972,6 @@ class UMLCommand:
 
         self.command_action = self.configs
 
-
-
     def set(self, att,value):
         """
         Set attribute
