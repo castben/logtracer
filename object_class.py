@@ -2234,6 +2234,7 @@ class UMLEntityEndPoints:
 
 
 
+
 class Party:
     """
     A class to represent parties on a log
