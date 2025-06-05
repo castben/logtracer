@@ -1324,6 +1324,10 @@ class FileManagement:
         :return: return a list of element values from given type
         """
 
+        if isinstance(element_type, CordaObject.Type):
+            selement_type = element_type.value
+            element_type = selement_type
+
         if not element_type:
             return FileManagement.unique_results
 
