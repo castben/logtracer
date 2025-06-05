@@ -1347,6 +1347,9 @@ class FileManagement:
         :param element_type:  Element type, which is one supported at the moment Flows&Transactions or Party
         :return: True if elemets exists, false otherwise
         """
+        if isinstance(element_type, CordaObject.Type):
+            selement_type = element_type.value
+            element_type = selement_type
 
         return element_type in FileManagement.unique_results
 
@@ -1358,6 +1361,9 @@ class FileManagement:
         :param element_id: element ID to delete
         :return:
         """
+        if isinstance(element_type, CordaObject.Type):
+            selement_type = element_type.value
+            element_type = selement_type
 
         elements = FileManagement.get_all_unique_results(element_type, False)
 
