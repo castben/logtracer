@@ -2037,6 +2037,8 @@ class UMLStep:
         if isinstance(attribute, UMLStep.Attribute):
             return  self.attribute[attribute]
 
+        return None
+
 
 class UMLStepSetup:
     uml_candidate_steps = []
