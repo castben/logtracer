@@ -1996,16 +1996,13 @@ class UMLCommand:
 
         return None
 
-
 class UMLStep:
-
 
     def __init__(self):
         """
         UMLStep attributes
         """
         self.attribute = {}
-
 
     class Attribute(Enum):
         """
