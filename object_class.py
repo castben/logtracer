@@ -1954,7 +1954,6 @@ class FileManagement:
                 for each_alternate_name in each_id.get_alternate_names():
                     print(f"              `-->  {each_alternate_name}")
 
-
 class UMLCommand:
     """
     Container for all uml commands, like '->','<-', etc...
