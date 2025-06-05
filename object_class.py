@@ -2213,22 +2213,24 @@ class UMLEntity:
         if value:
             return value
 
-    class EndPoints:
+        return None
 
-        def __init__(self, entity_name, entity):
-            """
-            Definition entity endpoint, this will add entity attributes directly
-            into instance to access them directly.
-            :type entity_name: entity name to setup
-            :type entity: entity content to be defined
-            """
-            self.name = entity_name
-            for key in entity:
-                if key == 'USAGES':
-                    for each_usage in entity['USAGES']:
-                        setattr(self, each_usage, entity['USAGES'][each_usage])
-                else:
-                    setattr(self, key, entity[key])
+class UMLEntityEndPoints:
+
+    def __init__(self, entity_name, entity):
+        """
+        Definition entity endpoint, this will add entity attributes directly
+        into instance to access them directly.
+        :type entity_name: entity name to setup
+        :type entity: entity content to be defined
+        """
+        self.name = entity_name
+        for key in entity:
+            if key == 'USAGES':
+                for each_usage in entity['USAGES']:
+                    setattr(self, each_usage, entity['USAGES'][each_usage])
+            else:
+                setattr(self, key, entity[key])
 
 
 
