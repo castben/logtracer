@@ -1214,7 +1214,7 @@ class FileManagement:
 
     unique_results = {}
 
-    def __init__(self, filename, block_size_in_mb, debug=False,scan_lines=25):
+    def __init__(self, filename, block_size_in_mb, debug=False,scan_lines=50):
         self.filename = filename
         self.block_size = block_size_in_mb * 1024 * 1024
         self.logfile_format = None
