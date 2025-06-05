@@ -2028,7 +2028,6 @@ class UMLStep:
         if isinstance(name, UMLStep.Attribute):
             self.attribute[name] = value
 
-
     def get_attribute(self, attribute):
         """
         Get property stored
