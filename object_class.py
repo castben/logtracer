@@ -1304,6 +1304,10 @@ class FileManagement:
         :return: element required, None otherwise
         """
 
+        if isinstance(element_type, CordaObject.Type):
+            selement_type = element_type.value
+            element_type = selement_type
+
         if element_type in FileManagement.unique_results:
             if element_reference_id in FileManagement.unique_results[element_type]:
                 return FileManagement.unique_results[element_type][element_reference_id]
