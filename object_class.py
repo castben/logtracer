@@ -6,6 +6,7 @@ import os,re,time
 import threading
 
 from asyncio import as_completed
+from codecs import ignore_errors
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
@@ -18,7 +19,7 @@ class CordaObject:
     """
     This class object will hold all transaction results and many other useful objects
     """
-    # This represents al ID's registered so far
+    # This represents all ID's registered so far
     id_ref = []
     # This keep a list of all instances of this class
     list = {}
@@ -53,6 +54,7 @@ class CordaObject:
         self.reference_id = None
         self.references = OrderedDict()
         self.type = None
+        self.line_number = None
 
     @staticmethod
     def get_clear_group_list(raw_list):
@@ -172,6 +174,9 @@ class CordaObject:
 
         if cproperty == 'id_ref':
             self.reference_id = value
+
+        if cproperty == 'line_number':
+            self.line_number = value
 
         if cproperty in self.data:
             # If property already exist, I need to keep its previous value, and add new one
@@ -1214,7 +1219,7 @@ class FileManagement:
 
     unique_results = {}
 
-    def __init__(self, filename, block_size_in_mb, debug=False,scan_lines=50):
+    def __init__(self, filename, block_size_in_mb, debug=False,scan_lines=50,min_percent_merge=15):
         self.filename = filename
         self.block_size = block_size_in_mb * 1024 * 1024
         self.logfile_format = None
@@ -1228,6 +1233,7 @@ class FileManagement:
         self.statistics = {}
         self.identified_roles = {}
         self.debug = debug
+        self.min_percent_merge = min_percent_merge  # Porcentaje mínimo para no fusionar el bloque final
 
         if not self.rules:
             self.rules = Configs.get_config_for('CORDA_OBJECT_DEFINITIONS.OBJECTS.participant')
@@ -1447,8 +1453,73 @@ class FileManagement:
 
         return None
 
-
     def pre_analysis(self):
+        file_size = os.path.getsize(self.filename)
+        fsize = file_size / 1024 / 1024
+        bsize = self.block_size / 1024 / 1024
+        print(f'Block size for reading: {bsize:.2f} Mbytes')
+        print(f'Pre-analysing file size {fsize:.2f} Mbytes calculating block sizes')
+
+        if self.block_size > file_size:
+            print(f'Adjusting blocksize to {fsize:.2f}Mb because blocksize given({bsize:.2f}Mb) is too big')
+            self.block_size = file_size
+
+        line_counter = 1
+        self.chunk_info = []
+
+        with open(self.filename, 'r') as file:
+            while file.tell() < file_size:
+                start_pos = file.tell()
+                start_line = line_counter
+
+                remaining = file_size - start_pos
+
+                # Si estamos cerca del final y el resto es menor al porcentaje mínimo, fusionamos
+                if remaining < (self.block_size * self.min_percent_merge / 100):
+                    chunk = file.read(remaining)
+                    last_newline = chunk.rfind('\n')
+                    if last_newline != -1:
+                        end_pos = start_pos + last_newline + 1
+                        lines_in_chunk = chunk[:last_newline + 1].count('\n')
+                    else:
+                        end_pos = file_size
+                        lines_in_chunk = chunk.count('\n') + (1 if chunk else 0)
+
+                    if self.chunk_info:
+                        prev_start, prev_size, prev_start_line, prev_end_line = self.chunk_info[-1]
+                        self.chunk_info[-1] = (
+                            prev_start,
+                            end_pos - prev_start,
+                            prev_start_line,
+                            prev_end_line + lines_in_chunk
+                        )
+                    else:
+                        end_line = start_line + lines_in_chunk - 1
+                        self.chunk_info.append((start_pos, end_pos - start_pos, start_line, end_line))
+                    break  # Salimos del bucle, ya procesamos todo
+
+                else:
+                    # Leer bloque normal
+                    chunk = file.read(self.block_size)
+                    last_newline = chunk.rfind('\n')
+                    if last_newline != -1:
+                        end_pos = start_pos + last_newline + 1
+                    else:
+                        end_pos = start_pos + len(chunk)
+
+                    lines_in_chunk = chunk[:last_newline + 1].count('\n') if last_newline != -1 else 0
+                    end_line = start_line + lines_in_chunk - 1
+
+                    self.chunk_info.append((start_pos, end_pos - start_pos, start_line, end_line))
+                    line_counter += lines_in_chunk
+                    file.seek(end_pos)
+
+                    print(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
+
+        print(f'Will launch {len(self.chunk_info)} threads to read full file...')
+
+
+    def pre_analysis_add_unnesary_new_block(self):
         """
         Pre analyse file to accommodate correctly block size to read full lines and prevent
         breaking lines or reading blocks with a truncated line.
@@ -1722,6 +1793,7 @@ class FileManagement:
             method_type = method.type
 
         self.parallel_process[method_type] = method
+        print(f"Searching for {method_type}...")
 
     def remove_process_to_execute(self, method_type):
         """
@@ -1735,6 +1807,7 @@ class FileManagement:
 
         if method_type in self.parallel_process:
             del self.parallel_process[method_type]
+            print(f"{method_type} search complete.")
 
     def clean_all_processes_to_execute(self):
         self.parallel_process = {}
@@ -1773,8 +1846,6 @@ class FileManagement:
         # el metodo que procesa la informacion en el caso de los ref_ids ya esta guardando los resultados, asi que
         # probablemente este repitiendo el proceso sin necesidad aqui.
 
-
-
         start, size, start_line, end_line = args
         local_results = {}
         current_line = start_line
@@ -1802,10 +1873,12 @@ class FileManagement:
                                 local_results[each_method].append(result)
                     current_line += 1
 
-        with self.lock:
-            for each_method in self.get_methods_type():
-                for each_result in local_results[each_method]:
-                    FileManagement.add_element(each_method, each_result)
+        if local_results:
+            with self.lock:
+                for each_method in self.get_methods_type():
+                    print(f"Saving {each_method}...")
+                    for each_result in local_results[each_method]:
+                        FileManagement.add_element(each_method, each_result)
 
         return FileManagement.get_all_unique_results()
 
@@ -2003,6 +2076,7 @@ class UMLStep:
         UMLStep attributes
         """
         self.attribute = {}
+        self.reference_id = None
 
     class Attribute(Enum):
         """
@@ -2027,6 +2101,8 @@ class UMLStep:
         """
         if isinstance(name, UMLStep.Attribute):
             self.attribute[name] = value
+            if name == UMLStep.Attribute.LINE_NUMBER:
+                self.reference_id = value
 
     def get_attribute(self, attribute):
         """
@@ -2069,6 +2145,9 @@ class UMLStepSetup:
         Pre-load all required regex to speed up searches.
         :return:
         """
+
+        umlsteps_list = []
+
         for each_uml_definition in UMLStepSetup.uml_definitions:
             # now for each uml definition, try to see if we have a match
             #
@@ -2096,6 +2175,13 @@ class UMLStepSetup:
             umlstep.set_attribute(UMLStep.Attribute.REGEX_INDEX, expect_to_use)
 
             UMLStepSetup.uml_candidate_steps.append(umlstep)
+            umlsteps_list.append(umlstep)
+
+        if umlsteps_list:
+            return umlsteps_list
+        else:
+            return None
+
 
     def set_element_type(self, element_type):
         """
@@ -2217,21 +2303,104 @@ class UMLEntity:
 
 class UMLEntityEndPoints:
 
-    def __init__(self, entity_name, entity):
+    endpoint_list = {}
+
+    def __init__(self):
         """
-        Definition entity endpoint, this will add entity attributes directly
-        into instance to access them directly.
-        :type entity_name: entity name to setup
-        :type entity: entity content to be defined
+        Endpoint definition
+        """
+        self.name = None
+
+    def add_endpoint(self,entity_name, entity_details):
+        """
+        Add new entity into list
+        :param entity_name: entity name, basically its role -- log_owner, notary, flow_hospital, etc...
+        :param entity_details: detailed definition of such entity, this contains way to pull correct information
+        from log message
+        :return: None
         """
         self.name = entity_name
-        for key in entity:
-            if key == 'USAGES':
-                for each_usage in entity['USAGES']:
-                    setattr(self, each_usage, entity['USAGES'][each_usage])
-            else:
-                setattr(self, key, entity[key])
+        for key in entity_details:
+            # if key == 'USAGES':
+            #     for each_usage in entity_details['USAGES']:
+            #         setattr(self, each_usage, entity_details['USAGES'][each_usage])
+            # else:
+            setattr(self, key, entity_details[key])
 
+        UMLEntityEndPoints.endpoint_list[entity_name] = self
+
+    def get_usages(self, usage_case=None, expect_list=False, ignore_list=False):
+        """
+        Return actual usages details of current endpoint
+        :usage_case: which usage case you want to have details on
+        :return: actual usage case if is different of None, otherwise will return all current usages cases
+        """
+
+        if not usage_case:
+            return list(self.USAGES.keys())
+
+        if usage_case and usage_case not in self.USAGES.keys():
+            return None
+
+        if expect_list:
+            return self.USAGES[usage_case]['EXPECT']
+
+        if ignore_list:
+            return self.USAGES[usage_case]['IGNORE']
+
+        return None
+
+    def get_endpoint(self, default_use_case):
+        """
+        Return list of expected regex for given default_use_case
+        :param default_use_case: name of default_use_case required
+        :return: list of Expects that identify this default_use_case as what it is...
+        """
+
+        if default_use_case in self.USAGES:
+            return self.USAGES[default_use_case]['EXPECT']
+
+        return None
+
+    def get_return_object(self, default_use_case):
+        """
+        Will return defined list of objects on this default use case
+
+        :default_use_case: name of usage case return object is required
+        :return: list of objects
+        """
+
+        if self.get_entity_endpoint(default_use_case):
+            return self.USAGES[default_use_case]['RETURN_OBJECT']
+
+        return None
+
+
+
+    @classmethod
+    def load_default_endpoints(cls):
+        """
+        Load defined default endpoints
+        :return: None
+        """
+        ep = Configs.get_config_for('UML_ENTITY.OBJECTS')
+        for each_entity in Configs.get_config_for('UML_ENTITY.OBJECTS'):
+            new_default_endpoint = cls()
+            new_default_endpoint.add_endpoint(each_entity, ep[each_entity])
+
+
+    @classmethod
+    def get_entity_endpoint(cls, entity_name):
+        """
+        Will return given entity name endpoint if it is found
+        :param entity_name: entity role name to look for
+        :return: entity endpoint object
+        """
+
+        if entity_name in cls.endpoint_list:
+            return cls.endpoint_list[entity_name]
+
+        return None
 
 
 

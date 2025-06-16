@@ -5,7 +5,7 @@ import os
 import argparse
 from get_refIds import GetRefIds
 from object_class import Configs, X500NameParser, FileManagement, UMLEntity, UMLStepSetup, UMLEntityEndPoints
-from object_class import CordaObject,saving_tracing_ref_data
+from object_class import CordaObject,UMLStep,saving_tracing_ref_data
 # from tracer_id import TracerId
 from get_parties import GetParties
 from tracer_id import TracerId
@@ -16,6 +16,27 @@ from tracer_id import TracerId
 
 def get_configs():
     return Configs
+
+def analyse(file_object):
+    """
+    FileObject contains all information required
+    :param file_object: container with all information reuqired
+    :return:
+    """
+    uml_steps={}
+    #
+    # Interact through all transaction and flow list
+    #
+    for each_item in file_object.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS):
+        # If this each_item, has references, which means flow/transaction was found in other lines, then lest compile
+        # all UML steps for this item.
+
+        if each_item.references:
+            for each_reference in each_item.references:
+                if each_reference in file_object.get_all_unique_results(CordaObject.Type.UML_STEPS, False):
+                    uml_step = file_object.get_element(CordaObject.Type.UML_STEPS, each_reference)
+                    pass
+            pass
 
 
 def test_refids(log_file):
@@ -57,12 +78,10 @@ def main():
     log_file = None
     Configs.load_config()
 
-    # Define each entity object endpoints...
-    ep =  Configs.get_config_for("UML_ENTITY.OBJECTS")
-    endpoint_list = {}
+    # Define default entity object endpoints...
+    UMLEntityEndPoints.load_default_endpoints()
 
-    for each_entity in ep:
-        endpoint_list[each_entity] = UMLEntityEndPoints(each_entity, ep[each_entity])
+
 
     # in this case I'm removing initial branch 'UML_SETUP' because final config is a collection of configuration settings
     # that removes this.
@@ -74,27 +93,28 @@ def main():
         log_file = args.log_file
 
     if log_file:
-        file = FileManagement(log_file, block_size_in_mb=15, debug=True)
-        # Analyse first 15 (by default) lines from given file to determine which Corda log format is
+        # Create file_to_analyse object containing file_to_analyse that will be analysed, starting with a block-size of 15 Mbytes
+        file_to_analyse = FileManagement(log_file, block_size_in_mb=15, debug=True)
+        # Analyse first 50 (by default) lines from given file_to_analyse to determine which Corda log format is
         # This is done to be able to separate key components from lines like Time stamp, severity level, and log
         # message
-        file.discover_file_format()
+        file_to_analyse.discover_file_format()
         #
         # Setup party collection
         #
-        # Set actual configuration to use
+        # Set actual configuration to use, and create object that will manage "Parties"
         collect_parties = GetParties(Configs)
-        # Set file that will be used to extract information from
-        collect_parties.set_file(file)
+        # Set file_to_analyse that will be used to extract information from
+        collect_parties.set_file(file_to_analyse)
         # Set specific type we are going to collect
         collect_parties.set_element_type(CordaObject.Type.PARTY)
         #
         # Setting up collection of other data like Flows and Transactions
         #
-        # Setup corresponding Config to use
+        # Setup corresponding Config to use, and create object that will manage "RefIds" (Flows and transactions)
         collect_refIds = GetRefIds(Configs)
-        # Set actual file that will be used to pull data from
-        collect_refIds.set_file(file)
+        # Set actual file_to_analyse that will be used to pull data from
+        collect_refIds.set_file(file_to_analyse)
         # Set specific type of element we are going to extract
         collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
         # Now setting up analysis to check if current line is candidate for UML steps
@@ -102,35 +122,36 @@ def main():
         #
         # Set element type for this task:
         collect_uml_steps.set_element_type(CordaObject.Type.UML_STEPS)
-        # Pre-analyse the file to figure out how to read it, if file is bigger than blocksize then file will be
+        # Pre-analyse the file_to_analyse to figure out how to read it, if file_to_analyse is bigger than blocksize then file_to_analyse will be
         # Divided by chunks and will be created a thread for each one of them to read it
-        file.pre_analysis() # Calculate on fly proper chunk sizes to accommodate lines correctly
+        file_to_analyse.pre_analysis() # Calculate on fly proper chunk sizes to accommodate lines correctly
         #
         # Add proper methods to handle each collection
         #
-        file.add_process_to_execute(collect_parties)
-        file.add_process_to_execute(collect_refIds)
+        file_to_analyse.add_process_to_execute(collect_parties)
+        file_to_analyse.add_process_to_execute(collect_refIds)
 
         # start a time watch
-        file.start_stop_watch('Main-search', True)
+        file_to_analyse.start_stop_watch('Main-search', True)
         # Start all threads required
-        file.parallel_processing()
+        file_to_analyse.parallel_processing()
         # Prepare new execution
         # Clean up old processes:
-        file.remove_process_to_execute(CordaObject.Type.PARTY)
-        file.remove_process_to_execute(CordaObject.Type.FLOW_AND_TRANSACTIONS)
+        file_to_analyse.remove_process_to_execute(CordaObject.Type.PARTY)
+        file_to_analyse.remove_process_to_execute(CordaObject.Type.FLOW_AND_TRANSACTIONS)
         # Setup new process to run
-        file.add_process_to_execute(collect_uml_steps)
-        file.parallel_processing()
+        file_to_analyse.add_process_to_execute(collect_uml_steps)
+        file_to_analyse.parallel_processing()
         # Stopping timewatch process and get time spent
-        time_msg = file.start_stop_watch('Main-search', False)
-        if file.result_has_element('Party'):
+        time_msg = file_to_analyse.start_stop_watch('Main-search', False)
+        file_to_analyse.remove_process_to_execute(collect_uml_steps)
+        if file_to_analyse.result_has_element(CordaObject.Type.PARTY):
             print('Setting up roles automatically...')
-            file.assign_roles()
+            file_to_analyse.assign_roles()
             print("\n X500 names found: ")
             print_parties()
 
-            party = list(file.get_all_unique_results('Party'))[0]
+            party = list(file_to_analyse.get_all_unique_results('Party'))[0]
             pending_roles = party.get_pending_roles()
             pselection = None
             if pending_roles:
@@ -165,8 +186,8 @@ def main():
                                 pselection = int(party_selection)
 
                                 if pselection == 0:
-                                    new_party=party.define_custom_party(rules_set=file.rules, assigned_role=selected_role)
-                                    validation_list = file.parser.parse_line(new_party.name, [])
+                                    new_party=party.define_custom_party(rules_set=file_to_analyse.rules, assigned_role=selected_role)
+                                    validation_list = file_to_analyse.parser.parse_line(new_party.name, [])
                                     if validation_list:
                                         validation = validation_list[0]
                                     else:
@@ -213,7 +234,7 @@ def main():
                                 if not select_party:
                                     break
 
-        if file.result_has_element('Flows&Transactions'):
+        if file_to_analyse.result_has_element('Flows&Transactions'):
             print("\nThese total of other objects found:")
             results = collect_refIds.classify_results(FileManagement.get_all_unique_results('Flows&Transactions'))
             for each_result_type in results:
@@ -233,7 +254,7 @@ def main():
                         break
 
         print(f'Elapsed time {time_msg}.')
-        return file
+        return file_to_analyse
     return None
 
 
@@ -261,6 +282,7 @@ if __name__ == "__main__":
     args = parserargs.parse_args()
 
     file = main()
+    analyse(file)
     # tracer = TracerId(get_configs())
     # #
     # tracer.tracer(file)

@@ -94,6 +94,8 @@ class GetRefIds:
                                 # Store this  line involving current reference
                                 cob = CordaObject.get_object(each_group)
                                 cob.add_data('references', current_line)
+                                # Add current line where this id was also found so I can check this line later
+                                cob.references[current_line] = each_line
                                 self.file.add_element(self.get_element_type(),cob)
                                 continue
                             else:
