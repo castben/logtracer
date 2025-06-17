@@ -71,7 +71,7 @@ configuration:
     log:
       # Actual format of logs to expect
       expect:
-         standard-format: (^\[[a-zA-Z0-9-\/]+\])?\s*(?P<log_line>.*)
+         standard-format: (?P<pod_id>^\[[a-zA-Z0-9-\/]+^\])?\s*(?P<log_line>.*)
       fields:
         - pod_id
         - log_line
