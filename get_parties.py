@@ -1,7 +1,4 @@
-from object_class import CordaObject, get_fields_from_log, FileManagement
-from object_class import RegexLib
-
-import re
+from object_class import CordaObject
 
 class GetParties:
     def __init__(self, get_configs):
