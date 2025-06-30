@@ -1,6 +1,8 @@
 import re
 from enum import Enum
-from object_class import Configs
+from object_class import Configs, generate_internal_access, CordaObject, RegexLib
+import threading
+from typing import List, Callable, Any, Dict
 
 
 class UMLCommand:
@@ -46,6 +48,9 @@ class UMLCommand:
         return None
 
 class UMLStep:
+    """
+    Class representing actual uml step found
+    """
 
     uml_steps = {}
 
@@ -104,6 +109,15 @@ class UMLStep:
         uml_options = Configs.get_config_for(f'UML_DEFINITIONS.{uml_command}.OPTIONS')
         # Get all expected fields for this given uml_command; this help to get proper information from analysed line
         expected_fields = Configs.get_config_for(f'UML_DEFINITIONS.{uml_command}.FIELDS')
+        fields_found = list(expected_fields)
+        # delete any field that is not in regex line
+        for each_field in expected_fields:
+            zaction, zfield = each_field.split(':')
+            if f"__{zfield}__" not in self.get(UMLStep.Attribute.REGEX_TO_APPLY) and f"<{zfield}>" not in self.get(UMLStep.Attribute.REGEX_TO_APPLY):
+                fields_found.remove(each_field)
+
+        expected_fields = fields_found
+
         line_message = self.get(UMLStep.Attribute.LINE_MESSAGE)
 
         match = self.get(UMLStep.Attribute.REGEX_COMPILED).search(line_message)
@@ -120,12 +134,12 @@ class UMLStep:
             if field in fields and field not in uml_actions:
                 # collect appropriate uml action for this field
                 uml_actions[action] = fields[field]
-                # then get next one
-                for each_obj in uml_corda_objects.keys():
-                    if field in ",".join(uml_corda_objects[each_obj]['EXPECT']):
-                        new_uml_step = UMLStep()
-                        new_uml_step.copy(self)
-
+                # # then get next one
+                # for each_obj in uml_corda_objects.keys():
+                #     if field in ",".join(uml_corda_objects[each_obj]['EXPECT']):
+                #         new_uml_step = UMLStep()
+                #         new_uml_step.copy(self)
+                #
                 continue
 
             # Unable to get proper definition from extracted fields, so then look for another way
@@ -138,13 +152,15 @@ class UMLStep:
                 if isinstance(definition, str):
                     definition = [definition]
                 for each_definition in definition:
-                    pattern = RegexLib.build_regex(each_definition)
+                    pattern = RegexLib.build_regex(f"__{each_definition}__")
                     check = re.search(pattern, line_message)
                     if check:
                         uml_actions[f"{field}={check.group(1)}"] = action
                         break
 
-        return uml_list
+            self.set(UMLStep.Attribute.UML_COMMAND_DEFINITION, uml_actions)
+
+        return self
 
 
     def set(self, name, value):
@@ -229,17 +245,6 @@ class UMLStep:
 
         return None
 
-
-    # def copy(self, original):
-    #     """
-    #     Create a copy of given UMLStep
-    #     :param original: Original UMLStep to copy from
-    #     :return: void
-    #     """
-    #
-    #     for key, value in original.__dict__.items():
-    #         setattr(self, key, deepcopy(value))
-
 class UMLStepSetup:
     uml_candidate_steps = []
     Configs = None
@@ -247,14 +252,17 @@ class UMLStepSetup:
     uml_definitions = {}
     full_rule_search = None
 
-    def __init__(self, get_configs):
+    def __init__(self, get_configs, corda_object):
         """
         Class initialization
         """
 
         UMLStepSetup.Configs = get_configs
         UMLStepSetup.file = None
+        self.cordaobject = corda_object
         self.type = None
+        self.max_items = 100
+
         # Load actual "patterns" to look for that can identify a potential UML step...
         #
         if not UMLStepSetup.uml_definitions:
@@ -263,15 +271,16 @@ class UMLStepSetup:
                 if 'COMMAND' in tmp[each_cmd]:
                     UMLStepSetup.uml_definitions[each_cmd] = tmp[each_cmd]
 
-    @staticmethod
-    def check_for_uml_step(original_line, current_line_no):
+
+    def check_for_uml_step(self, original_line, current_line_no):
         """
         Pre-load all required regex to speed up searches.
         :return:
         """
 
         umlsteps_list = []
-
+        otype = self.cordaobject.get_type()
+        orefid = self.cordaobject.get_reference_id()
         for each_uml_definition in UMLStepSetup.uml_definitions:
             # now for each uml definition, try to see if we have a match
             #
@@ -293,27 +302,24 @@ class UMLStepSetup:
 
             each_expect = RegexLib.build_regex(regex_expect)
             umlstep = UMLStep()
+            umlstep.set(UMLStep.Attribute.ID, orefid)
+            umlstep.set(UMLStep.Attribute.TYPE, otype)
             umlstep.set(UMLStep.Attribute.LINE_NUMBER, current_line_no)
             umlstep.set(UMLStep.Attribute.LINE_MESSAGE, original_line)
             # umlstep.set_attribute(UMLStep.Attribute.TYPE, UMLStepSetup.uml_definitions[each_uml_definition]["EXPECT"][expect_to_use])
             umlstep.set(UMLStep.Attribute.UML_COMMAND, each_uml_definition)
-            umlstep.set(UMLStep.Attribute.REGEX_TO_APPLY, each_expect)
+            umlstep.set(UMLStep.Attribute.REGEX_TO_APPLY, regex_expect)
             umlstep.set(UMLStep.Attribute.REGEX_COMPILED, re.compile(each_expect))
             umlstep.set(UMLStep.Attribute.REGEX_INDEX, expect_to_use)
+
             umlsteps_list.append(umlstep)
-            uml_analysis = umlstep.analyse()
-            # for each_step in uml_analysis:
-            #     UMLStepSetup.uml_candidate_steps.append(each_step)
-            #     umlsteps_list.append(each_step)
 
-            # # Remove used expect to do not use it again, and repeat same thing.
-            # list_of_expects_to_try.pop(expect_to_use)
 
+        self.cordaobject.add_uml_step(current_line_no, umlsteps_list)
         if umlsteps_list:
             return umlsteps_list
         else:
             return None
-
 
     def set_element_type(self, element_type):
         """
@@ -333,6 +339,59 @@ class UMLStepSetup:
         """
         return self.type
 
+    def analyse_references(self):
+        """
+        Count number of references and if they are greater than max_item, then will split several processes
+        to speed up
+        :return:
+        """
+        pass
+
+
+    def process_uml_chunk(self, chunk: Dict[int, str]):
+        """Procesa un bloque del diccionario y genera los UMLSteps"""
+        print(f"Procesando bloque de {len(chunk)} líneas en hilo: {threading.current_thread().name}")
+        for line_num, line in chunk.items():
+            # Aquí iría tu lógica real de parsing:
+            # uml_step = parse_line_to_uml_step(line)
+            self.check_for_uml_step(line, line_num)
+
+        # Guardar resultados, si aplica...
+
+
+    @staticmethod
+    def chunked_dict(data: Dict[int, str], chunk_size: int):
+        """Divide un diccionario ordenado en sublistas de tamaño chunk_size"""
+        items = list(data.items())  # Convertimos a lista de tuplas
+        return [
+            dict(items[i:i + chunk_size])  # Recreamos dicts pequeños
+            for i in range(0, len(items), chunk_size)
+    ]
+
+
+    def parallel_process(self,log_dict: Dict[int, str], chunk_size: int = 100, max_threads: int = 4):
+        chunks = UMLStepSetup.chunked_dict(log_dict, chunk_size)
+
+        threads = []
+        for i, chunk in enumerate(chunks):
+            if i >= max_threads:
+                break  # Limita la cantidad de hilos activos al mismo tiempo
+            thread = threading.Thread(
+                target=self.process_uml_chunk,
+                args=(chunk,),
+                name=f"Thread-{i+1}"
+            )
+            threads.append(thread)
+            thread.start()
+
+        # Esperar a que todos los hilos terminen
+        for t in threads:
+            t.join()
+
+        print("✅ Todos los bloques han sido procesados.")
+
+
+
     @staticmethod
     def execute(each_line, current_line):
         """
@@ -342,6 +401,10 @@ class UMLStepSetup:
         :return:
         """
         return UMLStepSetup.check_for_uml_step(each_line, current_line)
+
+
+class UML_Processing:
+    pass
 
 class UMLEntity:
     """

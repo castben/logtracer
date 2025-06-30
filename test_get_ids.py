@@ -6,7 +6,7 @@ import os
 import argparse
 from get_refIds import GetRefIds
 from object_class import Configs, X500NameParser, FileManagement
-from object_class import CordaObject,UMLStep,saving_tracing_ref_data
+from object_class import CordaObject,saving_tracing_ref_data
 # from tracer_id import TracerId
 from get_parties import GetParties
 from uml import UMLEntityEndPoints, UMLEntity, UMLStepSetup
@@ -123,10 +123,10 @@ def main():
         # Set specific type of element we are going to extract
         collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
         # Now setting up analysis to check if current line is candidate for UML steps
-        collect_uml_steps = UMLStepSetup(Configs)
+        # collect_uml_steps = UMLStepSetup(Configs)
         #
         # Set element type for this task:
-        collect_uml_steps.set_element_type(CordaObject.Type.UML_STEPS)
+        # collect_uml_steps.set_element_type(CordaObject.Type.UML_STEPS)
         # Pre-analyse the file_to_analyse to figure out how to read it, if file_to_analyse is bigger than blocksize then file_to_analyse will be
         # Divided by chunks and will be created a thread for each one of them to read it
         file_to_analyse.pre_analysis() # Calculate on fly proper chunk sizes to accommodate lines correctly
@@ -145,11 +145,14 @@ def main():
         file_to_analyse.remove_process_to_execute(CordaObject.Type.PARTY)
         file_to_analyse.remove_process_to_execute(CordaObject.Type.FLOW_AND_TRANSACTIONS)
         # Setup new process to run
-        file_to_analyse.add_process_to_execute(collect_uml_steps)
-        file_to_analyse.parallel_processing()
+        # file_to_analyse.add_process_to_execute(collect_uml_steps)
+        # file_to_analyse.parallel_processing()
         # Stopping timewatch process and get time spent
         time_msg = file_to_analyse.start_stop_watch('Main-search', False)
-        file_to_analyse.remove_process_to_execute(collect_uml_steps)
+        # file_to_analyse.remove_process_to_execute(collect_uml_steps)
+        co = CordaObject.get_object('1231B1D70E2CF011021F6379E3A802DF04E32D89784F61940A83A596EF99D1CF')
+        test = UMLStepSetup(get_configs(), co)
+        test.parallel_process(co.references)
         if file_to_analyse.result_has_element(CordaObject.Type.PARTY):
             print('Setting up roles automatically...')
             file_to_analyse.assign_roles()

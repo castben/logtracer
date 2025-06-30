@@ -1,6 +1,6 @@
-import object_class
+
 from object_class import CordaObject, get_fields_from_log, FileManagement
-from object_class import RegexLib
+from object_class import RegexLib,get_not_null
 
 import re
 
@@ -85,7 +85,7 @@ class GetRefIds:
                 for matchNum, match in enumerate(cordaobject_id_match, start=1):
                     # for groupNum in range(0, len(match.groups())):
                     # groupNum = groupNum + 1
-                    groupNum_list = object_class.get_not_null(match.groups(), start=1)
+                    groupNum_list = get_not_null(match.groups(), start=1)
                     for groupNum in groupNum_list:
                         each_group = match.group(groupNum)
 

@@ -825,6 +825,16 @@
           "ST",
           "C"
         ]
+      },
+      "UML-BEHAVIOUR": {
+        "REPEATED-MESSAGE": {
+          "FIRST": 3,
+          "LAST": 1,
+          "SUMMARY-COUNT": true,
+          "WATCH-OVER": [
+            "ALL"
+          ]
+        }
       }
     },
     "UML_DEFINITIONS": {
@@ -932,9 +942,12 @@
           "statemachine.Staffed(?P<message>FlowHospital)"
         ],
         "FIELDS": [
-          "control"
+          "control:control"
         ],
-        "OPTIONS": "SINGLE_DEFINITION"
+        "OPTIONS": "SINGLE_DEFINITION",
+        "IGNORE": [
+          "Initializing Flow Hospital. Session initialization error treatment enabled"
+        ]
       },
       "database": {
         "COMMAND": "Database",
@@ -1235,7 +1248,7 @@
       "OBJECTS": {
         "participant": {
           "EXPECT": [
-            "(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"]+)*"
+            "(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"\\{]+)*"
           ],
           "APPLY_TO": [
             "source",
