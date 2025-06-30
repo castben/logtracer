@@ -4146,8 +4146,6 @@ def get_not_null(list_or_tuple, start=0):
     indices = [i + start for i, value in enumerate(list_or_tuple) if value is not None]
     return indices
 
-
-
 def generate_internal_access(variable_dict, variable_to_get):
     """
     This method generates internal access to a given variable in a nested dictionary.
