@@ -867,7 +867,7 @@ class CordaObject:
                             usage_expect_counter += 1
 
     @staticmethod
-    def get_type(id_ref):
+    def get_type_for(id_ref):
         """
         Search which type belongs to given reference
         :return: A string representing type of reference object, if is not found will return None
@@ -878,6 +878,7 @@ class CordaObject:
                 return each_type
 
         return None
+
 
     def add_reference(self, line, creference):
         """
