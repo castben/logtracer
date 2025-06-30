@@ -4173,7 +4173,6 @@ def generate_internal_access(variable_dict, variable_to_get):
     access_string = ''.join(access_representation)
     return access_string, current_level
 
-
 def generate_hash(stringData):
     hashstring = ""
     try:
