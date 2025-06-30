@@ -893,7 +893,7 @@ class CordaObject:
 
         # if the object has already "field_stage" means that it was already analised, and is coming from database...
         if "field_name" not in creference:
-            object_type = CordaObject.get_type(self.data["id_ref"])
+            object_type = CordaObject.get_type_for(self.data["id_ref"])
             if not object_type:
                 print("Object without any type defined: %s" % self.data["id_ref"])
                 print("Found in this line %s: %s" % (line, creference))
