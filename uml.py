@@ -1,6 +1,6 @@
 import re
 from enum import Enum
-from object_class import generate_internal_access, Configs, CordaObject, RegexLib
+from object_class import Configs
 
 
 class UMLCommand:

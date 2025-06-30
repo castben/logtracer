@@ -1,6 +1,6 @@
 from ahocorapy.keywordtree import KeywordTree
-from object_class import CordaObject, UMLEntity, Configs, FileManagement, get_fields_from_log, UMLCommand
-
+from object_class import CordaObject, Configs, FileManagement, get_fields_from_log
+from uml import UMLEntityEndPoints, UMLEntity, UMLStepSetup, UMLCommand
 
 
 class TracerId:

@@ -5,11 +5,11 @@ import cProfile
 import os
 import argparse
 from get_refIds import GetRefIds
-from object_class import Configs, X500NameParser, FileManagement, UMLEntity, UMLStepSetup, UMLEntityEndPoints
+from object_class import Configs, X500NameParser, FileManagement
 from object_class import CordaObject,UMLStep,saving_tracing_ref_data
 # from tracer_id import TracerId
 from get_parties import GetParties
-from uml import UMLEntityEndPoints
+from uml import UMLEntityEndPoints, UMLEntity, UMLStepSetup
 from tracer_id import TracerId
 
 
