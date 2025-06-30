@@ -951,7 +951,7 @@ class CordaObject:
         :return:
         """
 
-        otype = CordaObject.get_type(ref_id)
+        otype = CordaObject.get_type_for(ref_id)
 
         if not otype:
             return None
@@ -1408,6 +1408,7 @@ class FileManagement:
         if isinstance(element_type, CordaObject.Type):
             selement_type = element_type.value
             element_type = selement_type
+
 
         if element_type not in FileManagement.unique_results:
             FileManagement.unique_results[element_type] = {}
