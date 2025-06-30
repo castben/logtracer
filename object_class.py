@@ -14,6 +14,8 @@ from multiprocessing import Pool
 
 import numpy as np
 
+from uml import UMLStep
+
 
 class CordaObject:
     """
@@ -55,6 +57,8 @@ class CordaObject:
         self.references = OrderedDict()
         self.type = None
         self.line_number = None
+        self.timestamp = None
+        self.error_level = None
 
     @staticmethod
     def get_clear_group_list(raw_list):
@@ -158,8 +162,7 @@ class CordaObject:
         CordaObject.log_owner = log_owner
         # Party.party_expected_role_list.remove('log_owner')
 
-    def get_reference_id(self):
-        return self.data['ref_id']
+
 
     def add_data(self, cproperty, value):
         """
@@ -211,23 +214,36 @@ class CordaObject:
                     if len(values) > 1:
                         self.data[values[0].strip()] = values[1].strip().replace("}", "")
 
-    def set_type(self, each_object):
-        """
-        Set object type
-        :param each_object:
-        :return:
-        """
+    def set_timestamp(self, timestamp):
+        self.timestamp = timestamp
 
-        self.type = each_object
+    def set_error_level(self, error_level):
+        self.error_level = error_level
+
+    def set_type(self, object_type):
+        self.type = object_type
+
+    def set_line_number(self, line_number):
+        self.line_number = line_number
 
     def set_reference_id(self, reference_id):
-        """
-        Will set object reference id
-        :param reference_id: reference id to be assigned
-        :return: void
-        """
         self.data['id_ref'] = reference_id
         self.reference_id = reference_id
+
+    def get_timestamp(self):
+        return self.timestamp
+
+    def get_error_level(self):
+        return self.error_level
+
+    def get_reference_id(self):
+        return self.reference_id
+
+    def get_line(self):
+        return self.line_number
+
+    def get_type(self):
+        return self.type
 
     def get_data(self, data_property):
         """
@@ -426,7 +442,6 @@ class CordaObject:
         #         for each_endpoint in additional_endpoints['USAGES']:
         #             additional_usages = additional_endpoints['USAGES'][each_endpoint]['EXPECT']
         #             CordaObject.default_uml_endpoints[participant][each_endpoint]['EXPECT'].extend(additional_usages)
-
 
     @staticmethod
     def get_log_owner():
