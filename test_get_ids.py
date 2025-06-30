@@ -1,3 +1,4 @@
+#!./system/bin/python
 import cProfile
 # Program to test extraction and validation of X500 names.
 
@@ -8,6 +9,7 @@ from object_class import Configs, X500NameParser, FileManagement, UMLEntity, UML
 from object_class import CordaObject,UMLStep,saving_tracing_ref_data
 # from tracer_id import TracerId
 from get_parties import GetParties
+from uml import UMLEntityEndPoints
 from tracer_id import TracerId
 
 
@@ -20,47 +22,52 @@ def get_configs():
 def analyse(file_object):
     """
     FileObject contains all information required
-    :param file_object: container with all information reuqired
+    :param file_object: container with all information required
     :return:
     """
-    uml_steps={}
+    #
+    # Store all steps where flow/transaction has beeb "seen", this dictionary will have a reference_id
+    # representing either a tx id or flow id; and a list of umlsteps where this reference has been seen.
+    # uml_steps={}
     #
     # Interact through all transaction and flow list
     #
     for each_item in file_object.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS):
-        # If this each_item, has references, which means flow/transaction was found in other lines, then lest compile
-        # all UML steps for this item.
+        # If this each_item, has references, which means flow/transaction was found in other lines,
+        # then lest compile all UML steps for this item.
+        #
+        # Take very first line and search for its uml_step; and add it into stack
+        first_step = file_object.get_element(CordaObject.Type.UML_STEPS, each_item.line_number)
+        if first_step:
+            first_step.set(UMLStep.Attribute.TYPE, each_item.type)
+            first_step.set(UMLStep.Attribute.ID, each_item.reference_id)
+            first_step.add()
+            # uml_steps[each_item.reference_id] = []
+            # uml_steps[each_item.reference_id].append(first_step)
 
         if each_item.references:
             for each_reference in each_item.references:
                 if each_reference in file_object.get_all_unique_results(CordaObject.Type.UML_STEPS, False):
+                    # Get next uml_step from all references
                     uml_step = file_object.get_element(CordaObject.Type.UML_STEPS, each_reference)
-                    pass
-            pass
+                    if isinstance(uml_step, list):
+
+                        for each_step in uml_step:
+                            if not each_step.get(UMLStep.Attribute.TYPE) and not each_step.get(UMLStep.Attribute.ID):
+                                each_step.set(UMLStep.Attribute.TYPE, each_item.type)
+                                each_step.set(UMLStep.Attribute.ID, each_item.reference_id)
+
+                        UMLStep.set_direct_list(each_reference, uml_step)
+                        continue
+                    else:
+                        uml_step.set(UMLStep.Attribute.TYPE, each_item.type)
+                        uml_step.set(UMLStep.Attribute.ID, each_item.reference_id)
+
+                    uml_step.add()
+
+        # with all steps collected for each object;
 
 
-def test_refids(log_file):
-    ref_ids = GetRefIds(get_configs())
-    file = FileManagement(log_file, block_size_in_mb=15, debug=True)
-    # Analyse first 100 (by default) lines from given file to determine which Corda log format is
-    # This is done to be able to separate key components from lines like Time stamp, severity level, and log
-    # message
-    file.discover_file_format()
-    ref_ids.set_file(file)
-    with open(file.filename, "r") as fh_log_file:
-        for each_line in fh_log_file:
-            co = ref_ids.get_ref_ids(each_line)
-
-
-    if CordaObject.list:
-        print('-------------')
-        total_ids = 0
-        for each_type in CordaObject.list:
-            print(f'* Found {len(CordaObject.list[each_type])} {each_type}(S)')
-            total_ids += len(CordaObject.list[each_type])
-        print(f'Total ids: {total_ids}')
-        # saving_tracing_ref_data(CordaObject.get_all_objects(), log_file=args.log_file)
-    # trace_id(args.log_file)
 
 def print_parties():
 
@@ -80,8 +87,6 @@ def main():
 
     # Define default entity object endpoints...
     UMLEntityEndPoints.load_default_endpoints()
-
-
 
     # in this case I'm removing initial branch 'UML_SETUP' because final config is a collection of configuration settings
     # that removes this.
@@ -273,16 +278,17 @@ if __name__ == "__main__":
     # -l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
     # -l "/home/r3support/www/uploads/customers/Grow Super/CS-3992/20250225103248_pack"/corda-node-dev0-ri-hes-admin-node.2025-02-19-1.log
     #
-    # Huge file:
+    # Huge files:
     # -l /home/larry/IdeaProjects/logtracer/client-logs/ChainThat/CS-4002/Success-Transaction-logs.log
-
+    # -l /home/larry/IdeaProjects/investigations/lab-constructor/investigation/ChainThat/CS-4002/client-logs/mnp-dev-party005-cordanode.log
     parserargs = argparse.ArgumentParser()
     parserargs.add_argument('-l', '--log-file',
                             help='Give actual log file to analyse')
     args = parserargs.parse_args()
 
     file = main()
-    analyse(file)
+    # analyse(file)
+    pass
     # tracer = TracerId(get_configs())
     # #
     # tracer.tracer(file)
