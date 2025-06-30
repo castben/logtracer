@@ -127,6 +127,10 @@ class GetRefIds:
                                     co.add_data("type", all_regex_type[groupNum-1])
                                     co.add_data("line_number", current_line)
                                     co.set_type(all_regex_type[groupNum-1])
+                                    co.set_timestamp(log_line_fields["timestamp"])
+                                    co.set_error_level(log_line_fields["error_level"])
+                                    co.set_reference_id(each_group)
+                                    co.set_line_number(current_line)
                                     co.add_object()
                                 else:
                                     # This is in case read line is not recognized and this could be because
