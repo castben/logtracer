@@ -4538,7 +4538,8 @@ def build_uml_script(corda_object=None):
 
 def check_overlapped_notes(body):
     """
-    This method will check if given text has overlapped notes, and then it will join them to be a single note
+    This method will check if given text has overlapped notes,
+     and then it will join them to be a single note
     :param body: array list that contains the text to check
     :return: corrected body without overlapped notes
     """
