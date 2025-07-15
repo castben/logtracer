@@ -9,7 +9,7 @@ from object_class import Configs, X500NameParser, FileManagement
 from object_class import CordaObject,saving_tracing_ref_data
 # from tracer_id import TracerId
 from get_parties import GetParties
-from uml import UMLEntityEndPoints, UMLEntity, UMLStepSetup
+from uml import UMLEntityEndPoints, UMLEntity, UMLStepSetup, CreateUML
 from tracer_id import TracerId
 
 
@@ -19,53 +19,53 @@ from tracer_id import TracerId
 def get_configs():
     return Configs
 
-def analyse(file_object):
-    """
-    FileObject contains all information required
-    :param file_object: container with all information required
-    :return:
-    """
-    #
-    # Store all steps where flow/transaction has beeb "seen", this dictionary will have a reference_id
-    # representing either a tx id or flow id; and a list of umlsteps where this reference has been seen.
-    # uml_steps={}
-    #
-    # Interact through all transaction and flow list
-    #
-    for each_item in file_object.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS):
-        # If this each_item, has references, which means flow/transaction was found in other lines,
-        # then lest compile all UML steps for this item.
-        #
-        # Take very first line and search for its uml_step; and add it into stack
-        first_step = file_object.get_element(CordaObject.Type.UML_STEPS, each_item.line_number)
-        if first_step:
-            first_step.set(UMLStep.Attribute.TYPE, each_item.type)
-            first_step.set(UMLStep.Attribute.ID, each_item.reference_id)
-            first_step.add()
-            # uml_steps[each_item.reference_id] = []
-            # uml_steps[each_item.reference_id].append(first_step)
-
-        if each_item.references:
-            for each_reference in each_item.references:
-                if each_reference in file_object.get_all_unique_results(CordaObject.Type.UML_STEPS, False):
-                    # Get next uml_step from all references
-                    uml_step = file_object.get_element(CordaObject.Type.UML_STEPS, each_reference)
-                    if isinstance(uml_step, list):
-
-                        for each_step in uml_step:
-                            if not each_step.get(UMLStep.Attribute.TYPE) and not each_step.get(UMLStep.Attribute.ID):
-                                each_step.set(UMLStep.Attribute.TYPE, each_item.type)
-                                each_step.set(UMLStep.Attribute.ID, each_item.reference_id)
-
-                        UMLStep.set_direct_list(each_reference, uml_step)
-                        continue
-                    else:
-                        uml_step.set(UMLStep.Attribute.TYPE, each_item.type)
-                        uml_step.set(UMLStep.Attribute.ID, each_item.reference_id)
-
-                    uml_step.add()
-
-        # with all steps collected for each object;
+# def analyse(file_object):
+#     """
+#     FileObject contains all information required
+#     :param file_object: container with all information required
+#     :return:
+#     """
+#     #
+#     # Store all steps where flow/transaction has beeb "seen", this dictionary will have a reference_id
+#     # representing either a tx id or flow id; and a list of umlsteps where this reference has been seen.
+#     # uml_steps={}
+#     #
+#     # Interact through all transaction and flow list
+#     #
+#     for each_item in file_object.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS):
+#         # If this each_item, has references, which means flow/transaction was found in other lines,
+#         # then lest compile all UML steps for this item.
+#         #
+#         # Take very first line and search for its uml_step; and add it into stack
+#         first_step = file_object.get_element(CordaObject.Type.UML_STEPS, each_item.line_number)
+#         if first_step:
+#             first_step.set(UMLStep.Attribute.TYPE, each_item.type)
+#             first_step.set(UMLStep.Attribute.ID, each_item.reference_id)
+#             first_step.add()
+#             # uml_steps[each_item.reference_id] = []
+#             # uml_steps[each_item.reference_id].append(first_step)
+#
+#         if each_item.references:
+#             for each_reference in each_item.references:
+#                 if each_reference in file_object.get_all_unique_results(CordaObject.Type.UML_STEPS, False):
+#                     # Get next uml_step from all references
+#                     uml_step = file_object.get_element(CordaObject.Type.UML_STEPS, each_reference)
+#                     if isinstance(uml_step, list):
+#
+#                         for each_step in uml_step:
+#                             if not each_step.get(UMLStep.Attribute.TYPE) and not each_step.get(UMLStep.Attribute.ID):
+#                                 each_step.set(UMLStep.Attribute.TYPE, each_item.type)
+#                                 each_step.set(UMLStep.Attribute.ID, each_item.reference_id)
+#
+#                         UMLStep.set_direct_list(each_reference, uml_step)
+#                         continue
+#                     else:
+#                         uml_step.set(UMLStep.Attribute.TYPE, each_item.type)
+#                         uml_step.set(UMLStep.Attribute.ID, each_item.reference_id)
+#
+#                     uml_step.add()
+#
+#         # with all steps collected for each object;
 
 
 
@@ -150,9 +150,7 @@ def main():
         # Stopping timewatch process and get time spent
         time_msg = file_to_analyse.start_stop_watch('Main-search', False)
         # file_to_analyse.remove_process_to_execute(collect_uml_steps)
-        co = CordaObject.get_object('1231B1D70E2CF011021F6379E3A802DF04E32D89784F61940A83A596EF99D1CF')
-        test = UMLStepSetup(get_configs(), co)
-        test.parallel_process(co.references)
+
         if file_to_analyse.result_has_element(CordaObject.Type.PARTY):
             print('Setting up roles automatically...')
             file_to_analyse.assign_roles()
@@ -171,6 +169,8 @@ def main():
                     for index, each_pending in enumerate(pending_roles):
                         print(f'   [{index+1}] -- {each_pending} which is {pending_roles[each_pending]} to assign...')
                     role_to_assign = input(f'Please choose role to assign [0-{len(pending_roles)}]:')
+                    if not role_to_assign:
+                        break
                     if role_to_assign.isdigit():
                         selection = int(role_to_assign)
                         if selection > len(pending_roles):
@@ -242,6 +242,7 @@ def main():
                                 if not select_party:
                                     break
 
+
         if file_to_analyse.result_has_element('Flows&Transactions'):
             print("\nThese total of other objects found:")
             results = collect_refIds.classify_results(FileManagement.get_all_unique_results('Flows&Transactions'))
@@ -255,22 +256,40 @@ def main():
                     item_limit = len(results[each_result_type])
 
                 for each_item in results[each_result_type]:
-                    print(f"    `---> {each_item}")
+                    print(f"    `---> ({item_count+1:>4}) {each_item}")
                     item_count = item_count + 1
                     if item_count >= item_limit and (len(results[each_result_type])-item_limit > 0):
                         print(f"    ... there are {len(results[each_result_type])-item_limit} more...")
                         break
 
         print(f'Elapsed time {time_msg}.')
+        ##
+        # Testing
+        ## -l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
+        # 1231B1D70E2CF011021F6379E3A802DF04E32D89784F61940A83A596EF99D1CF
+        # a26f97bb-3ad3-40ac-8b6b-257bdd9bcba4
+        # -l /home/larry/IdeaProjects/logtracer/client-logs/DLT-Service/CS-4010/DLT_suspendMembership.txt
+        # 9888363EC1AAF0AAD8B64911D4202EA9ACE288D530B509020ADE326443B305E4
+        # 49cea758-40d9-48d2-a4eb-9ce770c307fd
+        co = CordaObject.get_object('7A8AA5E4EEDE4F9ACE10EEBA0078D838B9A02FD45C760B58F8347DF724E4BF94')
+        test = UMLStepSetup(get_configs(), co)
+        test.file = file_to_analyse
+        test.parallel_process(co)
+        c_uml = CreateUML(co, file_to_analyse)
+        script = c_uml.generate_uml_pages()
+        print("\n".join(script))
+        ##########################
         return file_to_analyse
     return None
 
 
 if __name__ == "__main__":
-    max_number_items_fNtx = 5
+    max_number_items_fNtx = 15
     # Small file with all roles
     # -l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
     # -l/home/larry/IdeaProjects/logtracer/client-logs/Grow-super/CS-3873/logsinsurance/corda-node-cordaprimary-prod-growadmin-i-0bb90aaa48c7b6b88.dlta.internal.2024-12-02-7.log
+    # Very small one to test UML
+    # -l /home/larry/IdeaProjects/logtracer/checks/log-test.log
     # Office
     # -l
     # /Users/larry.castro/IdeaProjects/logtracer/client-logs/Grow-super/logsinsurance/corda-node-cordaprimary-prod-growadmin-i-0bb90aaa48c7b6b88.dlta.internal.2024-12-02-23.log
@@ -290,7 +309,7 @@ if __name__ == "__main__":
     args = parserargs.parse_args()
 
     file = main()
-    # analyse(file)
+
     pass
     # tracer = TracerId(get_configs())
     # #

@@ -56,7 +56,7 @@ class CordaObject:
         self.line_number = None
         self.timestamp = None
         self.error_level = None
-        self.uml_steps = {}
+        self.uml_steps = OrderedDict()
 
     @staticmethod
     def get_clear_group_list(raw_list):
@@ -149,6 +149,7 @@ class CordaObject:
         CordaObject.id_ref = []
         CordaObject.relations = {}
 
+
     @staticmethod
     def set_log_owner(log_owner):
         """
@@ -227,6 +228,21 @@ class CordaObject:
     def set_reference_id(self, reference_id):
         self.data['id_ref'] = reference_id
         self.reference_id = reference_id
+
+    def get_uml(self, line_number=None):
+        """
+        Will return specified UML representation for given line
+        :param line_number: log line number
+        :return: uml representation for given line, or all of them if no line is give(dictionary), None if no line found
+        """
+
+        if not line_number:
+            return self.uml_steps
+
+        if line_number in self.uml_steps:
+            return self.uml_steps[line_number]
+
+        return None
 
     def get_timestamp(self):
         return self.timestamp
@@ -328,6 +344,21 @@ class CordaObject:
     #     for each_reference in query:
     #         self.add_reference(each_reference.line_no, json.loads(each_reference.details))
     #         self.data = json.loads(each_reference.data)
+
+
+    @classmethod
+    def add_uml_participant(cls, uml_participant):
+        """
+        Add a uml participant, program need to search for valid participants (x500 names) or
+        a specific special participant like control unit (Flow Hospital) or database (Vault)
+        :param uml_participant: participant to be added
+        :return:
+        """
+
+
+
+        pass
+
 
     def get_references(self, line_no=None, field=None):
         """
@@ -687,7 +718,7 @@ class CordaObject:
         """
 
         # Basic Corda object definition
-        corda_uml_definition = Configs.get_config(section="CORDA_OBJECT_DEFINITIONS", param="OBJECTS")
+        corda_uml_definition = Configs.get_config_for("CORDA_OBJECT_DEFINITIONS.OBJECTS")
         # Check if given cobject has more detailed way to identify it. This need to be done because in the case of
         # Transaction the simple __tx_id__ definition is too ambiguous and can be confused with something else that is
         # not a proper transaction...
@@ -1666,6 +1697,38 @@ class Party:
             pass
 
     @staticmethod
+    def normalize_x500(attributes):
+        """
+        Set a standard order for all x500 names
+        :param attributes: list with all attributes that need to be normalized
+        :return: a normalized list of attributes
+        """
+
+        #
+        # TODO: Este metodo esta introduciendo un molesto bug, esta eliminando potenciales parties de la
+        #  lista al tratar de normalizar los nombres; en una lista de atributos que contenga mas de un
+        #  x500 name eliminara uno de ellos y se perdera de la lista.
+        #  debo buscar una manera de preservar todos los nombres que se consiga, y organizarlos. Probablemente la
+        #  normalizacion no sea bueno usarla al construir los atributos, sera mejor usarla antes de agregar el
+        #  nuevo nombre a la lista
+
+        attribute_order = Configs.get_config_for("CORDA_OBJECT_DEFINITIONS.OBJECTS.participant.RULES.X500-attributes-order.CONTENT")
+        x5002normalize = {}
+        normalized_attributes = []
+
+        for each_att in attributes:
+            key,value = each_att
+            x5002normalize[key] = value
+
+        for each_att in attribute_order:
+            if each_att in x5002normalize:
+                normalized_attributes.append((each_att,x5002normalize[each_att]))
+
+        return normalized_attributes
+
+
+
+    @staticmethod
     def define_custom_party(rules_set, assigned_role):
         """
         Create a new party that wasn't recognized automatically
@@ -1904,7 +1967,7 @@ class X500NameParser:
         # self.rules = rules['RULES-D']['supported-attributes']
         self.rules = rules['supported-attributes']
         self.mandatory_attributes = [k for k, v in self.rules.items() if v.get('mandatory', False)]
-        self.regex = re.compile(r"([CNSTLOU]{1,2}=[^\[\]^,=]*)")
+        self.regex = re.compile(r"([CNSTLOU]{1,2}=[^\[\]^,={]*)")
 
     def extract_attributes(self, line):
         """
@@ -1934,8 +1997,41 @@ class X500NameParser:
 
             attributes.append((key, valid_value))
 
-        # attributes = [match.split('=') for match in matches]
         return attributes
+
+    @staticmethod
+    def normalize_x500(x500namestr):
+        """
+        Set a standard order for all x500 names
+        :param attributes: list with all attributes that need to be normalized
+        :return: a normalized list of attributes
+        """
+
+        #
+        # TODO: Este metodo esta introduciendo un molesto bug, esta eliminando potenciales parties de la
+        #  lista al tratar de normalizar los nombres; en una lista de atributos que contenga mas de un
+        #  x500 name eliminara uno de ellos y se perdera de la lista.
+        #  debo buscar una manera de preservar todos los nombres que se consiga, y organizarlos. Probablemente la
+        #  normalizacion no sea bueno usarla al construir los atributos, sera mejor usarla antes de agregar el
+        #  nuevo nombre a la lista
+
+        # I'm Assuming all x500namestr are wellformed x500 names
+        attributes = x500namestr.split(',')
+
+        attribute_order = Configs.get_config_for("CORDA_OBJECT_DEFINITIONS.OBJECTS.participant.RULES.X500-attributes-order.CONTENT")
+        x5002normalize = {}
+        normalized_attributes = []
+
+        for each_att in attributes:
+            key,value = each_att.split('=')
+            x5002normalize[key.strip()] = value
+
+        for each_att in attribute_order:
+            if each_att in x5002normalize:
+                normalized_attributes.append(f'{each_att}={x5002normalize[each_att]}')
+
+        return ', '.join(f"{k}" for k in normalized_attributes).strip()
+
 
     def validate_x500_name(self, attributes):
         """
@@ -1989,7 +2085,11 @@ class X500NameParser:
             for rname in rx500_names:
                 alternate_name_found = False
                 # if name not in x500_name_list:
-                x500name = Party(rname)
+                # Before creating a proper party, first normalize x500 name to make sure it is standard in whole
+                # analysis
+                #
+                norm_rname = X500NameParser.normalize_x500(rname)
+                x500name = Party(norm_rname)
                 if x500_list:
                     for each_xname in x500_list:
                         if each_xname.is_same_name(rname):
@@ -2547,6 +2647,7 @@ class Configs:
                     Configs.set_config(config_value=config["UML_DEFINITIONS"], section="UML_DEFINITIONS")
                     Configs.set_config(config_value=config["UML_ENTITY"], section="UML_ENTITY")
                     Configs.set_config(config_value=config["UML_CONFIG"], section="UML_CONFIG")
+                    Configs.set_config(config_value=config["UML_HIGHLIGHT"], section="UML_HIGHLIGHT")
                     Configs.set_config(config_value=rule_file['VERSION'], section="VERSION")
             print("Object definition and rules loaded")
 
@@ -2897,13 +2998,22 @@ class RegexLib:
         return RegexLib.compiled_regex_cache[signature]
 
     @staticmethod
-    def regex_to_use(regex_list, message_line):
+    def regex_to_use(regex_list, message_line, force_groups=False):
         """
         Given a regex_list, which will contain all regex; and the line to find out which regex can be applied into it
         :param regex_list: a regex list with all possible regex to try
         :param message_line: the actual message that need to be parsed
+        :param force_groups: if given list of regex has no groups on it, this method will fail as it depends on
+        groups defined withing regex expression
         :return: regex index to be used or None if there're no possible regex matches.
         """
+
+        if force_groups:
+            rgx_list = []
+            for item in regex_list:
+                rgx_list.append(f'({item})')
+            regex_list = rgx_list
+
         #
         # In order to join all regex into one, I need to remove any group names as it can make conflicts
         no_group_names = clear_groupnames(regex_list)
@@ -2992,7 +3102,7 @@ class RegexLib:
         This method will scan given regex to check if a "macro"(regex inside a regex) was included, if so will look for that
         and replace it with its value; then will return complete regex expression
         :param regex: regex to examine
-        :param nogroup_name: this will cause reurning pattern to avoid setting up group name within regex pattern
+        :param nogroup_name: this will cause returning pattern to avoid setting up group name within regex pattern
         :return: complete regex expression if a variable needs to be replaced, original regex expression otherwise
         """
         return_regex = regex

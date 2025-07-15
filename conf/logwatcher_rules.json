@@ -4,6 +4,21 @@
   },
   "VERSION": {
     "IDENTITY_FORMAT": {
+      "DLT Service": {
+        "EXPECT": "^\\d+\\s*([0-9-:.ZT]*)\\s*(\\[[A-Z ]*\\]) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
       "CORDA DEFAULT": {
         "EXPECT": "\\[([A-Z]+)+\\s*\\] (\\d{2}:\\d{2}:\\d{2}\\+[0-9]{4}) (.*)",
         "FIELDS": [
@@ -404,80 +419,6 @@
         "FIELDS": [
           "error_level",
           "timestamp",
-          "message"
-        ],
-        "IDENTITY": {
-          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
-          "FIELDS": [
-            "attribute",
-            "value"
-          ]
-        }
-      },
-      "TRACER": {
-        "EXPECT": "(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}) ([A-Za-z]+) (.*)",
-        "FIELDS": [
-          "timestamp",
-          "error_level",
-          "message"
-        ],
-        "IDENTITY": {
-          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
-          "FIELDS": [
-            "attribute",
-            "value"
-          ]
-        }
-      },
-      "TRACER-2": {
-        "EXPECT": "([0-9-:.TZ ]*) \\{level=.([A-Z]+)., (.*)\\}?",
-        "FIELDS": [
-          "timestamp",
-          "error_level",
-          "message"
-        ],
-        "IDENTITY": {
-          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
-          "FIELDS": [
-            "attribute",
-            "value"
-          ]
-        }
-      },
-      "Coadjute-0": {
-        "EXPECT": "([0-9-:.ZT]*)\\s+([A-Z]+)\\s*(.*)",
-        "FIELDS": [
-          "timestamp",
-          "error_level",
-          "message"
-        ],
-        "IDENTITY": {
-          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
-          "FIELDS": [
-            "attribute",
-            "value"
-          ]
-        }
-      },
-      "TRACER-0": {
-        "EXPECT": "([0-9-:.ZT ]*) (.*)",
-        "FIELDS": [
-          "timestamp",
-          "message"
-        ],
-        "IDENTITY": {
-          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
-          "FIELDS": [
-            "attribute",
-            "value"
-          ]
-        }
-      },
-      "TRACER-1": {
-        "EXPECT": "([0-9-:.ZT ]*) ([A-Za-z]+) (.*)",
-        "FIELDS": [
-          "timestamp",
-          "error_level",
           "message"
         ],
         "IDENTITY": {
@@ -953,11 +894,11 @@
         "COMMAND": "Database",
         "DESCRIPTION": "This represent Node Vault",
         "EXPECT": [
-          "Sending it to the (?P<database>vault) for processing",
-          "persistence.DBCheckpointStorage\\.addCheckpoint - (?P<database>Checkpoint) __source__"
+          "Sending it to the (?P<destination>vault) for processing",
+          "persistence.DBCheckpointStorage\\.addCheckpoint - (?P<destination>Checkpoint) __source__"
         ],
         "FIELDS": [
-          "database:database",
+          "database:destination",
           "participant:source"
         ],
         "OPTIONS": "SINGLE_DEFINITION"
@@ -967,8 +908,9 @@
         "EXPECT": [
           "(?P<message>Requesting all membership transactions from __destination__)",
           "(?P<message>Sending transaction to [a-zA-Z0-9]*):\\s*__destination__",
-          "(?P<message>Sending it to the (?P<destination>vault))",
+          "(?P<message>Sending it to the (?P<database>vault))",
           "(?P<message>Recording transaction locally)",
+          "(?P<message>admitted to hospital in state StateMachineState)",
           "(?P<message>.*[Ss]ending it to flow hospital)",
           "(?P<message>Flow error allowed to propagate)",
           "(?P<message>Flow error discharged from hospital).*,\\sactor_owning_identity=__destination__",
@@ -978,7 +920,8 @@
           ".*ERROR.*flow-id=__flow_id__\\s*tx-id=__tx_id__.*(?P<message>SqlExceptionHelper.*)",
           ".*WARN.*(?P<message>Order state is already in use).*actor_owning_identity=__destination__.*flow-id=.*tx_id=.*",
           "flow-id=__flow_id__ tx-id=__tx_id__.*(?P<message>flow - Flow.*responding with ReceiveFinalityFlow) to __destination__",
-          "flow-id=__flow_id__.*(?P<message>flow - Flow.*responding with ReceiveFinalityFlow) to __destination__"
+          "flow-id=__flow_id__.*(?P<message>flow - Flow.*responding with ReceiveFinalityFlow) to __destination__",
+          "(?P<message>Transaction notarised and broadcasting notary signature).*, actor_owning_identity=__destination__, actor_store_id"
         ],
         "FIELDS": [
           "participant:source",
@@ -1015,7 +958,6 @@
           "participant:source",
           "annotation:flow_id",
           "annotation:tx_id",
-          "annotation:vnode_id",
           "note over:message"
         ],
         "MAX_LEN": 50
@@ -1023,8 +965,7 @@
       "note left": {
         "COMMAND": "Note",
         "EXPECT": [
-          "(?P<message>Broadcasted complete transaction to other participants).*actor_owning_identity=__source__.*flow-id=__flow_id__,.*tx_id=__tx_id__",
-          "(?P<message>The following parties received the finalised transaction).*actor_owning_identity=__source__.*flow-id=__flow_id__,.*tx_id=__tx_id__",
+          "(?P<message>The following parties received the finalised transaction: \\[.*\\]) {.*actor_owning_identity=__source__.*flow-id=__flow_id__,.*tx_id=__tx_id__",
           "(?P<message>Node for \\\"[a-zA-Z0-9]+\\\" started up and registered in [0-9.]+ sec)",
 	      "(?P<message>admitted to hospital in state StateMachineState)",
           "(?P<message>received token vault update with \\d+ consumed states and: \\d+ produced states).*flow-id=__flow_id__.*origin=__source__",
@@ -1033,12 +974,12 @@
           "(?P<message>All parties received the transaction)",
           "(?P<message>Receive finality flow sub flow)",
           "(?P<message>Flow \\[__flow_id__\\] admitted to hospital) in",
-          "(?P<message>No need to notarise this transaction.)",
           "(?P<message>Flow error kept for overnight observation)",
           "Flow\\((?P<message>action=[a-z_]+);",
           "(?P<message>Stored new attachment)",
           "(?P<message>Flow \\[__flow_id__\\] failed to be finalised\\..*\\.\\s)",
           "(?P<message>BankRelationshipState).*\\[party.=__source__,party.=__destination__\\],uid.*idMutualAccount=__idMutualAccount__.*,owner=.*,party=__accountOwner__\\],sides.*flow-id=__flow_id__,"
+
         ],
         "FIELDS": [
           "note over:message",
@@ -1089,6 +1030,42 @@
           "allowed to propagate"
         ],
         "MAX_LEN": 64
+      },
+      "self-annotation":  {
+        "COMMAND": "Note",
+        "DESCRIPTION": "This represent annotations for same node",
+        "EXPECT": [
+          "(?P<message>Broadcasted complete transaction to other participants).*actor_owning_identity=__source__.*flow-id=__flow_id__,.*tx_id=__tx_id__",
+          "(?P<message>Broadcasting complete transaction to other participants.)",
+          "(?P<message>Completed collected signatures from \\[.*\\])",
+          "(?P<message>Completed finality flow)",
+          "(?P<message>The following parties received the finalised transaction: \\[.*\\])",
+          "(?P<message>No need to notarise this transaction).*flow-id=__flow_id__",
+          "(?P<message>Counter-flow errored)",
+          "statemachine.FlowCreator. - (?P<message>.*) {actor_id=",
+          "(?P<message>Recorded un-notarised transaction locally)",
+          ".*WARN.*(?P<message>Propagating error).*flow-id=__flow_id__.*tx_id=__tx_id__"
+        ],
+        "FIELDS": [
+          "note over:message",
+          "annotation:flow_id",
+          "annotation:tx_id"
+        ],
+        "MAX_LEN": 64
+      }
+    },
+    "UML_HIGHLIGHT": {
+      "ERRORS": {
+        "UML_COMMAND": [
+          "START|alt#Gold #Pink Error",
+          "BODY|%s",
+          "END|end"
+        ],
+        "EXPECT": [
+          "[Ff]ailure",
+          "[Ee]rror",
+          "admitted to hospital"
+        ]
       }
     },
     "UML_ENTITY": {
@@ -1100,7 +1077,8 @@
             "Node ready, info.*legalIdentitiesAndCerts=\\[__participant__\\]*",
             "Setting status to [A-Z]+ for.*legalIdentitiesAndCerts=\\[__participant__\\]",
             "ourIdentity:__participant__",
-            "\"myLegalName\"\\s*: \"__participant__\""
+            "\"myLegalName\"\\s*: \"__participant__\"",
+            "Sending transaction to notary:.*, actor_owning_identity=__participant__, actor_store_id"
           ],
           "USAGES": {
             "default_source": {
@@ -1113,10 +1091,10 @@
                 "Sending transaction to notary",
                 "Recording transaction locally",
                 "Sending it to flow hospital to be triaged",
-                "responding with ReceiveFinalityFlow to"
+                "responding with ReceiveFinalityFlow to",
+                "Transaction notarised and broadcasting notary signature"
               ],
               "RETURN_OBJECT": [
-                "participant",
                 "participant"
               ],
               "IGNORE": [
@@ -1137,16 +1115,15 @@
                 "Notary responded",
                 ".*SqlExceptionHelper.*",
                 "DAG\\(root=",
-                "Unable to notarise transaction"
+                "Unable to notarise transaction",
+                "Transaction notarised and broadcasting notary signature"
               ],
               "RETURN_OBJECT": [
-                "participant",
-                "participant",
-                "participant",
                 "participant"
               ]
             }
-          }
+          },
+          "UML_REPRESENTATION": "participant"
         },
         "notary": {
           "DESCRIPTION": "This will define if actual object is acting as a Notary",
@@ -1162,7 +1139,6 @@
                 "Received a notarisation request for Tx"
               ],
               "RETURN_OBJECT": [
-                "notary",
                 "notary"
               ]
             },
@@ -1180,7 +1156,8 @@
                 "notary"
               ]
             }
-          }
+          },
+          "UML_REPRESENTATION": "participant"
         },
         "vault": {
           "DESCRIPTION": "This section define database entity (Node Vault)",
@@ -1192,19 +1169,20 @@
                 ".*SqlExceptionHelper.*"
               ],
               "RETURN_OBJECT": [
-                "vault",
-                "vault"
+                "database"
               ]
             },
             "default_destination": {
               "EXPECT": [
-                "Recording transaction locally"
+                "Recording transaction locally",
+                "Sending it to the vault for processing"
               ],
               "RETURN_OBJECT": [
-                "vault"
+                "database"
               ]
             }
-          }
+          },
+          "UML_REPRESENTATION": "database"
         },
         "FlowHospital": {
           "DESCRIPTION": "Define Flow hospital control entity",
@@ -1212,10 +1190,10 @@
             "default_destination": {
               "EXPECT": [
                 "Flow error kept for overnight observation",
-                "[Ss]ending it to flow hospital"
+                "[Ss]ending it to flow hospital",
+                "admitted to hospital in state StateMachineState"
               ],
               "RETURN_OBJECT": [
-                "FlowHospital",
                 "FlowHospital"
               ]
             },
@@ -1231,6 +1209,7 @@
               ]
             }
           },
+          "UML_REPRESENTATION": "control",
           "REGISTER_REFERENCE": {
             "DESCRIPTION": "This section was created to know all flows (in this case) that go into hospital, additionally I will also count all flows going in and out of it",
             "STATE": "error",
@@ -1248,7 +1227,7 @@
       "OBJECTS": {
         "participant": {
           "EXPECT": [
-            "(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"\\{]+)*"
+            "(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"{]+)*"
           ],
           "APPLY_TO": [
             "source",
@@ -1325,7 +1304,7 @@
         },
         "notary": {
           "EXPECT": [
-            "(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"]+)*"
+            "(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"{]+)*"
           ],
           "APPLY_TO": [
             "source",
@@ -1367,12 +1346,14 @@
         "destination": {
           "EXPECT": [
             "vault",
+            "Checkpoint",
             "to notary: __participant__",
             ", actor_owning_identity=__participant__",
             "__participant__"
           ],
           "APPLY_TO": [
-            "participant"
+            "participant",
+            "database"
           ],
           "IGNORE": [
             "Recording transaction locally",
@@ -1403,9 +1384,11 @@
             "note over"
           ]
         },
-        "vnode_id": {
+        "database": {
           "EXPECT": [
-            "[A-Z0-9]{12}"
+            "Sending it to the __destination__ for processing",
+            "persistence.DBCheckpointStorage\\.addCheckpoint - __destination__"
+
           ],
           "APPLY_TO": [
             "note over"
