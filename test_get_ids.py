@@ -105,6 +105,10 @@ def main():
         # message
         file_to_analyse.discover_file_format()
         #
+        # Analyse file for specific block lines that lack of key fields:
+        file_to_analyse.extract_flow_transitions()
+        #
+        #
         # Setup party collection
         #
         # Set actual configuration to use, and create object that will manage "Parties"

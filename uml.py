@@ -1380,7 +1380,6 @@ class CreateUML:
 
         return verified
 
-
     def analyse_uml(self):
         """
         Using corda_object, extract all steps within this object and analyse them to complete essential parts
@@ -1468,7 +1467,6 @@ class CreateUML:
 
                     if ep_check:
                         print(f"   *** Missing {ep_check}")
-
 
     def render_uml(self, title, script_txt, file,generate_uml=True):
 

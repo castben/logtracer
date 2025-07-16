@@ -4,15 +4,11 @@ import json
 import mmap
 import os,re,time
 import threading
-
-from asyncio import as_completed
-from codecs import ignore_errors
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
-from multiprocessing import Pool
 import numpy as np
-
+from typing import List, Tuple, Dict, Optional
 
 class CordaObject:
     """
@@ -1120,7 +1116,7 @@ class FileManagement:
         self.identified_roles = {}
         self.debug = debug
         self.min_percent_merge = min_percent_merge  # Porcentaje mínimo para no fusionar el bloque final
-
+        self.flow_transitions = {} # will keep track of flow transitions, these lines are not processed by multi-trhead process
         if not self.rules:
             self.rules = Configs.get_config_for('CORDA_OBJECT_DEFINITIONS.OBJECTS.participant')
         if not self.parser:
@@ -1297,6 +1293,55 @@ class FileManagement:
             FileManagement.unique_results[element_type][item.reference_id].append(item)
         else:
             FileManagement.unique_results[element_type].setdefault(item.reference_id, item)
+
+    def extract_flow_transitions(self):
+        """
+        This method will try to identify specific lines in the log that
+        include flow data transition, these block of lines lack of proper
+        line key identifiers like timestamp, etc; but contain important
+        information about flow evolution that may be useful to show in
+        a UML diagram...
+        :return:
+        """
+        print("Analysing flow transitions...")
+
+        file_path = self.filename
+        flow_block_start = re.compile(r'^ --- Transition of flow \[([0-9a-f\-]{36})\] ---')
+
+        blocks = []
+        current_block = []
+        current_flow_id = None
+        line_number = 0
+        current_line_number = 0
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line_number += 1
+                match = flow_block_start.match(line)
+                if match:
+                    if current_block:
+                        blocks.append((current_flow_id,current_line_number, current_block))
+                        current_block = []
+                    current_flow_id = match.group(1)
+                    current_line_number = line_number
+                if current_flow_id:
+                    current_block.append(line)
+
+            # Agrega el último bloque si hay uno
+            if current_block:
+                blocks.append((current_flow_id, line_number, current_block))
+
+        for each_block in blocks:
+            flow_id = each_block[0]
+            line = each_block[1]
+            block = each_block[2]
+
+            if flow_id not in self.flow_transitions:
+                self.flow_transitions[flow_id] = []
+
+            self.flow_transitions[flow_id].append((line,block))
+
+        if self.flow_transitions:
+            print(f"Detected {len(self.flow_transitions)} flow transitions")
 
     def assign_roles(self):
         """
@@ -3277,6 +3322,111 @@ class RegexLib:
                             ltr.append(each_dict)
 
             return ltr
+
+class BlockExtractor:
+    def __init__(self, file_path: str):
+        self.file_path = file_path
+
+        # Diccionarios por tipo de bloque
+        self.flow_transitions: Dict[str, List[Tuple[int, List[str]]]] = {}
+        self.error_blocks: List[Tuple[int, List[str]]] = []
+
+        # Patrones regex
+        self.flow_start_re = re.compile(r'^ --- Transition of flow \[([0-9a-f\-]{36})\] ---')
+        self.error_start_re = re.compile(r'^\[(INFO|WARN|ERROR)\s+\]\s+\d{4}-\d{2}-\d{2}T[^\s]+.*Error \d+ of \d+:')
+
+    def extract(self):
+        """
+        Realiza una sola pasada por el archivo para extraer bloques de transición y errores.
+        """
+        current_flow_id: Optional[str] = None
+        current_flow_block: List[str] = []
+        current_flow_line = 0
+        in_flow_block = False
+
+        current_error_block: List[str] = []
+        current_error_line = 0
+        in_error_block = False
+
+        with open(self.file_path, 'r', encoding='utf-8') as f:
+            for line_number, line in enumerate(f, 1):
+                flow_match = self.flow_start_re.match(line)
+                error_match = self.error_start_re.match(line)
+
+                if flow_match:
+                    # Guarda bloque anterior si había
+                    if in_flow_block and current_flow_block:
+                        self._store_flow_block(current_flow_id, current_flow_line, current_flow_block)
+                    # Finaliza error si estaba activo
+                    if in_error_block and current_error_block:
+                        self.error_blocks.append((current_error_line, current_error_block))
+                        current_error_block = []
+
+                    # Inicia nuevo bloque de transición
+                    current_flow_id = flow_match.group(1)
+                    current_flow_line = line_number
+                    current_flow_block = [line]
+                    in_flow_block = True
+                    in_error_block = False
+                    continue
+
+                if error_match:
+                    if in_error_block and current_error_block:
+                        self.error_blocks.append((current_error_line, current_error_block))
+                        current_error_block = []
+
+                    if in_flow_block and current_flow_block:
+                        self._store_flow_block(current_flow_id, current_flow_line, current_flow_block)
+                        current_flow_block = []
+
+                    # Inicia nuevo bloque de error
+                    current_error_line = line_number
+                    current_error_block = [line]
+                    in_error_block = True
+                    in_flow_block = False
+                    continue
+
+                if in_flow_block and not line.startswith('['):
+                    current_flow_block.append(line)
+                    continue
+
+                if in_error_block and not line.startswith('['):
+                    current_error_block.append(line)
+                    continue
+
+                # Línea regular encontrada — termina bloques activos
+                if in_flow_block and current_flow_block:
+                    self._store_flow_block(current_flow_id, current_flow_line, current_flow_block)
+                    current_flow_block = []
+                    in_flow_block = False
+
+                if in_error_block and current_error_block:
+                    self.error_blocks.append((current_error_line, current_error_block))
+                    current_error_block = []
+                    in_error_block = False
+
+        # Guarda últimos bloques si quedaron abiertos
+        if in_flow_block and current_flow_block:
+            self._store_flow_block(current_flow_id, current_flow_line, current_flow_block)
+        if in_error_block and current_error_block:
+            self.error_blocks.append((current_error_line, current_error_block))
+
+    def _store_flow_block(self, flow_id: Optional[str], line_num: int, block: List[str]):
+        if not flow_id:
+            return
+        if flow_id not in self.flow_transitions:
+            self.flow_transitions[flow_id] = []
+        self.flow_transitions[flow_id].append((line_num, block))
+
+    def get_flow_transitions(self) -> Dict[str, List[Tuple[int, List[str]]]]:
+        return self.flow_transitions
+
+    def get_error_blocks(self) -> List[Tuple[int, List[str]]]:
+        return self.error_blocks
+
+    def summary(self):
+        print(f"Detected {len(self.flow_transitions)} flow transitions across {sum(len(v) for v in self.flow_transitions.values())} blocks.")
+        print(f"Detected {len(self.error_blocks)} error blocks.")
 
 
 def get_not_null(list_or_tuple, start=0):
