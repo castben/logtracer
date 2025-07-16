@@ -1258,7 +1258,7 @@ class CreateUML:
 
         # The actual key puede que no este en el diccionario como 'key' pero puede que haya un patron de ellas,
         # por ejemplo varias anotaciones 'annotation_0...' en este caso las busco todas y las retorno como una lista
-        str_pattern = f'^{key}(\|\d+)?$'
+        str_pattern = f'^{key}(|[0-9]+)?$'
         pattern = re.compile(str_pattern)
         if pattern:
             return {k: command_dict[k] for k in command_dict if pattern.match(k)}
