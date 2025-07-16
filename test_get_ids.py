@@ -271,7 +271,7 @@ def main():
         # -l /home/larry/IdeaProjects/logtracer/client-logs/DLT-Service/CS-4010/DLT_suspendMembership.txt
         # 9888363EC1AAF0AAD8B64911D4202EA9ACE288D530B509020ADE326443B305E4
         # 49cea758-40d9-48d2-a4eb-9ce770c307fd
-        co = CordaObject.get_object('7A8AA5E4EEDE4F9ACE10EEBA0078D838B9A02FD45C760B58F8347DF724E4BF94')
+        co = CordaObject.get_object(args.reference)
         test = UMLStepSetup(get_configs(), co)
         test.file = file_to_analyse
         test.parallel_process(co)
@@ -306,6 +306,9 @@ if __name__ == "__main__":
     parserargs = argparse.ArgumentParser()
     parserargs.add_argument('-l', '--log-file',
                             help='Give actual log file to analyse')
+    parserargs.add_argument('-r', '--reference',
+                            help='Reference ID to trace flow-id or tx-id')
+
     args = parserargs.parse_args()
 
     file = main()
