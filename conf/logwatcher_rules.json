@@ -19,6 +19,21 @@
           ]
         }
       },
+      "CUSTOM-test": {
+        "EXPECT": "([0-9-:T.-]*Z)\\s([A-Z]+) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
       "CORDA DEFAULT": {
         "EXPECT": "\\[([A-Z]+)+\\s*\\] (\\d{2}:\\d{2}:\\d{2}\\+[0-9]{4}) (.*)",
         "FIELDS": [
@@ -949,7 +964,6 @@
           "The following (?P<message>parties received the transaction): \\[__source__\\]",
           "__source__ (?P<message>received the transaction)",
           "Received a notarisation request for Tx\\[__tx_id__\\] from \\[__destination__\\]",
-          "(?P<message>successfully notarised, sending signature back to \\[__destination__\\])",
           "Party __destination__ (?P<message>received the transaction).*actor_owning_identity=__source__.*flow-id=__flow_id__.*tx_id=__tx_id__",
           "(?P<message>Caching flow sandbox for __destination__).*, __flow_id__, __vnode_id__"
         ],
