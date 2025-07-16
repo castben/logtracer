@@ -1367,7 +1367,6 @@ class CreateUML:
 
         return note
 
-
     def verify_participant(self, participant):
         """
         Check participant
@@ -1471,7 +1470,9 @@ class CreateUML:
                         print(f"   *** Missing {ep_check}")
 
 
-    def render_uml(title, script_txt, file,generate_uml=True):
+    def render_uml(self, title, script_txt, file,generate_uml=True):
+
+        # TODO: Implementar esta rutina para generar los archivos de imagen
         import subprocess
         global app_path
         # base_dir = os.path.dirname(file)
