@@ -271,7 +271,7 @@ def main():
         # -l /home/larry/IdeaProjects/logtracer/client-logs/DLT-Service/CS-4010/DLT_suspendMembership.txt
         # 9888363EC1AAF0AAD8B64911D4202EA9ACE288D530B509020ADE326443B305E4
         # 49cea758-40d9-48d2-a4eb-9ce770c307fd
-        co = CordaObject.get_object(args.reference) # change here
+        co = CordaObject.get_object(args.reference) # change here for parameter
         test = UMLStepSetup(get_configs(), co)
         test.file = file_to_analyse
         test.parallel_process(co)
