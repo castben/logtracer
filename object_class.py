@@ -2649,6 +2649,8 @@ class Configs:
                     Configs.set_config(config_value=config["UML_CONFIG"], section="UML_CONFIG")
                     Configs.set_config(config_value=config["UML_HIGHLIGHT"], section="UML_HIGHLIGHT")
                     Configs.set_config(config_value=rule_file['VERSION'], section="VERSION")
+                    Configs.set_config(config_value=rule_file["BLOCK_COLLECTION"], section="BLOCK_COLLECTION")
+                    Configs.set_config(config_value=rule_file["FILE_SETUP"], section="FILE_SETUP")
             print("Object definition and rules loaded")
 
         except IOError as io:
