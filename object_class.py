@@ -1116,7 +1116,9 @@ class FileManagement:
         self.identified_roles = {}
         self.debug = debug
         self.min_percent_merge = min_percent_merge  # Porcentaje mínimo para no fusionar el bloque final
-        self.flow_transitions = {} # will keep track of flow transitions, these lines are not processed by multi-trhead process
+        self.special_blocks = {} # Collect all blocks that are not collectable by multithread process
+        self.log_line_regex = None
+
         if not self.rules:
             self.rules = Configs.get_config_for('CORDA_OBJECT_DEFINITIONS.OBJECTS.participant')
         if not self.parser:
@@ -1293,55 +1295,6 @@ class FileManagement:
             FileManagement.unique_results[element_type][item.reference_id].append(item)
         else:
             FileManagement.unique_results[element_type].setdefault(item.reference_id, item)
-
-    def extract_flow_transitions(self):
-        """
-        This method will try to identify specific lines in the log that
-        include flow data transition, these block of lines lack of proper
-        line key identifiers like timestamp, etc; but contain important
-        information about flow evolution that may be useful to show in
-        a UML diagram...
-        :return:
-        """
-        print("Analysing flow transitions...")
-
-        file_path = self.filename
-        flow_block_start = re.compile(r'^ --- Transition of flow \[([0-9a-f\-]{36})\] ---')
-
-        blocks = []
-        current_block = []
-        current_flow_id = None
-        line_number = 0
-        current_line_number = 0
-        with open(file_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                line_number += 1
-                match = flow_block_start.match(line)
-                if match:
-                    if current_block:
-                        blocks.append((current_flow_id,current_line_number, current_block))
-                        current_block = []
-                    current_flow_id = match.group(1)
-                    current_line_number = line_number
-                if current_flow_id:
-                    current_block.append(line)
-
-            # Agrega el último bloque si hay uno
-            if current_block:
-                blocks.append((current_flow_id, line_number, current_block))
-
-        for each_block in blocks:
-            flow_id = each_block[0]
-            line = each_block[1]
-            block = each_block[2]
-
-            if flow_id not in self.flow_transitions:
-                self.flow_transitions[flow_id] = []
-
-            self.flow_transitions[flow_id].append((line,block))
-
-        if self.flow_transitions:
-            print(f"Detected {len(self.flow_transitions)} flow transitions")
 
     def assign_roles(self):
         """
@@ -1687,6 +1640,7 @@ class FileManagement:
                             check_version = re.search(try_version["EXPECT"], each_line)
                             if check_version:
                                 self.logfile_format = each_version
+                                self.log_line_regex = re.compile(try_version["EXPECT"])
                                 print("Log file format recognized as: %s" % self.logfile_format)
                                 break
         except IOError as io:
@@ -2686,6 +2640,7 @@ class Configs:
                         rule.add(each_attribute, rule_file["WATCH_FOR"][each_process][each_rule][each_attribute])
 
                     rule.register()
+
                     config = rule_file['UML_SETUP']
                     Configs.set_config(config_value=config["CORDA_OBJECTS"], section="CORDA_OBJECTS")
                     Configs.set_config(config_value=config["CORDA_OBJECT_DEFINITIONS"], section="CORDA_OBJECT_DEFINITIONS")
