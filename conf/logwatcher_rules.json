@@ -759,6 +759,47 @@
       }
     }
   },
+  "FILE_SETUP": {
+    "FORMATS": {
+      "TIMESTAMP": [
+        "%Y-%m-%dT%H:%M:%S,%fZ",
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S,%f",
+        "%Y-%m-%d %H:%M:%S,%f",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%d/%b/%Y:%H:%M:%S %z",
+        "%Y/%m/%d %H:%M:%S",
+        "%d-%b-%Y %H:%M:%S",
+        "%Y%m%d %H:%M:%S"
+      ]
+    }
+  },
+  "BLOCK_COLLECTION": {
+    "COLLECT": {
+      "FLOW_TRANSITIONS": {
+        "START": {
+          "EXPECT": [
+            "^ --- Transition of flow \\[(?P<reference>[0-9a-f\\-]{36})\\] ---"
+          ]
+        },
+        "END": {
+          "EXPECT": []
+        },
+        "REFERENCE_ID": "reference"
+      },
+      "ERRORS": {
+        "START": {
+          "EXPECT": [
+            "^\\[(INFO|WARN|ERROR)\\s+\\]\\s+\\d{4}-\\d{2}-\\d{2}T[^\\s]+.*Error \\d+ of \\d+:"
+          ]
+        },
+        "END": {
+          "EXPECT": []
+        }
+      }
+    }
+  },
   "UML_SETUP": {
     "UML_CONFIG": {
       "DESCRIPTION": "Setup initial configuration for UML representation",
