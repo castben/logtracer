@@ -3280,111 +3280,150 @@ class RegexLib:
 
             return ltr
 
+class BlockItems:
+    """
+    Items that conform a block of useful collected data
+    """
+
+    def __init__(self):
+        """
+        Represents a block of related log lines, such as a flow transition or a stack trace error.
+        """
+        self.timestamp: Optional[str] = None
+        self.line_number: Optional[int] = None
+        self.reference: Optional[str] = None
+        self.content: List[str] = []
+        self.type: Optional[str] = None
+        # self.block_collection_type = Configs.get_config_for('BLOCK_COLLECTION.COLLECT')
+
+    def __str__(self):
+        return f"[{self.type} @ line {self.line_number}] {len(self.content)} lines"
+
+
 class BlockExtractor:
-    def __init__(self, file_path: str):
-        self.file_path = file_path
+    """
+    Extracts structured blocks from a log file, driven by regex patterns defined in a config dictionary.
+    """
+    def __init__(self, file_mgm: FileManagement, config: Dict):
+        self.file_path = file_mgm.filename
+        self.config = config
+        # self.collected_blocks: Dict[str, List[BlockItems]] = {}
+        self.collected_blocks = {}
+        self.log_line_start_regex = file_mgm.log_line_regex
 
-        # Diccionarios por tipo de bloque
-        self.flow_transitions: Dict[str, List[Tuple[int, List[str]]]] = {}
-        self.error_blocks: List[Tuple[int, List[str]]] = []
+        # Parse and compile block patterns from config
+        self.block_types = config.get("BLOCK_COLLECTION", {}).get("COLLECT", {})
+        self.compiled_patterns = {
+            block_name: {
+                "start": [re.compile(p) for p in block_def["START"]["EXPECT"]],
+                "end": [re.compile(p) for p in block_def.get("END", {}).get("EXPECT", [])]
+            }
+            for block_name, block_def in self.block_types.items()
+        }
 
-        # Patrones regex
-        self.flow_start_re = re.compile(r'^ --- Transition of flow \[([0-9a-f\-]{36})\] ---')
-        self.error_start_re = re.compile(r'^\[(INFO|WARN|ERROR)\s+\]\s+\d{4}-\d{2}-\d{2}T[^\s]+.*Error \d+ of \d+:')
+        # Extract reference keys (e.g., flow_id) from config
+        self.references = {}
+        for each_type in self.block_types:
+            if "REFERENCE_ID" in self.block_types[each_type]:
+                self.references[each_type] = self.block_types[each_type]['REFERENCE_ID']
+
+    def _is_log_line_start(self, line: str) -> bool:
+        if self.log_line_start_regex:
+            return bool(self.log_line_start_regex.match(line))
+        return line.startswith("[")
 
     def extract(self):
         """
-        Realiza una sola pasada por el archivo para extraer bloques de transición y errores.
+        Parses the file and extracts blocks based on the configured patterns.
         """
-        current_flow_id: Optional[str] = None
-        current_flow_block: List[str] = []
-        current_flow_line = 0
-        in_flow_block = False
-
-        current_error_block: List[str] = []
-        current_error_line = 0
-        in_error_block = False
-
+        print("Analysis of blocks...")
+        current_blocks: Dict[str, BlockItems] = {}
+        in_block: Dict[str, bool] = {key: False for key in self.block_types}
+        line_check = 0 # check how many lines were taking in account after a block indentification...
         with open(self.file_path, 'r', encoding='utf-8') as f:
             for line_number, line in enumerate(f, 1):
-                flow_match = self.flow_start_re.match(line)
-                error_match = self.error_start_re.match(line)
 
-                if flow_match:
-                    # Guarda bloque anterior si había
-                    if in_flow_block and current_flow_block:
-                        self._store_flow_block(current_flow_id, current_flow_line, current_flow_block)
-                    # Finaliza error si estaba activo
-                    if in_error_block and current_error_block:
-                        self.error_blocks.append((current_error_line, current_error_block))
-                        current_error_block = []
+                for block_name, patterns in self.compiled_patterns.items():
+                    # Start match with access to match object
+                    for p in patterns["start"]:
+                        match = p.match(line)
+                        if match:
+                            reference_key = self.references.get(block_name)
+                            blk = BlockItems()
+                            blk.line_number = line_number
+                            blk.type = block_name
 
-                    # Inicia nuevo bloque de transición
-                    current_flow_id = flow_match.group(1)
-                    current_flow_line = line_number
-                    current_flow_block = [line]
-                    in_flow_block = True
-                    in_error_block = False
-                    continue
+                            if reference_key and reference_key in match.groupdict():
+                                blk.reference = match.group(reference_key)
+                            # if there're no explicit reference to pick up, let's assign line number as reference.
+                            if not reference_key:
+                                blk.reference = f"{line_number}"
 
-                if error_match:
-                    if in_error_block and current_error_block:
-                        self.error_blocks.append((current_error_line, current_error_block))
-                        current_error_block = []
+                            if line not in blk.content:
+                                blk.content.append(line)
 
-                    if in_flow_block and current_flow_block:
-                        self._store_flow_block(current_flow_id, current_flow_line, current_flow_block)
-                        current_flow_block = []
+                            if in_block.get(block_name) and current_blocks.get(block_name):
+                                self._store_block(block_name, current_blocks[block_name])
 
-                    # Inicia nuevo bloque de error
-                    current_error_line = line_number
-                    current_error_block = [line]
-                    in_error_block = True
-                    in_flow_block = False
-                    continue
+                            current_blocks[block_name] = blk
+                            in_block[block_name] = True
+                            break  # Stop checking further patterns for this line
 
-                if in_flow_block and not line.startswith('['):
-                    current_flow_block.append(line)
-                    continue
+                    # End match (optional)
+                    if in_block.get(block_name) and patterns["end"]:
+                        if any(p.match(line) for p in patterns["end"]):
+                            current_blocks[block_name].content.append(line)
+                            self._store_block(block_name, current_blocks[block_name])
+                            in_block[block_name] = False
+                            continue
 
-                if in_error_block and not line.startswith('['):
-                    current_error_block.append(line)
-                    continue
+                    # Inside block logic
+                    if in_block.get(block_name):
+                        if not self._is_log_line_start(line):
+                            if line not in current_blocks[block_name].content:
+                                current_blocks[block_name].content.append(line)
+                            continue
+                        else:
+                            # Force collection, actual block contents has not stacktrace, or any other
+                            # information, so get next line...
+                            if len(current_blocks[block_name].content) < 2 and line_check == 0:
+                                line_check += 1
+                                continue
 
-                # Línea regular encontrada — termina bloques activos
-                if in_flow_block and current_flow_block:
-                    self._store_flow_block(current_flow_id, current_flow_line, current_flow_block)
-                    current_flow_block = []
-                    in_flow_block = False
+                            # Found a new log line while in a block: close current block first
+                            self._store_block(block_name, current_blocks[block_name])
+                            in_block[block_name] = False
+                            line_check = 0
+                            # Do NOT continue: this line may start another block
 
-                if in_error_block and current_error_block:
-                    self.error_blocks.append((current_error_line, current_error_block))
-                    current_error_block = []
-                    in_error_block = False
+                    # Implicit end of block
+                    if in_block.get(block_name):
+                        self._store_block(block_name, current_blocks[block_name])
+                        in_block[block_name] = False
 
-        # Guarda últimos bloques si quedaron abiertos
-        if in_flow_block and current_flow_block:
-            self._store_flow_block(current_flow_id, current_flow_line, current_flow_block)
-        if in_error_block and current_error_block:
-            self.error_blocks.append((current_error_line, current_error_block))
+        # Store remaining open blocks
+        for block_name, blk in current_blocks.items():
+            if in_block.get(block_name) and blk.content:
+                self._store_block(block_name, blk)
 
-    def _store_flow_block(self, flow_id: Optional[str], line_num: int, block: List[str]):
-        if not flow_id:
-            return
-        if flow_id not in self.flow_transitions:
-            self.flow_transitions[flow_id] = []
-        self.flow_transitions[flow_id].append((line_num, block))
+        pass
 
-    def get_flow_transitions(self) -> Dict[str, List[Tuple[int, List[str]]]]:
-        return self.flow_transitions
+    def _store_block(self, block_type: str, blk: BlockItems):
+        if block_type not in self.collected_blocks:
+            self.collected_blocks[block_type] = {}
+        if blk.reference not in self.collected_blocks[block_type]:
+            self.collected_blocks[block_type][blk.reference] = []
 
-    def get_error_blocks(self) -> List[Tuple[int, List[str]]]:
-        return self.error_blocks
+        self.collected_blocks[block_type][blk.reference].append(blk)
+
+
+
+    def get_blocks(self, block_type: str) -> List[BlockItems]:
+        return self.collected_blocks.get(block_type, [])
 
     def summary(self):
-        print(f"Detected {len(self.flow_transitions)} flow transitions across {sum(len(v) for v in self.flow_transitions.values())} blocks.")
-        print(f"Detected {len(self.error_blocks)} error blocks.")
-
+        for block_type, blocks in self.collected_blocks.items():
+            print(f"{block_type}: {len(blocks)} blocks collected.")
 
 def get_not_null(list_or_tuple, start=0):
     """
@@ -3473,7 +3512,7 @@ def saving_tracing_ref_data(data, log_file):
 
     return
 
-def get_log_format(line, file):
+def get_log_format(line, file: FileManagement):
     """
     Will return log format found on the file
     :param line: log line to check
@@ -3489,6 +3528,7 @@ def get_log_format(line, file):
         check_format = re.search(check_versions[each_version]["EXPECT"], line)
         if check_format:
             file.logfile_format = each_version
+            file.log_line_regex = re.compile(check_versions[each_version]["EXPECT"])
             break
 
     return file.logfile_format
