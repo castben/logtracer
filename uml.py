@@ -405,16 +405,7 @@ class UMLStepSetup:
         Soporta múltiples formatos comunes en logs.
         """
         # Lista de formatos posibles
-        formats = [
-            "%Y-%m-%dT%H:%M:%S,%fZ",       # '2020-07-07T08:24:20,016Z'
-            "%Y-%m-%dT%H:%M:%S.%fZ",       # '2020-07-07T08:24:20.016Z'
-            "%Y-%m-%d %H:%M:%S,%f",        # '2020-07-07 08:24:20,016'
-            "%Y-%m-%d %H:%M:%S.%f",        # '2020-07-07 08:24:20.016'
-            "%d/%b/%Y:%H:%M:%S %z",        # '07/Jul/2020:08:24:20 +0000'
-            "%Y/%m/%d %H:%M:%S",           # '2020/07/07 08:24:20'
-            "%d-%b-%Y %H:%M:%S",           # '07-Jul-2020 08:24:20'
-            "%Y%m%d %H:%M:%S",             # '20200707 08:24:20'
-        ]
+        formats = Configs.get_config_for('FILE_SETUP.FORMATS.TIMESTAMP')
 
         for fmt in formats:
             try:
@@ -427,7 +418,7 @@ class UMLStepSetup:
                 continue
 
         # Si ningún formato funciona
-        raise ValueError(f"No se pudo parsear el timestamp: {timestamp_str}")
+        raise ValueError(f"Unable to parse this timestamp: {timestamp_str}, please a parsing format at JSON file")
 
 
     def set_element_type(self, element_type):
@@ -459,16 +450,12 @@ class UMLStepSetup:
 
     def process_uml_chunk(self, chunk: Dict[int, str]):
         """Procesa un bloque del diccionario y genera los UMLSteps"""
-        print(f"Procesando bloque de {len(chunk)} líneas en hilo: {threading.current_thread().name}")
-        print(f'Starting line: {list(chunk.keys())[0]} - ending line: {list(chunk.keys())[len(chunk)-1]}')
+        print(f"[{threading.current_thread().name}]: {len(chunk)} "
+              f"steps processed: {list(chunk.keys())[0]} - {list(chunk.keys())[len(chunk)-1]}" )
+
         for line_num, line in chunk.items():
-            # Aquí iría tu lógica real de parsing:
             # uml_step = parse_line_to_uml_step(line)
             self.check_for_uml_step(line, line_num)
-
-
-        # Guardar resultados, si aplica...
-
 
     @staticmethod
     def chunked_dict(data: Dict[int, str], chunk_size: int):
@@ -521,7 +508,7 @@ class UMLStepSetup:
                     self.process_uml_chunk(chunk)
                     queue.task_done()
                 except Exception as e:
-                    print(f"Error procesando bloque: {e}")
+                    print(f"Error processing block: {e}")
                     queue.task_done()
 
         # Crear y lanzar hilos
@@ -534,7 +521,7 @@ class UMLStepSetup:
         # Esperar a que todos los bloques se procesen
         queue.join()
         self.cordaobject.uml_steps = UMLStepSetup.sort_uml_steps(self.cordaobject.uml_steps)
-        print("✅ Todos los bloques han sido procesados.")
+        print("✅ Done")
 
     @staticmethod
     def sort_uml_steps(uml_dict):
@@ -1100,7 +1087,7 @@ class CreateUML:
         self.uml('uml_start', instruction=CreateUML.verified_participants)
         # Opcional: otros elementos comunes (ej: estilo, temas, etc.)
 
-    def generate_uml_pages(self, steps_per_page=25, output_prefix="uml_page"):
+    def generate_uml_pages(self, client_name, steps_per_page=25, output_prefix="uml_page"):
         """
         Genera múltiples archivos UML, uno por página
 
@@ -1114,7 +1101,16 @@ class CreateUML:
         # Obtener todos los pasos UML
         uml_objects = self.corda_object.get_uml()
 
-        # Before creating blocks I need to pull information about time used from first time reference appears
+
+        app_path = os.path.dirname(os.path.abspath(__file__))
+
+        save_path = f"{app_path}/plugins/plantuml_cmd/data/{client_name}"
+
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        # Before creating blocks I need to pull information about time used
+        # from first time reference appears
         # until last line; basically will need to build 'title' header
         if Configs.get_config(section="UML_CONFIG", param="title"):
             line_keys = sorted(uml_objects.keys())
@@ -1146,12 +1142,12 @@ class CreateUML:
         # Generar cada página
         for i, chunk in enumerate(chunks, 1):
             page_script = self.create_script(chunk, include_header=True, page=i)
-            filename = f"{output_prefix}_{i}.puml"
+            filename = f"{save_path}/{output_prefix}_page_{i}.puml"
             with open(filename, "w") as f:
                 f.write("\n".join(page_script))
             generated_files.append(filename)
 
-        print(f"✅ Generados {len(generated_files)} archivos UML")
+        print(f"✅ {len(generated_files)} UML files created")
         return generated_files
 
     def optimize_highlight_blocks(self, section):
@@ -1395,8 +1391,13 @@ class CreateUML:
             # Batch contains a list of UMLs so I need to see one by one
             for each_step in self.corda_object.get_uml(each_batch):
                 print(f"{each_batch}: {each_step.get(UMLStep.Attribute.UML_COMMAND)}")
+
                 # Analyse given UML so it define initial fields, like source, destination, participants, message, etc
                 each_step.analyse()
+                if ('note' in each_step.get(UMLStep.Attribute.UML_COMMAND) or
+                        'self-annotation' in each_step.get(UMLStep.Attribute.UML_COMMAND)) :
+                    print(f'   `---> message: {each_step.get(UMLStep.Attribute.FIELDS)["message"]}')
+
                 # Prepare a dictionary to gather endpoints, with this I will know if an endpoint is missing (either
                 # source or destination)
                 end_point_step = {}

@@ -1,16 +1,14 @@
 #!./system/bin/python
 import cProfile
 # Program to test extraction and validation of X500 names.
-
 import os
 import argparse
 from get_refIds import GetRefIds
-from object_class import Configs, X500NameParser, FileManagement
-from object_class import CordaObject,saving_tracing_ref_data
-# from tracer_id import TracerId
+from object_class import Configs, FileManagement, BlockExtractor
+from object_class import CordaObject
 from get_parties import GetParties
-from uml import UMLEntityEndPoints, UMLEntity, UMLStepSetup, CreateUML
-from tracer_id import TracerId
+from uml import UMLEntityEndPoints, UMLStepSetup, CreateUML
+
 
 
 # import cProfile
@@ -18,56 +16,6 @@ from tracer_id import TracerId
 
 def get_configs():
     return Configs
-
-# def analyse(file_object):
-#     """
-#     FileObject contains all information required
-#     :param file_object: container with all information required
-#     :return:
-#     """
-#     #
-#     # Store all steps where flow/transaction has beeb "seen", this dictionary will have a reference_id
-#     # representing either a tx id or flow id; and a list of umlsteps where this reference has been seen.
-#     # uml_steps={}
-#     #
-#     # Interact through all transaction and flow list
-#     #
-#     for each_item in file_object.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS):
-#         # If this each_item, has references, which means flow/transaction was found in other lines,
-#         # then lest compile all UML steps for this item.
-#         #
-#         # Take very first line and search for its uml_step; and add it into stack
-#         first_step = file_object.get_element(CordaObject.Type.UML_STEPS, each_item.line_number)
-#         if first_step:
-#             first_step.set(UMLStep.Attribute.TYPE, each_item.type)
-#             first_step.set(UMLStep.Attribute.ID, each_item.reference_id)
-#             first_step.add()
-#             # uml_steps[each_item.reference_id] = []
-#             # uml_steps[each_item.reference_id].append(first_step)
-#
-#         if each_item.references:
-#             for each_reference in each_item.references:
-#                 if each_reference in file_object.get_all_unique_results(CordaObject.Type.UML_STEPS, False):
-#                     # Get next uml_step from all references
-#                     uml_step = file_object.get_element(CordaObject.Type.UML_STEPS, each_reference)
-#                     if isinstance(uml_step, list):
-#
-#                         for each_step in uml_step:
-#                             if not each_step.get(UMLStep.Attribute.TYPE) and not each_step.get(UMLStep.Attribute.ID):
-#                                 each_step.set(UMLStep.Attribute.TYPE, each_item.type)
-#                                 each_step.set(UMLStep.Attribute.ID, each_item.reference_id)
-#
-#                         UMLStep.set_direct_list(each_reference, uml_step)
-#                         continue
-#                     else:
-#                         uml_step.set(UMLStep.Attribute.TYPE, each_item.type)
-#                         uml_step.set(UMLStep.Attribute.ID, each_item.reference_id)
-#
-#                     uml_step.add()
-#
-#         # with all steps collected for each object;
-
-
 
 def print_parties():
 
@@ -105,8 +53,11 @@ def main():
         # message
         file_to_analyse.discover_file_format()
         #
-        # Analyse file for specific block lines that lack of key fields:
-        file_to_analyse.extract_flow_transitions()
+        # Analyse file for specific block lines that lack of key fields (like stack traces, and flow transitions):
+
+        special_blocks = BlockExtractor(file_to_analyse, Configs.config)
+        special_blocks.extract()
+        special_blocks.summary()
         #
         #
         # Setup party collection
@@ -126,11 +77,7 @@ def main():
         collect_refIds.set_file(file_to_analyse)
         # Set specific type of element we are going to extract
         collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
-        # Now setting up analysis to check if current line is candidate for UML steps
-        # collect_uml_steps = UMLStepSetup(Configs)
-        #
-        # Set element type for this task:
-        # collect_uml_steps.set_element_type(CordaObject.Type.UML_STEPS)
+
         # Pre-analyse the file_to_analyse to figure out how to read it, if file_to_analyse is bigger than blocksize then file_to_analyse will be
         # Divided by chunks and will be created a thread for each one of them to read it
         file_to_analyse.pre_analysis() # Calculate on fly proper chunk sizes to accommodate lines correctly
@@ -148,12 +95,9 @@ def main():
         # Clean up old processes:
         file_to_analyse.remove_process_to_execute(CordaObject.Type.PARTY)
         file_to_analyse.remove_process_to_execute(CordaObject.Type.FLOW_AND_TRANSACTIONS)
-        # Setup new process to run
-        # file_to_analyse.add_process_to_execute(collect_uml_steps)
-        # file_to_analyse.parallel_processing()
+
         # Stopping timewatch process and get time spent
         time_msg = file_to_analyse.start_stop_watch('Main-search', False)
-        # file_to_analyse.remove_process_to_execute(collect_uml_steps)
 
         if file_to_analyse.result_has_element(CordaObject.Type.PARTY):
             print('Setting up roles automatically...')
@@ -275,12 +219,30 @@ def main():
         # -l /home/larry/IdeaProjects/logtracer/client-logs/DLT-Service/CS-4010/DLT_suspendMembership.txt
         # 9888363EC1AAF0AAD8B64911D4202EA9ACE288D530B509020ADE326443B305E4
         # 49cea758-40d9-48d2-a4eb-9ce770c307fd
-        co = CordaObject.get_object(args.reference) # change here for parameter
+
+        ref_id = args.reference
+
+        if not ref_id:
+            while True:
+                ref_id = input('Reference to trace: ')
+                if ref_id or not ref_id:
+                    break
+
+        if not ref_id:
+            return file_to_analyse
+
+
+        co = CordaObject.get_object(ref_id) # change here for parameter
+        if not co:
+            print("Sorry but there's not information about {ref_id}...")
+            print("Exiting...")
+            return None
+
         test = UMLStepSetup(get_configs(), co)
         test.file = file_to_analyse
         test.parallel_process(co)
         c_uml = CreateUML(co, file_to_analyse)
-        script = c_uml.generate_uml_pages()
+        script = c_uml.generate_uml_pages(client_name='test', output_prefix=ref_id)
         print("\n".join(script))
         ##########################
         return file_to_analyse
