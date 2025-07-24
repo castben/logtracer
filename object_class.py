@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 import numpy as np
 from typing import List, Tuple, Dict, Optional
+from log_handler import write_log
 
 class CordaObject:
     """
@@ -276,7 +277,7 @@ class CordaObject:
         relation = Configs.get_config("IDENTIFICATION", self.type, "OBJECT")
 
         if not relation:
-            print("No relationship defined for %s" % self.type)
+            write_log("No relationship defined for %s" % self.type)
             return None
 
         return relation
@@ -457,11 +458,11 @@ class CordaObject:
 
 
                     else:
-                        print("Unable to attach default usages for '%s': %s" % (each_crole, participant))
-                        print("Configuration file is not having this config section!")
+                        write_log("Unable to attach default usages for '%s': %s" % (each_crole, participant))
+                        write_log("Configuration file is not having this config section!")
                 else:
-                    print("There's no config section for '%s' unable to define default properly" % (each_crole,))
-                    print("Default destination/source will be shown as 'None' at UML")
+                    write_log("There's no config section for '%s' unable to define default properly" % (each_crole,))
+                    write_log("Default destination/source will be shown as 'None' at UML")
 
         # Check if this participant has extra endpoints to attach (A notary for example)
         #
@@ -569,7 +570,7 @@ class CordaObject:
                                             extract_field = each_field_def.split(":")[1]
                                         else:
                                             extract_field = each_field_def
-                                            print("Warning: This definition is missing proper labels on regex\n"
+                                            write_log("Warning: This definition is missing proper labels on regex\n"
                                                   "%s" % each_expect)
 
                                         # if value for this field already exist on the EXPECTED (default one) then
@@ -581,9 +582,9 @@ class CordaObject:
                                             uml_step[each_uml_definition] = uml_rtn
 
                                     if not uml_set:
-                                        print("Warning unable to set proper values for group %s, not UML group"
+                                        write_log("Warning unable to set proper values for group %s, not UML group"
                                               " set on '%s' definition" % (each_field, each_uml_definition))
-                                        print("Offending line: \n%s" % original_line)
+                                        write_log("Offending line: \n%s" % original_line)
 
                 else:
                     #
@@ -592,9 +593,9 @@ class CordaObject:
                     #  un grupo amenos que no tenga la definicion de grupo en el "EXPECT" lo cual seria un error
                     for each_field in uml_definition[each_uml_definition]["FIELDS"]:
                         if grp > len(match.groups()):
-                            print("Warning: There's no group to cover %s definition on '%s' setting...!" %
+                            write_log("Warning: There's no group to cover %s definition on '%s' setting...!" %
                                   (each_field, each_uml_definition))
-                            print("Scanned line:\n %s" % (original_line,))
+                            write_log("Scanned line:\n %s" % (original_line,))
                         else:
                             ignore = False
                             if 'IGNORE' in uml_definition[each_uml_definition]:
@@ -672,7 +673,7 @@ class CordaObject:
                     if expect_list is None:
                         # This mean there's no definition how to get this field out from source log line, which is an
                         # error
-                        print("ERROR: I can't find proper definition of 'EXPECT' for %s please check this"
+                        write_log("ERROR: I can't find proper definition of 'EXPECT' for %s please check this"
                               " as this will impact my ability to get proper UML definitions for current log" %
                               each_required_field)
                         continue
@@ -809,7 +810,7 @@ class CordaObject:
                                                                   param="OBJECTS",
                                                                   sub_param=each_default)['USAGES'])
                             # for each_endpoint in uml_defaults[each_default]["USAGES"]:
-                            # print("Fuera del loop...")
+                            # write_log("Fuera del loop...")
                             for each_endpoint in entity_list:
                                 if "RETURN_OBJECT" in uml_defaults[each_default]["USAGES"][each_endpoint]:
                                     return_object = uml_defaults[each_default]["USAGES"][each_endpoint]["RETURN_OBJECT"]
@@ -818,8 +819,8 @@ class CordaObject:
 
                                             # for each_usage in uml_defaults[each_default]['USAGES']:
                                             for each_usage in entity_list:
-                                                # print("Segundo loop test dict:", entity_list.keys())
-                                                # print("Segundo loop org dict:",
+                                                # write_log("Segundo loop test dict:", entity_list.keys())
+                                                # write_log("Segundo loop org dict:",
                                                 # uml_defaults[each_default]['USAGES'].keys())
                                                 if match.group(each_return_object) not in \
                                                         CordaObject.default_uml_endpoints:
@@ -930,8 +931,8 @@ class CordaObject:
         if "field_name" not in creference:
             object_type = CordaObject.get_type_for(self.data["id_ref"])
             if not object_type:
-                print("Object without any type defined: %s" % self.data["id_ref"])
-                print("Found in this line %s: %s" % (line, creference))
+                write_log("Object without any type defined: %s" % self.data["id_ref"])
+                write_log("Found in this line %s: %s" % (line, creference))
                 return
 
             # Analyse UML -- Create UML step
@@ -956,9 +957,9 @@ class CordaObject:
 
                     if analysis_group:
                         if len(analysis_group.groups()) > len(corda_object_reference["EXPECT"][each_regex_analysis]):
-                            print("Unable to extract status properly; analysis has more group than defined fields")
-                            print("Analysis group regex: '%s'" % each_regex_analysis)
-                            print("expected groups: %s vs %s group found" %
+                            write_log("Unable to extract status properly; analysis has more group than defined fields")
+                            write_log("Analysis group regex: '%s'" % each_regex_analysis)
+                            write_log("expected groups: %s vs %s group found" %
                                   (len(corda_object_reference["EXPECT"][each_regex_analysis]),
                                    analysis_group.groups()))
                             continue
@@ -1102,6 +1103,17 @@ class FileManagement:
     unique_results = {}
 
     def __init__(self, filename, block_size_in_mb, debug=False,scan_lines=50,min_percent_merge=15):
+        """
+        Class created to manage all file operations. This class will help to process large files spliting them into
+        blocks and starting up a thread per block.
+        :param filename: Path to file
+        :param block_size_in_mb: max blocksize of file, if it is bigger than 1 blocksize, it will be split using
+        this value
+        :param debug: will show debug message during procesing
+        :param scan_lines: number of lines program will scan initially to detect log layout
+        :param min_percent_merge: this will specify which percentage will be used to merge a block (in case block is too
+        small to be left as a single block, this correct issues like launching a single thread to check a single line)
+        """
         self.filename = filename
         self.block_size = block_size_in_mb * 1024 * 1024
         self.logfile_format = None
@@ -1227,7 +1239,7 @@ class FileManagement:
             else:
                 return FileManagement.unique_results[element_type]
         else:
-            print(f'Error: Unable to retrieve elements for type {element_type}')
+            write_log(f'Error: Unable to retrieve elements for type {element_type}')
             return None
 
     @staticmethod
@@ -1354,11 +1366,11 @@ class FileManagement:
         file_size = os.path.getsize(self.filename)
         fsize = file_size / 1024 / 1024
         bsize = self.block_size / 1024 / 1024
-        print(f'Block size for reading: {bsize:.2f} Mbytes')
-        print(f'Pre-analysing file size {fsize:.2f} Mbytes calculating block sizes')
+        write_log(f'Block size for reading: {bsize:.2f} Mbytes')
+        write_log(f'Pre-analysing file size {fsize:.2f} Mbytes calculating block sizes')
 
         if self.block_size > file_size:
-            print(f'Adjusting blocksize to {fsize:.2f}Mb because blocksize given({bsize:.2f}Mb) is too big')
+            write_log(f'Adjusting blocksize to {fsize:.2f}Mb because blocksize given({bsize:.2f}Mb) is too big')
             self.block_size = file_size
 
         line_counter = 1
@@ -1411,9 +1423,9 @@ class FileManagement:
                     line_counter += lines_in_chunk
                     file.seek(end_pos)
 
-                    print(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
+                    write_log(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
 
-        print(f'Will launch {len(self.chunk_info)} threads to read full file...')
+        write_log(f'Will launch {len(self.chunk_info)} threads to read full file...')
 
     def add_process_to_execute(self, method):
         """
@@ -1428,7 +1440,7 @@ class FileManagement:
             method_type = method.type
 
         self.parallel_process[method_type] = method
-        print(f"Searching for {method_type}...")
+        write_log(f"Searching for {method_type}...")
 
     def remove_process_to_execute(self, method_type):
         """
@@ -1442,7 +1454,7 @@ class FileManagement:
 
         if method_type in self.parallel_process:
             del self.parallel_process[method_type]
-            print(f"{method_type} search complete.")
+            write_log(f"{method_type} search complete.")
 
     def clean_all_processes_to_execute(self):
         self.parallel_process = {}
@@ -1492,7 +1504,7 @@ class FileManagement:
                 for line in lines:
                     for each_method in self.get_methods_type():
                         result = self.get_method(each_method).execute(line, current_line)
-                        #print(f"{each_method} -- {result}")
+                        #write_log(f"{each_method} -- {result}")
                         if each_method == 'Party':
                             # if method running is related to parties, line below will run an extra
                             # analysis on that line to see if this line is able to identify a role (like owner of log
@@ -1511,7 +1523,7 @@ class FileManagement:
         if local_results:
             with self.lock:
                 for each_method in self.get_methods_type():
-                    print(f"Saving {each_method}...")
+                    write_log(f"Saving {each_method}...")
                     for each_result in local_results[each_method]:
                         FileManagement.add_element(each_method, each_result)
 
@@ -1546,7 +1558,7 @@ class FileManagement:
                 thread_index = future.thread_index
                 time_msg = self.start_stop_watch(f'Thread-{thread_index}', start=False)
                 data = future.info / (1024 * 1024)  # Processed data calculation
-                print(f"Thread {thread_index} completed in {time_msg}, "
+                write_log(f"Thread {thread_index} completed in {time_msg}, "
                       f"Processed {data:.2f} Mbytes, from line {tasks[thread_index][2]} to line {tasks[thread_index][3]}")
 
     def parallel_processingX(self):
@@ -1571,7 +1583,7 @@ class FileManagement:
                 # elapsed_time = time.time() - future.start_time
                 data = future.info / 1024 / 1024
                 if self.debug:
-                    print(f"Thread {thread_index} completed in {time_msg} Processed {data:.2f} Mbytes, "
+                    write_log(f"Thread {thread_index} completed in {time_msg} Processed {data:.2f} Mbytes, "
                           f"from line {tasks[thread_index][2]} to line {tasks[thread_index][3]}")
 
     def set_file_format(self, file_format):
@@ -1616,11 +1628,11 @@ class FileManagement:
 
                     if any(matches):
                         self.logfile_format = next((version for match, version in zip(matches, versions) if match), "UNKNOWN")
-                        print("Log file format recognized as: %s" % self.logfile_format)
+                        write_log("Log file format recognized as: %s" % self.logfile_format)
                 else:
                     self.logfile_format = "UNKNOWN"
         except IOError as io:
-            print(f'Unable to open {self.filename} due to {io}')
+            write_log(f'Unable to open {self.filename} due to {io}')
             exit(0)
 
     def discover_file_format(self):
@@ -1641,10 +1653,10 @@ class FileManagement:
                             if check_version:
                                 self.logfile_format = each_version
                                 self.log_line_regex = re.compile(try_version["EXPECT"])
-                                print("Log file format recognized as: %s" % self.logfile_format)
+                                write_log("Log file format recognized as: %s" % self.logfile_format)
                                 break
         except IOError as io:
-            print(f'Unable to open {self.filename} due to {io}')
+            write_log(f'Unable to open {self.filename} due to {io}')
             exit(0)
 
     @staticmethod
@@ -1655,10 +1667,10 @@ class FileManagement:
                 role = f'{each_id.get_corda_role()}'
             else:
                 role = 'party'
-            print(f"[{index+1:>3}] [{role:^11}] {each_id.name}")
+            write_log(f"[{index+1:>3}] [{role:^11}] {each_id.name}")
             if each_id.has_alternate_names():
                 for each_alternate_name in each_id.get_alternate_names():
-                    print(f"              `-->  {each_alternate_name}")
+                    write_log(f"              `-->  {each_alternate_name}")
 
 class Party:
     """
@@ -1734,7 +1746,7 @@ class Party:
         :type rules_set: set rules used to validate a x500 name
         :return: Party object with given name
         """
-        print('Creating new party:')
+        write_log('Creating new party:')
         att_list = []
         for each_attribute in rules_set['RULES']['supported-attributes']:
             att = input(f'   * {each_attribute}=')
@@ -1747,7 +1759,7 @@ class Party:
 
         party.set_corda_role(assigned_role)
 
-        print(f'New party to add: [{new_party}] with role [{assigned_role}]')
+        write_log(f'New party to add: [{new_party}] with role [{assigned_role}]')
         return party
 
 
@@ -1981,18 +1993,18 @@ class X500NameParser:
             valid_value = value
             if key not in self.rules:
                 pass
-                # print(f'Invalid x500 attribute, not supported... {key}={value} ')
-                # print(f"There're no rules to check {key}")
-                # print('Unable to verify this x500 attribute')
+                # write_log(f'Invalid x500 attribute, not supported... {key}={value} ')
+                # write_log(f"There're no rules to check {key}")
+                # write_log('Unable to verify this x500 attribute')
             else:
                 valid = re.search(self.rules[key]['expect'], each_match)
                 if valid:
                     _,valid_value = valid.group(1).split('=')
                 else:
                     pass
-                    # print(f'Invalid x500 attribute, not supported... {key}={valid_value} ')
-                    # print('Unable to verify this x500 attribute')
-                    # print(f'Key/value do is not on expected format {key}={self.rules[key]["expect"]}')
+                    # write_log(f'Invalid x500 attribute, not supported... {key}={valid_value} ')
+                    # write_log('Unable to verify this x500 attribute')
+                    # write_log(f'Key/value do is not on expected format {key}={self.rules[key]["expect"]}')
 
             attributes.append((key, valid_value))
 
@@ -2626,7 +2638,7 @@ class Configs:
             with open(file, "r") as fconfig:
                 # Configs.config = json.load(fconfig)["CONFIG"]
                 Configs.config = json.load(fconfig)
-            print("Configuration loaded...")
+            write_log("Configuration loaded...")
 
             with open(rule_file, "r") as fconfig:
                 rule_file =  json.load(fconfig)
@@ -2651,14 +2663,14 @@ class Configs:
                     Configs.set_config(config_value=rule_file['VERSION'], section="VERSION")
                     Configs.set_config(config_value=rule_file["BLOCK_COLLECTION"], section="BLOCK_COLLECTION")
                     Configs.set_config(config_value=rule_file["FILE_SETUP"], section="FILE_SETUP")
-            print("Object definition and rules loaded")
+            write_log("Object definition and rules loaded")
 
         except IOError as io:
-            print("ERROR loading config file: %s" % io)
+            write_log("ERROR loading config file: %s" % io)
 
             exit(1)
         except ValueError as ve:
-            print("ERROR corrupted config file: %s" % ve)
+            write_log("ERROR corrupted config file: %s" % ve)
 
             exit(1)
 
@@ -2730,7 +2742,7 @@ class Configs:
         if param in Configs.config[section]:
             return Configs.config[section][param]
         else:
-            print("[CONFIGURATION] %s parameter do not exist under %s section" % (sub_param, param))
+            write_log("[CONFIGURATION] %s parameter do not exist under %s section" % (sub_param, param))
             return None
 
     @classmethod
@@ -3082,8 +3094,8 @@ class RegexLib:
                 no_groups = rexp.groups
 
             except re.error as ree:
-                print(f"ERROR: Detected malformed pattern: {each_string} ")
-                print("from processing list: %s" % regex_list)
+                write_log(f"ERROR: Detected malformed pattern: {each_string} ")
+                write_log("from processing list: %s" % regex_list)
                 continue
 
             # group_data[index] = {
@@ -3135,7 +3147,7 @@ class RegexLib:
                                                       param="OBJECTS",
                                                       sub_param=each_object)["APPLY_TO"]
                     else:
-                        print("Warning: %s has no 'APPLY_TO' parameter,"
+                        write_log("Warning: %s has no 'APPLY_TO' parameter,"
                               " so I'm not able to identify the match for this label..." %
                               (each_object,))
                     #
@@ -3221,12 +3233,12 @@ class RegexLib:
             self.tp = ()
             for matchNum, match in enumerate(matches, start=1):
                 #
-                # print("Match {matchNum} was found at {start}-{end}:
+                # write_log("Match {matchNum} was found at {start}-{end}:
                 # {match}".format(matchNum=matchNum, start=match.start(),
                 # end=match.end(), match=match.group()))
 
                 for groupName in match.groupdict():
-                    # print("Group {groupName}: {group}".format(groupName=groupName,
+                    # write_log("Group {groupName}: {group}".format(groupName=groupName,
                     #                                           group=match.group(groupName)))
                     self.tp += ({groupName: match.group(groupName)},)
 
@@ -3336,7 +3348,7 @@ class BlockExtractor:
         """
         Parses the file and extracts blocks based on the configured patterns.
         """
-        print("Analysis of blocks...")
+        write_log("Analysis of blocks...")
         current_blocks: Dict[str, BlockItems] = {}
         in_block: Dict[str, bool] = {key: False for key in self.block_types}
         line_check = 0 # check how many lines were taking in account after a block indentification...
@@ -3423,7 +3435,35 @@ class BlockExtractor:
 
     def summary(self):
         for block_type, blocks in self.collected_blocks.items():
-            print(f"{block_type}: {len(blocks)} blocks collected.")
+            write_log(f"{block_type}: {len(blocks)} blocks collected.")
+
+
+# def write_log(*args1, **kwargs):
+#     """Replacing the actual print command to print with timestamp"""
+#     # Adding new arguments to the print function signature
+#     # is probably a bad idea.
+#     # Instead consider testing if custom argument keywords
+#     # are present in kwargs
+#     global tui_logging
+#
+#     timestamp = "%s" % datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+#
+#     if 'tui_logging' not in globals():
+#         return __builtin__.write_log(*args1, **kwargs)
+#     else:
+#         msg = ""
+#         if args1:
+#             for s in args1:
+#                 msg += s + " "
+#         if kwargs:
+#             for each_arg in kwargs:
+#                 msg += f"{kwargs[each_arg]} "
+#
+#
+#         tui_logging.append(f"{timestamp} {msg}")
+#
+#         return None
+
 
 def get_not_null(list_or_tuple, start=0):
     """
@@ -3476,7 +3516,7 @@ def generate_hash(stringData):
     try:
         hashstring = hashlib.sha1(stringData.encode('utf8')).hexdigest()
     except UnicodeDecodeError as be:
-        print("Error: %s" % be)
+        write_log("Error: %s" % be)
     return hashstring
 
 def clear_groupnames(regex_list):
@@ -3508,7 +3548,7 @@ def saving_tracing_ref_data(data, log_file):
         with open(f"{tracer_cache}/{filename}_references.json", 'w') as fh_references:
             json.dump(data, fh_references, indent=4)
     except IOError as io:
-        print(f'Unable to create cache file {tracer_cache}/references.json due to: {io}')
+        write_log(f'Unable to create cache file {tracer_cache}/references.json due to: {io}')
 
     return
 
@@ -3553,14 +3593,14 @@ def get_fields_from_log(line, log_version, file):
 
     # if there not format at all, stop process
     if not file.logfile_format:
-        print("I'm not able to recognize log format, in this case I will not be able to pull correct information")
-        print("I was unable to find a version template for this file, please create one under VERSION->IDENTITY_FORMAT")
+        write_log("I'm not able to recognize log format, in this case I will not be able to pull correct information")
+        write_log("I was unable to find a version template for this file, please create one under VERSION->IDENTITY_FORMAT")
         exit(0)
 
     extract_fields = Configs.get_config_for(f"VERSION.IDENTITY_FORMAT.{file.logfile_format}")
 
     if not extract_fields:
-        print("No logfile definitions to check please define at least one (at the section 'VERSION')")
+        write_log("No logfile definitions to check please define at least one (at the section 'VERSION')")
         exit(0)
 
     fields = re.search(extract_fields["EXPECT"], line)
@@ -3570,7 +3610,7 @@ def get_fields_from_log(line, log_version, file):
             for each_field in extract_fields["FIELDS"]:
                 result[each_field] = fields.group(extract_fields["FIELDS"].index(each_field) + 1)
         else:
-            print("Unable to parse log file properly using %s, expecting %s fields got %s fields from extraction" %
+            write_log("Unable to parse log file properly using %s, expecting %s fields got %s fields from extraction" %
                   (file.logfile_format, len(extract_fields["FIELDS"]), len(fields.groups())))
 
     return result
