@@ -1020,7 +1020,6 @@
       "note left": {
         "COMMAND": "Note",
         "EXPECT": [
-          "(?P<message>The following parties received the finalised transaction: \\[.*\\]) {.*actor_owning_identity=__source__.*flow-id=__flow_id__,.*tx_id=__tx_id__",
           "(?P<message>Node for \\\"[a-zA-Z0-9]+\\\" started up and registered in [0-9.]+ sec)",
 	      "(?P<message>admitted to hospital in state StateMachineState)",
           "(?P<message>received token vault update with \\d+ consumed states and: \\d+ produced states).*flow-id=__flow_id__.*origin=__source__",
@@ -1099,7 +1098,13 @@
           "(?P<message>Counter-flow errored)",
           "statemachine.FlowCreator. - (?P<message>.*) {actor_id=",
           "(?P<message>Recorded un-notarised transaction locally)",
-          ".*WARN.*(?P<message>Propagating error).*flow-id=__flow_id__.*tx_id=__tx_id__"
+          "(?P<message>Collecting signatures from \\[.*\\])",
+          "(?P<message>Finalised transaction locally with notary signature)",
+          "(?P<message>Going to invoke finality flow)",
+          "(?P<message>Signing initial transaction)",
+          ".*WARN.*(?P<message>Propagating error).*flow-id=__flow_id__.*tx_id=__tx_id__",
+          "(?P<message>The following parties received the notary signature: \\[.*\\])",
+          "(?P<message>The following parties received the un-notarised transaction: \\[.*\\])"
         ],
         "FIELDS": [
           "note over:message",
