@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from pickletools import optimize
 from queue import Queue
-
+from log_handler import write_log
 from object_class import Configs, generate_internal_access, CordaObject, RegexLib, get_fields_from_log, X500NameParser
 import threading
 from typing import List, Callable, Any, Dict
@@ -359,7 +359,7 @@ class UMLStepSetup:
                 timestamp = log_fields['timestamp']
             else:
                 timestamp = self.cordaobject.timestamp
-                print(f'{current_line_no:>10}: Unable to extract a proper timestamp from this line:\n{original_line}')
+                write_log(f'File line {current_line_no}: Unable to extract a proper timestamp from this line:\n{original_line}', level='WARN')
 
             if expect_to_use is None:
                 # If we do not have any valid regex for this line, try next list
@@ -450,7 +450,7 @@ class UMLStepSetup:
 
     def process_uml_chunk(self, chunk: Dict[int, str]):
         """Procesa un bloque del diccionario y genera los UMLSteps"""
-        print(f"[{threading.current_thread().name}]: {len(chunk)} "
+        write_log(f"[{threading.current_thread().name}]: {len(chunk)} "
               f"steps processed: {list(chunk.keys())[0]} - {list(chunk.keys())[len(chunk)-1]}" )
 
         for line_num, line in chunk.items():
@@ -486,7 +486,7 @@ class UMLStepSetup:
         for t in threads:
             t.join()
 
-        print("✅ All block has been processed.")
+        write_log("✅ All block has been processed.")
 
     def parallel_process(self, corda_object: CordaObject, chunk_size: int = 100, max_threads: int = 4):
         # Dividir el diccionario en bloques
@@ -508,7 +508,7 @@ class UMLStepSetup:
                     self.process_uml_chunk(chunk)
                     queue.task_done()
                 except Exception as e:
-                    print(f"Error processing block: {e}")
+                    write_log(f"Error processing block: {e}")
                     queue.task_done()
 
         # Crear y lanzar hilos
@@ -521,7 +521,7 @@ class UMLStepSetup:
         # Esperar a que todos los bloques se procesen
         queue.join()
         self.cordaobject.uml_steps = UMLStepSetup.sort_uml_steps(self.cordaobject.uml_steps)
-        print("✅ Done")
+        write_log("✅ Done")
 
     @staticmethod
     def sort_uml_steps(uml_dict):
@@ -1101,6 +1101,9 @@ class CreateUML:
         # Obtener todos los pasos UML
         uml_objects = self.corda_object.get_uml()
 
+        if not uml_objects:
+            write_log(f'{self.corda_object.data["id_ref"]}: Has not valid UML representation steps...', level='WARN')
+            return None
 
         app_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -1130,7 +1133,7 @@ class CreateUML:
                 f'| Type      | {self.corda_object.type} |',
                 f'| Started   | {start_timestamp.strftime(time_format)} |',
                 f'| Finished  | {end_timestamp.strftime(time_format)} |',
-                f'| Duration  | {time_msg} |',
+                f'| Duration  | {elapsed_time:.4f} |',
                 'end title'
             ]
 
@@ -1147,7 +1150,7 @@ class CreateUML:
                 f.write("\n".join(page_script))
             generated_files.append(filename)
 
-        print(f"✅ {len(generated_files)} UML files created")
+        write_log(f"✅ {len(generated_files)} UML files created")
         return generated_files
 
     def optimize_highlight_blocks(self, section):
@@ -1390,13 +1393,13 @@ class CreateUML:
         for each_batch in self.corda_object.get_uml():
             # Batch contains a list of UMLs so I need to see one by one
             for each_step in self.corda_object.get_uml(each_batch):
-                print(f"{each_batch}: {each_step.get(UMLStep.Attribute.UML_COMMAND)}")
+                write_log(f"{each_batch}: {each_step.get(UMLStep.Attribute.UML_COMMAND)}")
 
                 # Analyse given UML so it define initial fields, like source, destination, participants, message, etc
                 each_step.analyse()
                 if ('note' in each_step.get(UMLStep.Attribute.UML_COMMAND) or
                         'self-annotation' in each_step.get(UMLStep.Attribute.UML_COMMAND)) :
-                    print(f'   `---> message: {each_step.get(UMLStep.Attribute.FIELDS)["message"]}')
+                    write_log(f'   `---> message: {each_step.get(UMLStep.Attribute.FIELDS)["message"]}')
 
                 # Prepare a dictionary to gather endpoints, with this I will know if an endpoint is missing (either
                 # source or destination)
@@ -1418,7 +1421,7 @@ class CreateUML:
                 #
                 if require_endpoint:
                     missing_endpoint = list(set(uml_endpoint_literal) - set(list(end_point_step.keys())))
-                    # print(f"Missing endpoint: {missing_endpoint}")
+                    # write_log(f"Missing endpoint: {missing_endpoint}")
                     message_line = each_step.get(UMLStep.Attribute.LINE_MESSAGE)
                     for each_endpoint in missing_endpoint:
                         default_usage = f'default_{each_endpoint}'
@@ -1449,8 +1452,8 @@ class CreateUML:
                     for each_ep in cpy_command_list:
                         value = cpy_command_list[each_ep]
                         if each_ep in ep_check:
-                            print(f'   `--> {each_ep}: {value}')
-                            print(f'        note: {CreateUML.get_value_for("note over", each_step.get(UMLStep.Attribute.UML_COMMAND_DEFINITION))}')
+                            write_log(f'   `--> {each_ep}: {value}')
+                            write_log(f'        note: {CreateUML.get_value_for("note over", each_step.get(UMLStep.Attribute.UML_COMMAND_DEFINITION))}')
                             # collect participant list
                             if '|' in value:
                                 _, participant = value.split('|')
@@ -1467,44 +1470,40 @@ class CreateUML:
                             ep_check.remove(each_ep)
 
                     if ep_check:
-                        print(f"   *** Missing {ep_check}")
-
-    def render_uml(self, title, script_txt, file,generate_uml=True):
+                        write_log(f"   *** Missing {ep_check}", level="WARN")
+    @staticmethod
+    def render_uml(file):
 
         # TODO: Implementar esta rutina para generar los archivos de imagen
         import subprocess
-        global app_path
-        # base_dir = os.path.dirname(file)
-        #if not file:
-        if 'app_path' not in globals():
-            app_path = os.path.dirname(os.path.abspath(__file__))
+        app_path = os.path.dirname(os.path.abspath(__file__))
 
-        save_path = f"{app_path}/plugins/plantuml_cmd/data"
-        if file:
-            tmp_file = os.path.basename(file)
-            if '.' in tmp_file:
-                tmp = tmp_file.split('.')
-                save_path = f"{app_path}/plugins/plantuml_cmd/data/{tmp[0]}"
-
-        #else:
-        #    filename = os.path.basename(file)
-        #    save_path = f"{app_path}/{base_dir}/uml-{filename}"
-
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-
-        if script_txt:
-            with open(f"{save_path}/{title}.txt", "w") as uml:
-                for each_line in script_txt:
-                    uml.write("%s\n" % (each_line,))
-
-            if generate_uml:
-                subprocess.call(['java', '-jar',
+        success = False
+        if isinstance(file, list):
+            for each_file in file:
+                status = subprocess.call(['java', '-jar',
                                  f'{app_path}/plugins/plantuml_cmd/plantuml.jar',
                                  '-tsvg',
-                                 '-v',
-                                 f'{save_path}/{title}.txt'])
+                                 '-quiet',
+                                 f'{each_file}'])
+
+                status1 = subprocess.call(['java', '-jar',
+                                 f'{app_path}/plugins/plantuml_cmd/plantuml.jar',
+                                 '-tutxt',
+                                 '-quiet',
+                                 f'{each_file}'])
+
+                if status+status1 == 0:
+                    success = True
 
 
+        else:
+            status = subprocess.call(['java', '-jar',
+                             f'{app_path}/plugins/plantuml_cmd/plantuml.jar',
+                             '-tsvg',
+                             '-quiet',
+                             f'{file}'])
+            if status == 0:
+                success = True
 
-
+        return  success
