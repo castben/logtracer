@@ -7,12 +7,13 @@ import argparse
 import re
 import threading
 from datetime import datetime
+from TermTk import TTkUtil, TTkUiLoader, TTk
+import TermTk as ttk
 from get_refIds import GetRefIds
 from object_class import Configs, FileManagement, BlockExtractor
 from object_class import CordaObject
 from get_parties import GetParties
 from uml import UMLEntityEndPoints, UMLStepSetup, CreateUML
-import TermTk as ttk
 from log_handler import write_log, HighlightCode
 from log_handler import log_queue
 
@@ -23,6 +24,98 @@ class InteractiveWindow:
     """
     A class that create an interactive experience
     """
+    class LogfileViewer:
+        """
+        A class to generate different logviewer windows
+        """
+
+        def __init__(self, starting_line=None):
+            """
+
+            """
+
+            self.TTkWindow_logviewer = ttk.TTkWindow(pos=(40, 1), size=(120, 32),
+                                                     title=ttk.TTkString("Log Viewer", ttk.TTkColor.ITALIC),
+                                                     border=True,
+                                                     layout=ttk.TTkGridLayout(),
+                                                     flags=ttk.TTkK.WindowFlag.WindowMinMaxButtonsHint)
+
+            self.root_logviewer = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
+                "eJyFU1tv0zAUTmnatCsXAWN0o5MqnvpULq9cHjYKiKxjYoE9IeQmpsdqYleJvbVIk3jspPNo/i/HSYsmXhYr8rn7+5wvv/0/uu6Vz6UdoK+Xc27xbhTNvopn71RsMi61" +
+                "xeCc54VQ0mLj5fDF8LnFujbCupZGnLKisHibeg6V1ExInltszlnOsqIs8Y9ZRlO3xpQ7EzJRFxZbJ6oQ2o38bgehH97i6J+KX7x05+E+x/ZYyP6ZSDTY0KNm8j5yMQXt" +
+                "3PaYLdbJT55Xc3kKrPNVJPgmCjFJuV1hMJKMrMSZkVJpJOYWPaJ1wpJEyGl5qFctjs0jtlSGWLeJ0to22EwriwhBAD1oXxKJD1xlXOfLdTvh1rbAVgwiTXLuuJXl2KJJ" +
+                "73N3C65vAB3c2UR+pGr6U6T8XPALuji447DUCAfcc1YW9jjcDz14QO/DkhlsV9ujFeys4DF0YbfqKReHJ9DD5oHKExq3wkYkNF0CdA3sX8MO/QryLNwjyPB0g7RDuCK+" +
+                "0KNE6H9gd68Fb8Arwr0b8WLniETSPzbZpIS4fc3tn2qWa/dNwhq2v3CW9D/LdElVW2OTatF3tXZlsJ6TjEgJ9Vilbg/IL+ZMur6AYmvbMIMBidgcsJwoYnOitFZZacak" +
+                "bQLgqG+YdstSQyXyf6IOuO9uwaI/Wginj0Pg8cwpy15hUDqksStT0A8Br4j/a3rfhDV4W+Iw2ImVlDx2si/oWDP8C6rONi8="))
+
+
+            self.TTkFrame_logfileviewer: ttk.TTkFrame = self.root_logviewer.getWidgetByName('TTkFrame_logfileviewer')
+            self.TTkTextEdit_logfileviewer: ttk.TTkTextEdit = self.root_logviewer.getWidgetByName('TTkTextEdit_logfileviewer')
+            self.TTkWindow_logviewer.addWidget(self.TTkFrame_logfileviewer)
+            self._logview_resize()
+
+            if starting_line:
+                self.starting_line = starting_line
+                self.TTkTextEdit_logfileviewer.setLineNumber(starting_line)
+
+            self.TTkWindow_logviewer.sizeChanged.connect(self._logview_resize)
+
+
+        def loadfile(self, filename, starting_line=0, maxlines=0):
+            """
+            Load full logfile
+            :param filename: file name to read
+            :param starting_line: Starting line to read from
+            :param maxlines: maximum lines to read.
+            :return:
+            """
+
+            self.TTkTextEdit_logfileviewer.setText("")
+            self.TTkWindow_logviewer.setTitle(f'Log Viewer - {filename}')
+            if starting_line == 0:
+                self.TTkTextEdit_logfileviewer.setLineNumberStarting(1)
+            else:
+                self.TTkTextEdit_logfileviewer.setLineNumberStarting(starting_line)
+            buffer = []
+            try:
+                with open(filename, 'r') as hlogfile:
+                    for line_number, each_line in enumerate(hlogfile, start=2):
+                        if starting_line>0:
+                            if maxlines > 0:
+                                if starting_line <= line_number <= starting_line+maxlines:
+                                    # self.TTkTextEdit_logfileviewer.append(each_line.rstrip())
+                                    buffer.append(each_line.rstrip())
+                            else:
+                                # self.TTkTextEdit_logfileviewer.append(each_line.rstrip())
+                                buffer.append(each_line.rstrip())
+                        else:
+                            # self.TTkTextEdit_logfileviewer.append(each_line.rstrip())
+                            buffer.append(each_line.rstrip())
+
+                self.TTkTextEdit_logfileviewer.setText("\n".join(buffer))
+
+            except IOError as io:
+                write_log(f'Unable to open {filename} due to {io}', level="ERROR")
+            except BaseException as be:
+                write_log(f'An error was found trying to read {filename} due to {be}', level='ERROR')
+
+        def add_line(self, line):
+            """
+            Add a new line
+            :param line:
+            :return:
+            """
+
+            self.TTkTextEdit_logfileviewer.append(line)
+
+        def _logview_resize(self):
+            """
+            Will resize logging text edit to adapt it to its container window...
+            :return:
+            """
+            window_size = self.TTkWindow_logviewer.size()
+            new_size = (window_size[0]+5, window_size[1]+4)
+            self.TTkTextEdit_logfileviewer.resize(window_size[0]-5,window_size[1]-7)
 
     def __init__(self):
         """
@@ -104,10 +197,8 @@ class InteractiveWindow:
 
         :return:
         """
-        from TermTk import TTkUtil, TTkUiLoader, TTk
 
-
-        def _filetxtchange():
+        def _filetxtchange(filepath):
             """
 
             :return:
@@ -115,12 +206,14 @@ class InteractiveWindow:
             global tui_logging
             # logfile_name.setWordWrapMode(1)
             # logfile_name.setWrapWidth(6)
-            txt = TTkLineEdit_logfile.text().toAscii()
-            self.filename = txt
-            txt = os.path.basename(txt)
-            TTkLineEdit_logfile.setText(txt)
+
+            self.filename = filepath
+            filepath = os.path.basename(filepath)
+            # TTkLineEdit_logfile.setText(txt)
             TTkButton_start_analysis.setEnabled(True)
+            TTkButton_viewfile.setEnabled(True)
             tui_logging = TTkTextEdit_logging
+            self.TTkWindow_customer_info.setTitle(f'Logs tracer - {filepath}')
             write_log('Checking for existing diagrams...')
             self.check_generated_files()
 
@@ -156,6 +249,9 @@ class InteractiveWindow:
 
                 ##
                 ## Start filling components with data
+                if not file_to_analyse.get_all_unique_results():
+                    write_log('I was not able to process this file, it was not recognized as Corda log file', level='WARN')
+                    return
 
                 TTkLabel_Parties.setText(f"{len(file_to_analyse.get_all_unique_results('Party'))}")
                 results = collect_refIds.classify_results(FileManagement.get_all_unique_results('Flows&Transactions'))
@@ -286,8 +382,8 @@ class InteractiveWindow:
             sref_id = ref_id.toAscii()
             co = CordaObject.get_object(sref_id)
 
-            if not ref_id:
-                write_log("Reference ID not found unable to trace it, please try another")
+            if not ref_id or not co:
+                write_log("Reference ID not found unable to trace it, please try another", level='WARN')
                 return
             write_log('\n\n\n')
             write_log('=============================================================================')
@@ -365,7 +461,6 @@ class InteractiveWindow:
                     TTkButton_tx_trace.setEnabled(True)
                     TTkButton_tx_quickview.setEnabled(False)
 
-
         def _quick_view(ref_id):
             """
             Show Ascii version of Sequence Diagram
@@ -390,20 +485,34 @@ class InteractiveWindow:
             except IOError as io:
                 write_log(f"Unable to open file {filename} due to : {io}")
 
+        def _viewlogfile():
+            """
+
+            :return:
+            """
+
+            logfile_viewer = InteractiveWindow.LogfileViewer()
+
+            logfile_viewer.loadfile(self.filename)
+
+            logfile_viewer.TTkWindow_logviewer.setParent(self.root)
+
+            root.layout().addWidget(logfile_viewer.TTkWindow_logviewer)
+
+
         # Data generated using ttkDesigner
         customer_info_widget = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
-            "eJy9Vu1vEzcYT8g1Lw1pCGlHoUw67VMYWlfaIVXJxmhLKezaKVLDmMRQZO7c2urFju58QCYh7WMi+ePt4/6O/XXT9vjOcVPWhgaNJTqdn8f3+Pd73mz/Zv3+ZzmT/N7F" +
-            "DWmJQR/HcqHTOXlGv37E3aiHmYhl4TUOQspZLOfWV++trsUyJyIaK5M510dhGMurYLPDmUCU4SCW+T4KUC9MPrF+RD1Ydf4A5p5T5vE3sSy2eUiFWvJl3HAs5wqW1iH9" +
-            "FSfinnMLy9IBZfZz6gkSOxkwBukJpsdEKLF0gN7qyR8ymayaB4WeTzWFn2hIX/k4HsrCLkMw8tSww7nfof1YZsCtNvI8yo4T0Ez6xzK/jwY8Aq9L4JIeRzLvpyNwiBTI" +
-            "bVJ6B07sYd7DIhhoc+At4lAWXUJ9L8DKt+RzWYSVHgcqCsquQcqTmopCzwIyqarRQ+cGJjUnQ67DU098IYvpa2lIPhuSG2SZ3Extkj8mK+S2zG/zwIPID+VchwpwW1Z2" +
-            "olAAv8B+yo54HJHPJ7gTO6X8wFkCyuQLWO+U6j56hf0zVLVGU81qqiU1qjkloJq9iKq0OvitCuaYTROKaIf7HIrEWnmx1oOpLZ8es6TSnGwkcwEUCOQ453JfvQsgh33E" +
-            "YFIWQKfHUcq3rNhBze16VBjKixPKrquBNf2yob+Y0s+eoQ/DU+7zT1k/EnZHdQWgl3Zdwu0D7oGUIZtkOSLfweABPN+D3cMxKbIxJjI/jt1X90z0cjNEj2xCFVL3BAvb" +
-            "bsakqUNGvgWoC7C3x9jXJ4MgkkVMCHLnhuDgr7/PBoDsgfRkqq+yriqZ+ng7EoKztsIJTCLOn0xILDmWIZFTJKpAIjclEJVD7GNX2Mg+ghVjcncIRUWwe6J6Ox7JQiJA" +
-            "l4+k1UawM8jsKvT4Duon+4wsKyL2I4p8fgx6kATsatAnW75vq7nQbnx5B77bcl3cF+M8y1Jip6UPZvzaOONdgEmJJu5ecYoz5n0/tW/al8p7slulYTbRXzaqbihQILqI" +
-            "IX8Q0tCkoHw2BdcuSMFIc1o4VMvYW2aZu0Pyy4i8HM3QCBumEWoavJIGpPKBgFQ6AWIhclU2w0s2wzn43xj8+oz4j33YiOz09/H46wa/OiN+G2JPcfhR+KdlqVfRLKqG" +
-            "RSFlkZnOAp6mrK682NhsrbfWWuv377cuS2HJUJhMpOFR+794LBgeSUINgfonJrA9uSmajfn9XaKkWbSmHE6jS+7NhE0eiOOdgPA3XbidiYHGvGlKYD7FzF94IEIVWodg" +
-            "D40/mt74bNLZSeQjX5lr4PonBL71HrA4LTqDX/sv8fG/VSiKZNnljGFd7MmFUOZDzNRdjfwsiwF2MX2thD9AD/cg5MeyqkoiOS29RigCOJSs0Odwi7oaYqHuU6kW1l/9" +
-            "Bxp7k/A="))
+            "eJy9llFv2zYQx+VZsSN7jps03dKmA4RhD+mKZWmyAkGyrkvSNG1VDwbitg9dYLAyYxKRRUOimnpAgT3aAB+5D7oPMGxHiWKcLvaaApkFQUdSx//vjkfKv9t//Fmx0t97" +
+            "uSJsPuhjKeZarZMX9PtHzE96OORSlN/iKKYslGJmffXe6poURZ5QqVxm/ADFsRSfg88eCzmiIY6kKPVRhHpx+or9C+rBrJUGjL2iYYedSjHbZDHlasojueLZ3mdY2If0" +
+            "N5w2D7xbWDgNGrqvaIcT6VngDK0nmHYJV02ngd7pwWeWVVDj0KHHs57ySxrTNwGWQ1HeDxFYHWW2GAtatC+FBWE1UadDw24qamUXFqXnaMASiNqBkLSdiFKQWRAQKZPb" +
+            "xHkPQRxg1sM8Gmh34OYyFrM+oUEnwiq29HUxCzM9jlQWlN8KqY731JR6AZRJXVkPvXlM5j2LLMB9PY2FLGaPG0PyxZB8SZbIzcwnvTBZJrdFaZdFHcj8UMy0KIewRW0v" +
+            "iTnwRe7T8JjJhHw1xk7cDPmBVwdk8jXMd4b6HL3BwTlU3aNRCxrVUda85wBqYRKqsFv4nUpmTrMFRbTHAgZFYi+/XuvB0E5Au2FaaV4hEcUICgTWuOizQD3L0I77KIRB" +
+            "UYY+bScZb1XRQc3tdyg3yItjnW1fC2v8qsFfzPAL5/DBPGOvPA37CXdbaleAurPvE+Y2WAdaFtkkSwl5AMZPcD8Ev59zKLKRg1Ty3H13z2SveInskU2oQuqfYO66W5Js" +
+            "6ZSRH0FqgvZurr0wngSeTmJSULwwBY2//j6fAHIArSdTYxXXVSXTAO8mnLOwqXQisxAXD6YQ35iKX1Q4814dIIpTElE7xAH2uYvcY5hRkrtDKCqC/RO1t+VIlNMG7PKR" +
+            "sJsITgZRWIU9vof66TkjqgrEfURRwLrQDy0Opxrsk50gcNVY7K58ewfe2/F93Of5Ogsn9dOtSVlQZ0UWpIl9yXS1Y44i3kYhCgYxjXUCLG/mfAKuTUjASCdg7lBN4+6Y" +
+            "ae4Oya8jcjS6RBlumDKsavFaVgK1/yjDWitCYYx8lcv4I0vxAv0fjH7tkvqPAzgG3Oz36frrRt+5pH4Tck9x/En613L9tp5FU9QNRTmjsKZTwL0l6suvNza317fXttfv" +
+            "39/+WIQbBmF8IQ1H9f/imDMc6YIagNoVA3THvw35tiTstA1/VPhAY9w061HJMEoTvw1QEvYh+MMuHE3fhd3xw3Bc+ThQ7lq4doXCtz4Q5mcVYPSrV6i/cKb/luLT7PjW" +
+            "H4EPvkTVabrOS/DOT/+J4vjfXShJRNVnYYh12R/JZPUfzTRWBg=="))
 
         root_window_logging = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
             "eJyFkltv0zAUgFPSNu0KjLFxG0OKeOpTubxzETBAZB0VK0wITZOXWDkWiV3FNqxIk3gs0nk0/5fjJEyTeCBW5HP3+Xz8s/t7Owzq78yNsWuWC+7w6nz+9aN48EqltuTS" +
@@ -423,13 +532,14 @@ class InteractiveWindow:
             "drD+49uX7y3XpGgPYXcEe9dXb/6qru+x9ynl/vEJZ+MbbU4wGgajcQ1GgzAuW3s6TesgyzOdhf1p8tIUZ3wRRWYvEvrHpms/AbsJn7E="))
 
         root_window_party = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
-            "eJyVk01v00AQhu3aiRNCoEAoqaCAEIecwseJD3EgpIAwQZVqaIWoKtceOqs43she0wapEkdH2uPyf5m1nVKQQkUsy7MzO7PPO7P5Yf8c2kbxO1E9aYvZFJS85Hnjj+zB" +
-            "kAfZBGKhpPMNkpTxWMna4/6j/kMlLZExpVNqQeSnqZINynmd+BNKr099MtIibH8oXKsjn8U7LA750T5FxYwStnjKhC66p3qu7Zog7W32HYrlgbsBsjli8d0dFgpUriEv" +
-            "6NVbYIco9LI58o+r4DvDMHWcHFW89DifWMoOIlC5dDZjn6xQmx7nkcemShokbMsPQxYfFoca5QOy/t6f8Yx0N0nUwq4PeBJCouay5jFBVbGbyXpURkkqOngLmyck7A3w" +
-            "CYhkVpUkLUKlshEgi8IECr3l/obe38NW0fCieVVzsK15VtwVwMva+uKuAV5xDbxK77VCHXbKz/Uc13K8gV1c1zvN8gG8STQbOd7WEhPBIFUZ3jmDifdKus9uh+jw/l6p" +
-            "gdrjjb0ESF7F1q4cf6CZ1KYSbdftnIsmnW1ODNTmPJNWwo/0AK2AR/rr0Dqd+rFyTemQr7IzP8MnVPIpvc9cE5+TqyTUQxlkQtDNOctYuvZpnqftW68YW66lGWvEaC1l" +
-            "tD04pjFbL3WBjVw2XyEEY31raOROsaD7M19ChS8WLKu/WUKIQECF0z3FuVjiNP6FgwNZH1bpNMbhHDf/6+gJD9nXxbTaf3fi3KNHVfryoyHLZCvgcQyB/hOndKuz/i/3" +
-            "ymDs"))
+            "eJyVk8tv00AQhx3sxElDgVLSljdCPeQUHice4kBIAWGCKtW0CFEVYw+dVRxvZK9pg1SJYyLtcfl/mV07gRxawJbleeyOv9/M+ofzc9exzHWi2tIR4xEoecH3B+/ZvR4P" +
+            "8yEkQkn3G6QZ44mS1YedB537StoiZ0pvqYZxkGVK1mnPyzQY0vbaKCAjM2nnnQld6gcs2WNJxI8OKCvGtGGbZ0zoovuq7Z3zKiCdHfYdjPvZuway0WfJnT0WCVSeJZe0" +
+            "9xrYIQrtNvrBcZl8Y1kVnadAmS8i7i7L2JcY1ES6W0lAVqRNn/PYZyMlLRK2HUQRSw7NR63iBll7G4x5TrobJGpm17o8jSBVU1n1maCquJHLWlxkSSq6eAMbJyTsFfAh" +
+            "iHRcliQtQmWyHiKLoxSM3mJ9Xa9vY9M03DSvbA4uFz2xAC9q65O3DrjiWXiZnlWjDq8Ur9YE1ya4jht4Va+sFDfgdaK5OcFbWmIqGGQqx9t/YOLdgu6j1yI63NwvNFB7" +
+            "/IGfAskr2ZbLwAJaZY72wWv9FU26O5wYqM2TXNopP9IDtEMe67dLfjYKEuVVpEux0s6DHB9Rycf0PPEq+JRCBaEeSjcXgk7OjHF1HjqgeS6QOrp1hrTp2Zq0SqT2qaSO" +
+            "D8c0bPt5FCnqn2y8QAgH+uzQ4F3j0CmansKGz2ZEa7+JhjxiX8cLUCtzqKUCqn4WFHZlrW+KaCTsTXHrvwAiiEEszm9zDnD+HwF6pshZAJDnshnyJIFQ/9YZnfO88wuZ" +
+            "OGi9"))
+
 
         root_window_transaction = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
             "eJyNk91PE0EQwK/241pAikL5iDU2JiYkEPz4E2gB9SyBcMoTIevdymy47ta7PQomJDyWZF9M1mcf/Af9E5y9vTZNLGIvl5uPnZnfzE5vSj82y072u9brqiSv+lSred8/" +
@@ -452,8 +562,8 @@ class InteractiveWindow:
         root=TTk()
 
         self.TTkWindow_customer_info = ttk.TTkWindow(parent=self.root,
-                                                     pos=(17, 1), size=(68, 27),
-                                                     title=ttk.TTkString("Logs reader", ttk.TTkColor.ITALIC),
+                                                     pos=(17, 1), size=(67, 21),
+                                                     title=ttk.TTkString("Logs Tracer", ttk.TTkColor.ITALIC),
                                                      border=True,
                                                      layout=ttk.TTkGridLayout())
 
@@ -466,7 +576,7 @@ class InteractiveWindow:
                                                      flags=ttk.TTkK.WindowFlag.WindowMinimizeButtonHint)
 
         self.TTkWindow_party = ttk.TTkWindow(parent=self.root,
-                                             pos=(85, 4), size=(98, 32),
+                                             pos=(85, 4), size=(98, 30),
                                              title=ttk.TTkString("Party", ttk.TTkColor.ITALIC),
                                              border=True,
                                              layout=ttk.TTkGridLayout(),
@@ -485,6 +595,7 @@ class InteractiveWindow:
                                                  border=True,
                                                  layout=ttk.TTkGridLayout(),
                                                  flags=ttk.TTkK.WindowFlag.WindowMinMaxButtonsHint)
+
 
         # TUI-Window.py:
         # "Name": "MainWindow",
@@ -509,7 +620,7 @@ class InteractiveWindow:
         # "Name": "TTkWindow_logging",
         # "Name": "TTkTextEdit",
 
-        TTkLineEdit_logfile: ttk.TTkLineEdit = customer_info_widget.getWidgetByName('TTkLineEdit_logfile')
+        # TTkLineEdit_logfile: ttk.TTkLineEdit = customer_info_widget.getWidgetByName('TTkLineEdit_logfile')
         TTkFileButtonPicker: ttk.TTkFileButtonPicker = customer_info_widget.getWidgetByName('TTkFileButtonPicker')
         TTkButton_start_analysis: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_start_analysis')
         TTkWindow_logging: ttk.TTkWindow = root_window_logging.getWidgetByName("TTkWindow_logging")
@@ -532,10 +643,18 @@ class InteractiveWindow:
         TTkLabel_Flows = ttk.TTkLabel = customer_info_widget.getWidgetByName('TTkLabel_Flows')
         TTKButton_show_flow: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_show_flow')
         list_flow: ttk.TTkList = root_window_flow.getWidgetByName('TTkList_flow')
+        TTkButton_viewfile: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_viewfile')
+
         frame_flow.move(60,4)
+
+        # FilePicker
+        TTkButton_viewfile.setEnabled(False)
+        TTkFileButtonPicker.pathPicked.connect(_filetxtchange)
+        TTkButton_viewfile.clicked.connect(_viewlogfile)
 
         # Party
         frame_party = root_window_party.getWidgetByName('MainWindow_party')
+
         tree_party: ttk.TTkTree = root_window_party.getWidgetByName('TTkTree_party')
         TTKButton_show_party.clicked.connect(lambda: _show_hide_window('party'))
 
@@ -551,7 +670,6 @@ class InteractiveWindow:
         TTkButton_flow_quickview.clicked.connect(lambda: _quick_view( list_flow.selectedLabels()))
 
 
-
         # Transaction
         TTkButton_tx_trace.clicked.connect(lambda: _trace('txn'))
         TTKButton_show_txn.clicked.connect(lambda: _show_hide_window('txn'))
@@ -565,6 +683,7 @@ class InteractiveWindow:
         TTkButton_flow_quickview.setEnabled(False)
         _quickview_resize()
 
+        # LogViewer
 
         TTkWindow_logging.move(4,28)
         TTkWindow_logging.sizeChanged.connect(_logging_resize)
@@ -580,6 +699,7 @@ class InteractiveWindow:
         self.TTkWindow_flow.addWidget(frame_flow)
         self.TTkWindow_customer_info.addWidget(customer_info_widget)
         self.TTkWindow_party.addWidget(frame_party)
+        # frame_party.move(1,0)
 
         tui_logging = TTkTextEdit_logging
         root.layout().addWidget(self.TTkWindow_customer_info)

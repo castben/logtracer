@@ -1,4 +1,4 @@
-
+from log_handler import write_log
 from object_class import CordaObject, get_fields_from_log, FileManagement
 from object_class import RegexLib,get_not_null
 
@@ -54,8 +54,8 @@ class GetRefIds:
         # A helper list to give the type and avoid to do a second search on the config to gather object type
         all_regex_type = []
         if not corda_objects:
-            print("No definition for corda objects found, please setup CORDA_OBJECT section on config")
-            exit(0)
+            write_log("No definition for corda objects found, please setup CORDA_OBJECT section on config", level='ERROR')
+            return None
         else:
             # Collect from "CORDA_OBJECTS" all object definitions:
             corda_objects = self.Configs.get_config(section="CORDA_OBJECTS")
@@ -147,17 +147,19 @@ class GetRefIds:
 
 
             if not self.file.logfile_format:
-                print("Sorry I can't find a proper log template to parse this log terminating program")
-                exit(0)
+                write_log("Sorry I can't find a proper log template to parse this log terminating program", level='WARN')
+                return None
             if co:
                 return co
             else:
                 return None
 
         except IOError as io:
-            print('Sorry unable to open %s due to %s' % (self.file.logfile_format, io))
+            write_log('Sorry unable to open %s due to %s' % (self.file.logfile_format, io), level='ERROR')
+            return None
         except BaseException as be:
-            print(f'Sorry unable to process, due to {be}')
+            write_log(f'Unknown error, stopping processing', level='ERROR')
+            return None
 
 
     def execute(self, each_line, current_line):
