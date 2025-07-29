@@ -1,0 +1,226 @@
+{
+ "type": "TTkUi/Document",
+ "version": "2.1.0",
+ "tui": {
+  "class": "TTkContainer",
+  "params": {
+   "Name": "MainWindow_flows",
+   "Position": [
+    4,
+    2
+   ],
+   "Size": [
+    95,
+    26
+   ],
+   "Min Width": 0,
+   "Min Height": 0,
+   "Max Width": 65536,
+   "Max Height": 65536,
+   "Visible": true,
+   "Enabled": true,
+   "ToolTip": "",
+   "Padding": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "Layout": "TTkLayout"
+  },
+  "layout": {
+   "class": "TTkLayout",
+   "params": {
+    "Geometry": [
+     0,
+     0,
+     95,
+     26
+    ]
+   },
+   "children": [
+    {
+     "class": "TTkFrame",
+     "params": {
+      "Name": "TTkFrame",
+      "Position": [
+       1,
+       0
+      ],
+      "Size": [
+       94,
+       26
+      ],
+      "Min Width": 0,
+      "Min Height": 0,
+      "Max Width": 65536,
+      "Max Height": 65536,
+      "Visible": true,
+      "Enabled": true,
+      "ToolTip": "",
+      "Padding": [
+       1,
+       1,
+       1,
+       1
+      ],
+      "Layout": "TTkLayout",
+      "Border": true,
+      "Title": "Flows"
+     },
+     "layout": {
+      "class": "TTkLayout",
+      "params": {
+       "Geometry": [
+        0,
+        0,
+        92,
+        24
+       ]
+      },
+      "children": [
+       {
+        "class": "TTkFrame",
+        "params": {
+         "Name": "TTkFrame-1",
+         "Position": [
+          0,
+          0
+         ],
+         "Size": [
+          69,
+          24
+         ],
+         "Min Width": 0,
+         "Min Height": 0,
+         "Max Width": 65536,
+         "Max Height": 65536,
+         "Visible": true,
+         "Enabled": true,
+         "ToolTip": "",
+         "Padding": [
+          1,
+          1,
+          1,
+          1
+         ],
+         "Layout": "TTkLayout",
+         "Border": true,
+         "Title": ""
+        },
+        "layout": {
+         "class": "TTkLayout",
+         "params": {
+          "Geometry": [
+           0,
+           0,
+           67,
+           22
+          ]
+         },
+         "children": []
+        },
+        "row": 0,
+        "col": 0,
+        "rowspan": 1,
+        "colspan": 1
+       },
+       {
+        "class": "TTkButton",
+        "params": {
+         "Name": "TTkButton_search",
+         "Position": [
+          71,
+          1
+         ],
+         "Size": [
+          20,
+          3
+         ],
+         "Min Width": 8,
+         "Min Height": 3,
+         "Max Width": 65536,
+         "Max Height": 65536,
+         "Visible": true,
+         "Enabled": true,
+         "ToolTip": "",
+         "Text": "Search",
+         "Border": true,
+         "Checkable": false,
+         "Checked": false
+        },
+        "row": 0,
+        "col": 0,
+        "rowspan": 1,
+        "colspan": 1
+       },
+       {
+        "class": "TTkButton",
+        "params": {
+         "Name": "TTkButton_trace",
+         "Position": [
+          71,
+          17
+         ],
+         "Size": [
+          20,
+          3
+         ],
+         "Min Width": 7,
+         "Min Height": 3,
+         "Max Width": 65536,
+         "Max Height": 65536,
+         "Visible": true,
+         "Enabled": true,
+         "ToolTip": "",
+         "Text": "Trace",
+         "Border": true,
+         "Checkable": false,
+         "Checked": false
+        },
+        "row": 0,
+        "col": 0,
+        "rowspan": 1,
+        "colspan": 1
+       },
+       {
+        "class": "TTkButton",
+        "params": {
+         "Name": "TTkButton_close",
+         "Position": [
+          71,
+          21
+         ],
+         "Size": [
+          20,
+          3
+         ],
+         "Min Width": 7,
+         "Min Height": 3,
+         "Max Width": 65536,
+         "Max Height": 65536,
+         "Visible": true,
+         "Enabled": true,
+         "ToolTip": "",
+         "Text": "Close",
+         "Border": true,
+         "Checkable": false,
+         "Checked": false
+        },
+        "row": 0,
+        "col": 0,
+        "rowspan": 1,
+        "colspan": 1
+       }
+      ]
+     },
+     "row": 0,
+     "col": 0,
+     "rowspan": 1,
+     "colspan": 1
+    }
+   ]
+  }
+ },
+ "connections": []
+}

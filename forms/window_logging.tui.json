@@ -1,0 +1,123 @@
+{
+ "type": "TTkUi/Document",
+ "version": "2.1.0",
+ "tui": {
+  "class": "TTkContainer",
+  "params": {
+   "Name": "MainWindow",
+   "Position": [
+    2,
+    3
+   ],
+   "Size": [
+    95,
+    26
+   ],
+   "Min Width": 0,
+   "Min Height": 0,
+   "Max Width": 65536,
+   "Max Height": 65536,
+   "Visible": true,
+   "Enabled": true,
+   "ToolTip": "",
+   "Padding": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "Layout": "TTkLayout"
+  },
+  "layout": {
+   "class": "TTkLayout",
+   "params": {
+    "Geometry": [
+     0,
+     0,
+     95,
+     26
+    ]
+   },
+   "children": [
+    {
+     "class": "TTkWindow",
+     "params": {
+      "Name": "TTkWindow_logging",
+      "Position": [
+       1,
+       15
+      ],
+      "Size": [
+       93,
+       11
+      ],
+      "Min Width": 0,
+      "Min Height": 0,
+      "Max Width": 65536,
+      "Max Height": 65536,
+      "Visible": true,
+      "Enabled": true,
+      "ToolTip": "",
+      "Padding": [
+       3,
+       1,
+       1,
+       1
+      ],
+      "Layout": "TTkLayout",
+      "Border": true,
+      "Title": "Program messages",
+      "Window Flags": 134217728
+     },
+     "layout": {
+      "class": "TTkLayout",
+      "params": {
+       "Geometry": [
+        0,
+        0,
+        91,
+        7
+       ]
+      },
+      "children": [
+       {
+        "class": "TTkTextEdit",
+        "params": {
+         "Name": "TTkTextEdit_logging",
+         "Position": [
+          1,
+          0
+         ],
+         "Size": [
+          89,
+          6
+         ],
+         "Min Width": 0,
+         "Min Height": 0,
+         "Max Width": 65536,
+         "Max Height": 65536,
+         "Visible": true,
+         "Enabled": true,
+         "ToolTip": "",
+         "Line Number": false,
+         "Line Number Starting": 0,
+         "Read Only": false,
+         "Multi Line": true
+        },
+        "row": 0,
+        "col": 0,
+        "rowspan": 1,
+        "colspan": 1
+       }
+      ]
+     },
+     "row": 0,
+     "col": 0,
+     "rowspan": 1,
+     "colspan": 1
+    }
+   ]
+  }
+ },
+ "connections": []
+}

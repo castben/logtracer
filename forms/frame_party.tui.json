@@ -1,0 +1,208 @@
+{
+ "type": "TTkUi/Document",
+ "version": "2.1.0",
+ "tui": {
+  "class": "TTkFrame",
+  "params": {
+   "Name": "MainWindow_party",
+   "Position": [
+    2,
+    1
+   ],
+   "Size": [
+    96,
+    26
+   ],
+   "Min Width": 0,
+   "Min Height": 0,
+   "Max Width": 65536,
+   "Max Height": 65536,
+   "Visible": true,
+   "Enabled": true,
+   "ToolTip": "",
+   "Padding": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "Layout": "TTkLayout",
+   "Border": false,
+   "Title": ""
+  },
+  "layout": {
+   "class": "TTkLayout",
+   "params": {
+    "Geometry": [
+     0,
+     0,
+     96,
+     26
+    ]
+   },
+   "children": [
+    {
+     "class": "TTkFrame",
+     "params": {
+      "Name": "TTkFrame_party",
+      "Position": [
+       2,
+       0
+      ],
+      "Size": [
+       92,
+       23
+      ],
+      "Min Width": 0,
+      "Min Height": 0,
+      "Max Width": 65536,
+      "Max Height": 65536,
+      "Visible": true,
+      "Enabled": true,
+      "ToolTip": "",
+      "Padding": [
+       1,
+       1,
+       1,
+       1
+      ],
+      "Layout": "TTkLayout",
+      "Border": true,
+      "Title": "Parties"
+     },
+     "layout": {
+      "class": "TTkLayout",
+      "params": {
+       "Geometry": [
+        0,
+        0,
+        90,
+        21
+       ]
+      },
+      "children": [
+       {
+        "class": "TTkTree",
+        "params": {
+         "Name": "TTkTree_party",
+         "Position": [
+          1,
+          0
+         ],
+         "Size": [
+          88,
+          21
+         ],
+         "Min Width": 0,
+         "Min Height": 0,
+         "Max Width": 65536,
+         "Max Height": 65536,
+         "Visible": true,
+         "Enabled": true,
+         "ToolTip": "",
+         "Sorting": true
+        },
+        "row": 0,
+        "col": 0,
+        "rowspan": 1,
+        "colspan": 1
+       }
+      ]
+     },
+     "row": 0,
+     "col": 0,
+     "rowspan": 1,
+     "colspan": 1
+    },
+    {
+     "class": "TTkButton",
+     "params": {
+      "Name": "TTkButton_add_party",
+      "Position": [
+       4,
+       23
+      ],
+      "Size": [
+       11,
+       3
+      ],
+      "Min Width": 5,
+      "Min Height": 3,
+      "Max Width": 65536,
+      "Max Height": 65536,
+      "Visible": true,
+      "Enabled": true,
+      "ToolTip": "",
+      "Text": "Add",
+      "Border": true,
+      "Checkable": false,
+      "Checked": false
+     },
+     "row": 0,
+     "col": 0,
+     "rowspan": 1,
+     "colspan": 1
+    },
+    {
+     "class": "TTkButton",
+     "params": {
+      "Name": "TTkButton_modify_party",
+      "Position": [
+       17,
+       23
+      ],
+      "Size": [
+       10,
+       3
+      ],
+      "Min Width": 8,
+      "Min Height": 3,
+      "Max Width": 65536,
+      "Max Height": 65536,
+      "Visible": true,
+      "Enabled": true,
+      "ToolTip": "",
+      "Text": "Modify",
+      "Border": true,
+      "Checkable": false,
+      "Checked": false
+     },
+     "row": 0,
+     "col": 0,
+     "rowspan": 1,
+     "colspan": 1
+    },
+    {
+     "class": "TTkButton",
+     "params": {
+      "Name": "TTkButton_delete_party",
+      "Position": [
+       36,
+       23
+      ],
+      "Size": [
+       12,
+       3
+      ],
+      "Min Width": 8,
+      "Min Height": 3,
+      "Max Width": 65536,
+      "Max Height": 65536,
+      "Visible": true,
+      "Enabled": true,
+      "ToolTip": "",
+      "Text": "Delete",
+      "Border": true,
+      "Checkable": false,
+      "Checked": false
+     },
+     "row": 0,
+     "col": 0,
+     "rowspan": 1,
+     "colspan": 1
+    }
+   ]
+  }
+ },
+ "connections": []
+}

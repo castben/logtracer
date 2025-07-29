@@ -1,0 +1,152 @@
+{
+ "type": "TTkUi/Document",
+ "version": "2.1.0",
+ "tui": {
+  "class": "TTkContainer",
+  "params": {
+   "Name": "MainWindow",
+   "Position": [
+    3,
+    2
+   ],
+   "Size": [
+    95,
+    26
+   ],
+   "Min Width": 0,
+   "Min Height": 0,
+   "Max Width": 65536,
+   "Max Height": 65536,
+   "Visible": true,
+   "Enabled": true,
+   "ToolTip": "",
+   "Padding": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "Layout": "TTkLayout"
+  },
+  "layout": {
+   "class": "TTkLayout",
+   "params": {
+    "Geometry": [
+     0,
+     0,
+     95,
+     26
+    ]
+   },
+   "children": [
+    {
+     "class": "TTkWindow",
+     "params": {
+      "Name": "TTkWindow_popup",
+      "Position": [
+       32,
+       8
+      ],
+      "Size": [
+       33,
+       7
+      ],
+      "Min Width": 0,
+      "Min Height": 0,
+      "Max Width": 65536,
+      "Max Height": 65536,
+      "Visible": true,
+      "Enabled": true,
+      "ToolTip": "",
+      "Padding": [
+       3,
+       1,
+       1,
+       1
+      ],
+      "Layout": "TTkLayout",
+      "Border": true,
+      "Title": "Confirm",
+      "Window Flags": 134217728
+     },
+     "layout": {
+      "class": "TTkLayout",
+      "params": {
+       "Geometry": [
+        0,
+        0,
+        31,
+        3
+       ]
+      },
+      "children": [
+       {
+        "class": "TTkButton",
+        "params": {
+         "Name": "TTkButton",
+         "Position": [
+          1,
+          1
+         ],
+         "Size": [
+          11,
+          1
+         ],
+         "Min Width": 11,
+         "Min Height": 1,
+         "Max Width": 65536,
+         "Max Height": 1,
+         "Visible": true,
+         "Enabled": true,
+         "ToolTip": "",
+         "Text": "\u001b[0;38;2;255;0;0m\u270b \u001b[0m\u001b[0mCancel",
+         "Border": false,
+         "Checkable": false,
+         "Checked": false
+        },
+        "row": 0,
+        "col": 0,
+        "rowspan": 1,
+        "colspan": 1
+       },
+       {
+        "class": "TTkButton",
+        "params": {
+         "Name": "TTkButton_ok",
+         "Position": [
+          18,
+          1
+         ],
+         "Size": [
+          10,
+          1
+         ],
+         "Min Width": 7,
+         "Min Height": 1,
+         "Max Width": 65536,
+         "Max Height": 1,
+         "Visible": true,
+         "Enabled": true,
+         "ToolTip": "",
+         "Text": "\u001b[0;38;2;0;255;0m\ud83d\udc4d \u001b[0m\u001b[0mOk",
+         "Border": false,
+         "Checkable": false,
+         "Checked": false
+        },
+        "row": 0,
+        "col": 0,
+        "rowspan": 1,
+        "colspan": 1
+       }
+      ]
+     },
+     "row": 0,
+     "col": 0,
+     "rowspan": 1,
+     "colspan": 1
+    }
+   ]
+  }
+ },
+ "connections": []
+}
