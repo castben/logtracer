@@ -314,6 +314,9 @@ class InteractiveWindow:
 
                 TTkLabel_Parties.setText(f"{len(file_to_analyse.get_all_unique_results('Party'))}")
                 results = collect_refIds.classify_results(FileManagement.get_all_unique_results('Flows&Transactions'))
+                if not results:
+                    write_log('...')
+                    return
                 TTkLabel_Flows.setText(f"{len(results['FLOW'])}")
                 TTkLabel_Transactions.setText(f"{len(results['TRANSACTION'])}")
 
