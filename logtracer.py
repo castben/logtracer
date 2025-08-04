@@ -505,25 +505,9 @@ class InteractiveWindow:
             if not ref_id or not co:
                 write_log("Reference ID not found unable to trace it, please try another", level='WARN')
                 return
-            write_log('\n\n\n')
-            write_log('=============================================================================')
-            write_log(f'Starting Trace for {ref_id}')
-            uml_trace = UMLStepSetup(get_configs(), co)
-            uml_trace.file = file_to_analyse
-            uml_trace.parallel_process(co)
-            c_uml = CreateUML(co, file_to_analyse)
-            script_file = c_uml.generate_uml_pages(client_name='test', output_prefix=ref_id)
-            if not script_file:
-                write_log('No useful information was related to this reference id', level='WARN')
-            else:
-                write_log("\n".join(script_file))
-                success = CreateUML.render_uml(file=script_file)
 
-                if success:
-                    self.add_generated_file(ref_id, script_file)
+            _start_trace(ref_id, file_to_analyse, co)
 
-
-            write_log('=============================================================================')
 
         def _show_hide_window(window_name):
             """
