@@ -826,6 +826,7 @@ class InteractiveWindow:
 
         TTKButton_show_txn: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_show_transaction')
         frame_quickview:  ttk.TTkFrame = root_window_quickview.getWidgetByName('TTkFrame_quickview')
+        TTkmenuButton_quickview_exit = root_window_quickview.getWidgetByName('menuButton_quickview_exit')
         TTkTextEdit_quickview: ttk.TTkTextEdit = root_window_quickview.getWidgetByName('TTkTextEdit_quickview_content')
         TTkButton_flow_quickview = root_window_flow.getWidgetByName('TTkButton_flow_quickview')
         frame_transaction = root_window_transaction.getWidgetByName('TTkFrame_transactions')
@@ -861,7 +862,6 @@ class InteractiveWindow:
         list_flow.textClicked.connect(lambda: _quick_view_check('flows', list_flow.selectedLabels()))
         TTkButton_flow_quickview.clicked.connect(lambda: _quick_view( list_flow.selectedLabels()))
 
-
         # Transaction
         TTkButton_tx_trace.clicked.connect(lambda: _trace('txn'))
         TTKButton_show_txn.clicked.connect(lambda: _show_hide_window('txn'))
@@ -873,6 +873,7 @@ class InteractiveWindow:
         # Quick View
         self.TTkWindow_quickview.addWidget(frame_quickview)
         TTkButton_flow_quickview.setEnabled(False)
+        TTkmenuButton_quickview_exit.menuButtonClicked.connect(lambda: self.TTkWindow_quickview.setVisible(False))
         _quickview_resize()
 
         # LogViewer
@@ -894,13 +895,16 @@ class InteractiveWindow:
         # frame_party.move(1,0)
 
         tui_logging = TTkTextEdit_logging
+
         root.layout().addWidget(self.TTkWindow_customer_info)
         root.layout().addWidget(self.TTkWindow_party)
         root.layout().addWidget(self.TTkWindow_flow)
         root.layout().addWidget(self.TTkWindow_transaction)
         root.layout().addWidget(self.TTkWindow_quickview)
         root.layout().addWidget(TTkWindow_logging)
+        # root.layout().addWidget(TTkWindow_popup_new_data)
         InteractiveWindow.update_tui_from_queue()
+
         root.mainloop()
 
     @staticmethod
@@ -908,6 +912,9 @@ class InteractiveWindow:
         while not log_queue.empty():
             message = log_queue.get_nowait()
             tui_logging.append(message)  # Tu widget de logs en PyTermTk
+            # tui_logging._verticalScrollBar.setValue(tui_logging._verticalScrollBar.maximum())
+
+
 
         # Volver a revisar en 500 ms
         threading.Timer(0.5, InteractiveWindow.update_tui_from_queue).start()
