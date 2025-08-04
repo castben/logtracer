@@ -425,6 +425,62 @@ class InteractiveWindow:
             new_size = (window_size[0]+5, window_size[1]+4)
             TTkTextEdit_quickview.resize(window_size[0]-5,window_size[1]-7)
 
+
+        def _run_analysis(ref_id, file_to_analyse, co):
+            """
+            Función que ejecuta el análisis en un hilo separado
+            """
+            try:
+                write_log('\n\n\n')
+                write_log('=============================================================================')
+                write_log(f'Starting Trace for {ref_id}')
+
+                # Proceso de análisis
+                uml_trace = UMLStepSetup(get_configs(), co)
+                uml_trace.file = file_to_analyse
+                uml_trace.parallel_process(co)
+
+                c_uml = CreateUML(co, file_to_analyse)
+                script_file = c_uml.generate_uml_pages(
+                    client_name=self.customer,
+                    ticket=self.ticket,
+                    output_prefix=ref_id
+                )
+
+                if not script_file:
+                    write_log('No useful information was related to this reference id', level='WARN')
+                else:
+                    write_log("\n".join(script_file))
+                    success = CreateUML.render_uml(file=script_file)
+                    if success:
+                        self.add_generated_file(ref_id, script_file)
+
+                write_log('=============================================================================')
+
+            except Exception as e:
+                write_log(f"Error during analysis: {str(e)}", level='ERROR')
+
+
+        def _start_trace(ref_id, file_to_analyse, co):
+            """
+            Método que lanza el análisis en un hilo separado
+            """
+            # Mostrar mensaje de inicio en UI
+            write_log(f"Starting analysis for {ref_id}...")
+
+            # Crear y lanzar el hilo
+            analysis_thread = threading.Thread(
+                target=_run_analysis,
+                args=(ref_id, file_to_analyse, co),
+                name=f"AnalysisThread-{ref_id}",
+                daemon=True  # El hilo se cerrará cuando termine la aplicación
+            )
+            analysis_thread.start()
+
+            # Opcional: guardar referencia al hilo para poder monitorearlo
+            # self.active_threads.append(analysis_thread)
+
+
         def _trace(source):
             """
             Trace
