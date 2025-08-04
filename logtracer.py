@@ -1198,11 +1198,5 @@ if __name__ == "__main__":
 
     args = parserargs.parse_args()
 
-    # file = main()
-
     pass
-    # tracer = TracerId(get_configs())
-    # #
-    # tracer.tracer(file)
 
-    # cProfile.run("main()")#, 'profile-results.prof')
