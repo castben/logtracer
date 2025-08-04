@@ -115,7 +115,7 @@
        "center": [
         {
          "params": {
-          "Name": "menuButton_logfileviewer",
+          "Name": "menuButton_lfv_exit",
           "ToolTip": "",
           "Text": "Exit",
           "Checkable": false,
