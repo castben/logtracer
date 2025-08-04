@@ -131,6 +131,8 @@ class InteractiveWindow:
         self.customer = None
         self.ticket = None
         self.generated_files = {}
+        self.filesize = 0
+
 
         HighlightCode('timestamps', r'[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}', '#00AAAA')
         HighlightCode('level', 'WARN', '#AAAA00')
