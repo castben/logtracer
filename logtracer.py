@@ -215,10 +215,12 @@ class InteractiveWindow:
 
             self.filename = filepath
             filepath = os.path.basename(filepath)
+            self.filesize = os.path.getsize(self.filename)
             # TTkLineEdit_logfile.setText(txt)
+            TTkLabel_file_size.setText(ttk.TTkString(_filesize_str(self.filesize)))
             TTkButton_start_analysis.setEnabled(True)
             TTkButton_viewfile.setEnabled(True)
-            tui_logging = TTkTextEdit_logging
+
             self.TTkWindow_customer_info.setTitle(f'Logs tracer - {filepath}')
             write_log('Checking for existing diagrams...')
             self.check_generated_files()
