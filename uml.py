@@ -1090,7 +1090,7 @@ class CreateUML:
         self.uml('uml_start', instruction=CreateUML.verified_participants)
         # Opcional: otros elementos comunes (ej: estilo, temas, etc.)
 
-    def generate_uml_pages(self, client_name, steps_per_page=25, output_prefix="uml_page"):
+    def generate_uml_pages(self, client_name,ticket, steps_per_page=25, output_prefix="uml_page"):
         """
         Genera múltiples archivos UML, uno por página
 
@@ -1110,7 +1110,7 @@ class CreateUML:
 
         app_path = os.path.dirname(os.path.abspath(__file__))
 
-        save_path = f"{app_path}/plugins/plantuml_cmd/data/{client_name}"
+        save_path = f"{app_path}/plugins/plantuml_cmd/data/{client_name}/{ticket}"
 
         if not os.path.exists(save_path):
             os.makedirs(save_path)
