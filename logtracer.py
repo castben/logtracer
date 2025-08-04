@@ -603,6 +603,74 @@ class InteractiveWindow:
 
             root.layout().addWidget(logfile_viewer.TTkWindow_logviewer)
 
+        @pyTTkSlot()
+        def _add_new_data(type=None):
+            """
+            Add new customer
+            :param type: Customer or ticket
+            :return:
+            """
+            global TTkWindow_popup_new_data
+
+            TTkWindow_popup_new_data = root_window_popup_add_customer_ticket.getWidgetByName('TTkWindow_popup_new_data')
+
+            ttk.TTkHelper.overlay(TTkButton_new_customer, TTkWindow_popup_new_data, -2, -1)
+            if type and type == 'ticket':
+                TTkLineEdit_popup_newcustomer_customer.setText(self.customer)
+                TTkLineEdit_popup_newcustomer_customer.setEnabled(False)
+
+            # TTkButton_new_customer.setEnabled(False)
+            # TTkButton_new_ticket.setEnabled(False)
+
+        def _process_new_data():
+            """
+            Adding new data
+            :return:
+            """
+
+            app_path =f"{os.path.dirname(os.path.abspath(__file__))}/plugins/plantuml_cmd/data"
+
+            self.customer = TTkLineEdit_popup_newcustomer_customer.text().toAscii()
+            self.ticket = TTkLineEdit_popup_newcustomer_ticket.text().toAscii()
+            if not self.customer:
+                write_log('Please supply a valid customer name...')
+                return
+
+            if not self.ticket:
+                write_log('Please supply a valid customer ticket...')
+                return
+
+            os.makedirs(f'{app_path}/{self.customer}/{self.ticket}')
+
+            TTkComboBox_customer.addItem(self.customer)
+            TTkComboBox_ticket.addItem(self.ticket)
+            TTkComboBox_customer.setCurrentText(self.customer)
+            TTkComboBox_ticket.setCurrentText(self.ticket)
+            TTkButton_new_customer.setEnabled(True)
+            TTkButton_new_ticket.setEnabled(True)
+            TTkWindow_popup_new_data.close()
+
+
+        def _close_popup_new_data():
+            """
+
+            :return:
+            """
+            global TTkWindow_popup_new_data
+
+            TTkWindow_popup_new_data.close()
+            TTkButton_new_customer.setEnabled(True)
+            TTkButton_new_ticket.setEnabled(True)
+
+
+        def _exit_application():
+            """
+            Close all operations and exit
+            :return:
+            """
+
+
+
 
         # Data generated using ttkDesigner
         customer_info_widget = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
