@@ -488,11 +488,13 @@ class InteractiveWindow:
             :return:
             """
             global file_to_analyse
-
             if source == 'flow':
                 ref_id = list_flow.selectedLabels()[0]
+                TTkButton_flow_trace.setEnabled(False)
+
             if source == 'txn':
                 ref_id = list_transactions.selectedLabels()[0]
+                TTkButton_tx_trace.setEnabled(False)
 
             if not source:
                 return
