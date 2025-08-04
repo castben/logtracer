@@ -148,7 +148,7 @@ class InteractiveWindow:
         :return:
         """
         app_path = os.path.dirname(os.path.abspath(__file__))
-        app_path = f'{app_path}/plugins/plantuml_cmd/data/test'
+        app_path = f'{app_path}/plugins/plantuml_cmd/data/{self.customer}/{self.ticket}'
         pattern = re.compile(r'([A-Za-z0-9-]*)_page_[0-9]*.puml')
         for each_file in glob.glob(f"{app_path}/*.puml"):
             match = pattern.search(each_file)
