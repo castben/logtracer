@@ -49,7 +49,7 @@ class InteractiveWindow:
                 "PtO9ROj/YPc3gnfgFdHBnXixeUIiaZ+abFhC3Nlw2+ea5dp9k6iC4XfOkvY3mc6paqtvUi3artYuDFZzkhEpoRqr1O0B+cWESdcXUGxlG2YwIBGbI5YTRawPldYqK82Y" +
                 "tE0AHPU10+2y1FCJvEyvppd85sbgMPtuABb9notgeAw8HjtR2VsMSofkdWsK+hfgLVF/R+/7qAIfSggGm7GSksdO8QXdaLr/AHinNBI="))
 
-
+            self.TTkMenuBarButton: ttk.TTkMenuBarButton = self.root_logviewer.getWidgetByName('menuButton_lfv_exit')
             self.TTkFrame_logfileviewer: ttk.TTkFrame = self.root_logviewer.getWidgetByName('TTkFrame_logfileviewer')
             self.TTkTextEdit_logfileviewer: ttk.TTkTextEdit = self.root_logviewer.getWidgetByName('TTkTextEdit_logfileviewer')
             self.TTkWindow_logviewer.addWidget(self.TTkFrame_logfileviewer)
@@ -60,6 +60,8 @@ class InteractiveWindow:
                 self.TTkTextEdit_logfileviewer.setLineNumber(starting_line)
 
             self.TTkWindow_logviewer.sizeChanged.connect(self._logview_resize)
+
+            self.TTkMenuBarButton.menuButtonClicked.connect(lambda: self.TTkWindow_logviewer.setVisible(False))
 
 
         def loadfile(self, filename, starting_line=0, maxlines=0):
