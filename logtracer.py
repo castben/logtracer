@@ -225,6 +225,57 @@ class InteractiveWindow:
             write_log('Checking for existing diagrams...')
             self.check_generated_files()
 
+        def _fill_tickets(customer):
+            """
+            Will fill tickets list if there're on given folder path
+            :param app_path:
+            :return:
+            """
+            self.customer = customer
+            TTkButton_new_ticket.setEnabled(True)
+            app_path =f"{os.path.dirname(os.path.abspath(__file__))}/plugins/plantuml_cmd/data/{customer}"
+
+            ticket_list = _check_folders(app_path)
+
+            if ticket_list:
+                TTkComboBox_ticket.addItems(ticket_list)
+
+        def _check_folders(app_path=None):
+            """
+
+            :return:
+            """
+            if not app_path:
+                app_path =f"{os.path.dirname(os.path.abspath(__file__))}/plugins/plantuml_cmd/data"
+
+            subdirs = [
+                item for item in os.listdir(app_path)
+                if os.path.isdir(os.path.join(app_path, item))
+            ]
+
+            return subdirs
+
+        def _enable_file_select(ticket):
+            """
+
+            :return:
+            """
+            if ticket:
+                self.ticket = ticket
+                TTkFileButtonPicker.setEnabled(True)
+
+        def _filesize_str(size_in_bytes):
+            """
+            Return a human-readable file size string (e.g., 1.23 KB, 4.56 MB).
+            :param size_in_bytes: Size in bytes (int or float)
+            :return: Formatted string
+            """
+            for unit in ['B', 'KB', 'MB', 'GB', 'TB', 'PB']:
+                if size_in_bytes < 1024.0:
+                    return f"{size_in_bytes:.2f} {unit}"
+                size_in_bytes /= 1024.0
+            return f"{size_in_bytes:.2f} EB"
+
         def _start_analysis():
             """
 
