@@ -805,8 +805,15 @@ class InteractiveWindow:
         # "Name": "TTkWindow_logging",
         # "Name": "TTkTextEdit",
 
-        # TTkLineEdit_logfile: ttk.TTkLineEdit = customer_info_widget.getWidgetByName('TTkLineEdit_logfile')
+        # Pull all required components
         TTkFileButtonPicker: ttk.TTkFileButtonPicker = customer_info_widget.getWidgetByName('TTkFileButtonPicker')
+        TTkComboBox_customer: ttk.TTkComboBox = customer_info_widget.getWidgetByName('TTkComboBox_customer')
+        TTkComboBox_ticket: ttk.TTkComboBox = customer_info_widget.getWidgetByName('TTkComboBox_ticket')
+        TTkLabel_file_size: ttk.TTkLabel = customer_info_widget.getWidgetByName("TTkLabel_file_size")
+        TTkButton_new_customer: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_new_customer')
+        TTkButton_new_ticket: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_new_ticket')
+        TTkButton_main_exit: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_main_exit')
+
         TTkButton_start_analysis: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_start_analysis')
         TTkWindow_logging: ttk.TTkWindow = root_window_logging.getWidgetByName("TTkWindow_logging")
         TTkTextEdit_logging: ttk.TTkTextEdit = root_window_logging.getWidgetByName('TTkTextEdit_logging')
