@@ -16,6 +16,7 @@ from get_parties import GetParties
 from uml import UMLEntityEndPoints, UMLStepSetup, CreateUML
 from log_handler import write_log, HighlightCode
 from log_handler import log_queue
+from TermTk.TTkCore.signal import pyTTkSlot
 
 def get_configs():
     return Configs
