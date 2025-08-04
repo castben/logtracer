@@ -1561,31 +1561,6 @@ class FileManagement:
                 write_log(f"Thread {thread_index} completed in {time_msg}, "
                       f"Processed {data:.2f} Mbytes, from line {tasks[thread_index][2]} to line {tasks[thread_index][3]}")
 
-    def parallel_processingX(self):
-        """
-        Launch all assigned threads in parallel to process each block of log file
-        :return:
-        """
-        tasks = [(start, size, start_line, end_line) for start, size, start_line, end_line in self.chunk_info]
-        futures = []
-        with ThreadPoolExecutor(max_workers=5) as pool:
-            for index, each_task in enumerate(tasks):
-                self.start_stop_watch(f'Thread-{index}', start=True)
-                future = pool.submit(self.process_block, each_task)
-                future.thread_index = index
-                future.start_time = self.get_statistics_data(f'Thread-{index}', 'chrono-start')
-                future.info = each_task[1]
-                futures.append(future)
-
-            for future in concurrent.futures.as_completed(futures):
-                thread_index = future.thread_index
-                time_msg = self.start_stop_watch(f'Thread-{thread_index}', start=False)
-                # elapsed_time = time.time() - future.start_time
-                data = future.info / 1024 / 1024
-                if self.debug:
-                    write_log(f"Thread {thread_index} completed in {time_msg} Processed {data:.2f} Mbytes, "
-                          f"from line {tasks[thread_index][2]} to line {tasks[thread_index][3]}")
-
     def set_file_format(self, file_format):
         """
         Corda file format recognized
