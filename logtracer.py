@@ -202,6 +202,7 @@ class InteractiveWindow:
 
         :return:
         """
+        global tui_logging
 
         def _filetxtchange(filepath):
             """
