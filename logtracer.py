@@ -838,7 +838,21 @@ class InteractiveWindow:
         list_flow: ttk.TTkList = root_window_flow.getWidgetByName('TTkList_flow')
         TTkButton_viewfile: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_viewfile')
 
+        TTkWindow_popup_new_data = None
+        # TTkWindow_popup_new_data: ttk.TTkWindow = root_window_popup_add_customer_ticket.getWidgetByName('TTkWindow_popup_new_data')
+        # TTkWindow_popup_new_data_org = ttk.TTkWindow = root_window_popup_add_customer_ticket.getWidgetByName('TTkWindow_popup_new_data')
+        TTkButton_popup_newcustomer_ok: ttk.TTkButton = root_window_popup_add_customer_ticket.getWidgetByName('TTkButton_popup_newcustomer_ok')
+        TTkButton_popup_newcustomer_cancel: ttk.TTkButton = root_window_popup_add_customer_ticket.getWidgetByName('TTkButton_popup_newcustomer_cancel')
+        TTkLineEdit_popup_newcustomer_customer: ttk.TTkLineEdit = root_window_popup_add_customer_ticket.getWidgetByName('TTkLineEdit_popup_newcustomer_customer')
+        TTkLineEdit_popup_newcustomer_ticket: ttk.TTkLineEdit = root_window_popup_add_customer_ticket.getWidgetByName('TTkLineEdit_popup_newcustomer_ticket')
+
         frame_flow.move(60,4)
+
+        # pop window new customer/ticket
+        TTkButton_popup_newcustomer_ok.clicked.connect(_process_new_data)
+        TTkButton_popup_newcustomer_cancel.clicked.connect(_close_popup_new_data)
+
+        # TTkWindow_popup_new_data.setVisible(False)
 
         # FilePicker
         TTkButton_viewfile.setEnabled(False)
@@ -852,8 +866,16 @@ class InteractiveWindow:
         TTKButton_show_party.clicked.connect(lambda: _show_hide_window('party'))
 
         #Main window
+        TTkFileButtonPicker.setEnabled(False)
         TTkFileButtonPicker.pathPicked.connect(_filetxtchange)
         TTkButton_start_analysis.clicked.connect(_start_analysis)
+        TTkComboBox_customer.currentTextChanged.connect(_fill_tickets)
+        TTkComboBox_ticket.currentTextChanged.connect(_enable_file_select)
+        TTkButton_new_customer.clicked.connect(_add_new_data)
+        TTkButton_new_ticket.clicked.connect(lambda: _add_new_data('ticket'))
+        TTkButton_new_ticket.setEnabled(False)
+        TTkButton_main_exit.clicked.connect(_exit_aplication)
+
 
         # Flow
         TTkButton_flow_trace.setEnabled(False)
@@ -892,7 +914,10 @@ class InteractiveWindow:
         self.TTkWindow_flow.addWidget(frame_flow)
         self.TTkWindow_customer_info.addWidget(customer_info_widget)
         self.TTkWindow_party.addWidget(frame_party)
-        # frame_party.move(1,0)
+
+        customers = _check_folders()
+        if customers:
+            TTkComboBox_customer.addItems(customers)
 
         tui_logging = TTkTextEdit_logging
 
