@@ -747,7 +747,7 @@ class InteractiveWindow:
         root=TTk()
 
         self.TTkWindow_customer_info = ttk.TTkWindow(parent=self.root,
-                                                     pos=(17, 1), size=(67, 21),
+                                                     pos=(17, 1), size=(67, 26),
                                                      title=ttk.TTkString("Logs Tracer", ttk.TTkColor.ITALIC),
                                                      border=True,
                                                      layout=ttk.TTkGridLayout())
