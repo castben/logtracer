@@ -733,6 +733,17 @@ class InteractiveWindow:
             "JqiBh7ZK1kSDh0Otd0iGNKE5kkrJ1IqNrJgey35BdrPw1OghlrjSqe2HBe7aThhw+9YC7V1Go7GdNCThFQrO3KXO8YGwJ8j/Kf7Pghp7XuDQ0MGuCRrZZ5BjXd37DUw+" +
             "PWo="))
 
+        root_window_popup_add_customer_ticket = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
+            "eJyVlN9PE0EQx69py7VFICAKCpoLMYaEWIHoAxh/QMUfnBUSqzwYJMfdhtlw3W3u9gRMSHykyfpgsr74wot/nU/8Cc7eL0At0TaXm5m92f18Z3b3c+nbz7IR/w7VtCyJ" +
+            "gw5RcrDV2n1L7z7lbtQmTChpfiRBSDlTsjxfn6vPKlkUEVU6pez6ThgqeQlzGpwJhzISKNnXcQKnHcaflF47bZy11sSxDco8vqdkZZ2HVOgpN9W0PWQXiSy9oZ9I7N63" +
+            "B4isNimzNqgnQNkGJqP3gtAdENqtNp39dHDVMAp6HAPpeBIx39GQbvtEHUlzhTloedpsce63aEdJA2WtO55H2U68qJH8iex75RzwCFVXUVJqR7LPTywUBCZMQvUQRTwn" +
+            "vE1EcJCmI7dQoay4QH0vIFpb/Hk8U6pcJ05DvxzPQ1sd3ok6W4zsbXmOcBQMaJyCXSAwpK15u5/AsG3ACD6XY3EwmryuHMHVIxiDcbiW5iR5EzAp+5Z54GErjmS5RQXW" +
+            "QY4txWotXMlyo1AgexDW63VsXkJiPfOdnVDXz6hEcOOMVLAShbN2FRXCFK6WKKvENdomfi7sTCQWUsTeJkIGNdqwPYhCCr2EyFKL7GPtBxspoMVw8yzixmtwn+PGKk28" +
+            "n21jb5Z8usPi3WkXIlkMsLS4L4ou9/XbRD/sOAwHpYmx1I4SSfcy1lrGemcupy3/By0s4Fmh7i4RFova2yRYVPAgRYSHuB48wp49xucJTrKUAch+vS4elBWPirxwt88E" +
+            "T/dE1qitzEhBR/KyjiaghXOgaJ7WtPaSdSJhtfThxoJUV1zgVpN76BmwAOM9MGE1Q7t1MZqIS5CDlf8VDNbQW7+QIT46y5EQeFNkNDfz0F9Y+G7eSfM8h9mbY0GaJ8df" +
+            "v1hrtoKZrqw2gLi7+spQXWnGDl4e3V5l2sjApi4Ccx3m5ofi+u9wtYvgaifHP7430vyZLmx24cNfaMifISeKZL/LGSOuvmxDvJGi+i97/O4V"))
+
+
         root=TTk()
 
         self.TTkWindow_customer_info = ttk.TTkWindow(parent=self.root,
