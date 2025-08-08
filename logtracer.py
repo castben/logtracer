@@ -106,6 +106,17 @@ class InteractiveWindow:
                 self.starting_line = starting_line
                 self.TTkTextEdit_logfileviewer.setLineNumber(starting_line)
 
+            def _wordwrap():
+                """
+
+                :return:
+                """
+                if self.TTkMenuBarButton_lfv_wordwrap.isChecked():
+                    self.TTkTextEdit_logfileviewer.setLineWrapMode(ttk.TTkK.WidgetWidth)
+                    self.TTkMenuBarButton_lfv_wordwrap.clearFocus()
+                else:
+                    self.TTkTextEdit_logfileviewer.setLineWrapMode(ttk.TTkK.NoWrap)
+
             self.TTkWindow_logviewer.sizeChanged.connect(self._logview_resize)
 
             self.TTkMenuBarButton.menuButtonClicked.connect(lambda: self.TTkWindow_logviewer.setVisible(False))
