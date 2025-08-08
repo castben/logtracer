@@ -10,6 +10,10 @@ from enum import Enum
 import numpy as np
 from typing import List, Tuple, Dict, Optional
 from log_handler import write_log
+from shutdown_event import shutdown_event
+from support_icons import Icons
+from ui_commands import schedule_ui_update
+
 
 class CordaObject:
     """
@@ -54,6 +58,43 @@ class CordaObject:
         self.timestamp = None
         self.error_level = None
         self.uml_steps = OrderedDict()
+
+    @classmethod
+    def clear_all(cls):
+        """
+        Clear all base variables for class
+        :return:
+        """
+
+        # This represents all ID's registered so far
+        cls.id_ref = []
+        # This keep a list of all instances of this class
+        cls.list = {}
+        cls.relations = {}
+        # Default UML references
+        # This represents entities endpoints (for source and destination)
+        cls.default_uml_endpoints = {}
+        # To store all uml setup
+        cls.uml = {}
+        # Setup uml participants and initial fields
+        cls.uml_init = []
+        cls.uml_active_participants = []
+        # An auxiliary field to allow me find out what are additional fields that need to be added to final summary table
+        cls.additional_table_fields = []
+        # List of all participants; and roles
+        cls.uml_participants = {}
+        # Reference registration: this will register each reference that "visit" a "UML_DEFAULT" object if proper flag is
+        # enabled
+        cls.entity_register = {}
+        # Define current object as Log Owner
+        cls.log_owner = None
+        # References
+        cls.corda_object_regex = []
+        cls.corda_object_types = []
+
+        # Clear group names cache
+        #
+        cls.clear_group_list = {}
 
     @staticmethod
     def get_clear_group_list(raw_list):
@@ -1136,6 +1177,16 @@ class FileManagement:
         if not self.parser:
             self.parser = X500NameParser(self.rules['RULES'])
 
+        FileManagement.clear()
+
+    @classmethod
+    def clear(cls):
+        """
+        Clear all results
+        :return:
+        """
+        cls.unique_results = {}
+
     def identify_party_role(self, line):
         """
         This method will try to identify a specific party like a Notary or log producer (low_owner)
@@ -1490,46 +1541,60 @@ class FileManagement:
         """
 
         # TODO: Este metodo guarda los resultados; necesito hacer una revision de esto, ya que el hecho de ejecutar
-        # el metodo que procesa la informacion en el caso de los ref_ids ya esta guardando los resultados, asi que
-        # probablemente este repitiendo el proceso sin necesidad aqui.
+        #  el metodo que procesa la informacion en el caso de los ref_ids ya esta guardando los resultados, asi que
+        #  probablemente este repitiendo el proceso sin necesidad aqui.
 
         start, size, start_line, end_line = args
         local_results = {}
         current_line = start_line
-        with open(self.filename, "r") as file:
-            with mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ) as mmapped_file:
-                chunk = mmapped_file[start:start+size].decode('utf-8', errors='ignore')
-                lines = chunk.splitlines()
+        try:
+            # Verificar si ya se solicitó cierre antes de empezar
+            if shutdown_event.is_set():
+                return None
+            with open(self.filename, "r") as file:
+                with mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ) as mmapped_file:
+                    chunk = mmapped_file[start:start+size].decode('utf-8', errors='ignore')
+                    lines = chunk.splitlines()
 
-                for line in lines:
+                    for i, line in enumerate(lines):
+                        for each_method in self.get_methods_type():
+                            # Verificar cada 100 líneas si es hora de terminar
+                            if i % 100 == 0 and shutdown_event.is_set():
+                                write_log(f"Interrupting block processing {start_line}-{end_line} due to close request")
+                                return None
+
+                            result = self.get_method(each_method).execute(line, current_line)
+                            #write_log(f"{each_method} -- {result}")
+                            if each_method == 'Party':
+                                # if method running is related to parties, line below will run an extra
+                                # analysis on that line to see if this line is able to identify a role (like owner of log
+                                # or notary...
+                                self.identify_party_role(line)
+
+                            if result:
+                                if each_method not in local_results:
+                                    local_results[each_method] = []
+                                if isinstance(result, list):
+                                    local_results[each_method].extend(result)
+                                else:
+                                    local_results[each_method].append(result)
+                        current_line += 1
+
+            if local_results:
+                with self.lock:
                     for each_method in self.get_methods_type():
-                        result = self.get_method(each_method).execute(line, current_line)
-                        #write_log(f"{each_method} -- {result}")
-                        if each_method == 'Party':
-                            # if method running is related to parties, line below will run an extra
-                            # analysis on that line to see if this line is able to identify a role (like owner of log
-                            # or notary...
-                            self.identify_party_role(line)
+                        write_log(f"Saving {each_method}...")
+                        for each_result in local_results[each_method]:
+                            FileManagement.add_element(each_method, each_result)
 
-                        if result:
-                            if each_method not in local_results:
-                                local_results[each_method] = []
-                            if isinstance(result, list):
-                                local_results[each_method].extend(result)
-                            else:
-                                local_results[each_method].append(result)
-                    current_line += 1
+            return FileManagement.get_all_unique_results()
 
-        if local_results:
-            with self.lock:
-                for each_method in self.get_methods_type():
-                    write_log(f"Saving {each_method}...")
-                    for each_result in local_results[each_method]:
-                        FileManagement.add_element(each_method, each_result)
+        except Exception as e:
+            if not shutdown_event.is_set():  # Solo registrar errores reales
+                write_log(f"Error Processing block {start_line}-{end_line}: {str(e)}", level="ERROR")
+            return None
 
-        return FileManagement.get_all_unique_results()
-
-    def parallel_processing(self):
+    def parallel_processing_x(self):
         """
         Launch all assigned threads in parallel to process each block of log file.
         TODO: AI Corrections/advices
@@ -1539,9 +1604,97 @@ class FileManagement:
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
             futures = []
-
+            active_tasks = []  # Tareas activas que no se han cancelado
             # Submit all tasks to the executor and store future objects.
+            import time
+            time.sleep(0.5)
+            write_log(f"{Icons.CLOCK} [Hilo {threading.current_thread().name}] Delay de prueba completado")
+
             for index, each_task in enumerate(tasks):
+                if shutdown_event.is_set():
+                    break
+                self.start_stop_watch(f'Thread-{index}', start=True)
+                future = pool.submit(self.process_block, each_task)
+                future.thread_index = index
+                future.start_time = self.get_statistics_data(f'Thread-{index}', 'chrono-start')
+                future.info = each_task[1]
+                futures.append(future)
+                active_tasks.append(each_task)
+                write_log(f"{Icons.SUCCESS} [Hilo {threading.current_thread().name}] Procesamiento paralelo iniciado")
+
+
+            # Monitorear tareas activas
+            while active_tasks and not shutdown_event.is_set():
+                # Actualizar active_tasks con tareas aún en ejecución
+                active_tasks = [task for task in active_tasks
+                                if not any(future.done() for future in futures
+                                           if future.thread_index == tasks.index(task))]
+
+            # Si se solicitó cierre, cancelar tareas pendientes
+            if shutdown_event.is_set():
+                write_log(f"Cancelando {len(active_tasks)} tareas pendientes...", level="INFO")
+                for future in futures:
+                    if not future.done():
+                        future.cancel()
+
+            # Esperar a que terminen todas las tareas (completadas o canceladas)
+            concurrent.futures.wait(futures, return_when=concurrent.futures.ALL_COMPLETED)
+
+        # Process results once all threads have completed execution
+        if not shutdown_event.is_set() and  self.debug:
+            for future in futures:  # Loop over stored futures
+                thread_index = future.thread_index
+                time_msg = self.start_stop_watch(f'Thread-{thread_index}', start=False)
+                data = future.info / (1024 * 1024)  # Processed data calculation
+                write_log(f"Thread {thread_index} completed in {time_msg}, "
+                      f"Processed {data:.2f} Mbytes, from line {tasks[thread_index][2]} to line {tasks[thread_index][3]}")
+
+    def parallel_processing(self):
+        """
+        Procesamiento paralelo CORREGIDO para mantener la UI responsive
+        """
+        tasks = [(start, size, start_line, end_line) for start, size, start_line, end_line in self.chunk_info]
+        write_log(f"{Icons.INFO} Iniciando procesamiento de {len(tasks)} bloques")
+
+        # Variables para monitoreo
+        futures = []
+        active_tasks = tasks.copy()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+            # Función para monitorear tareas SIN BLOQUEAR
+            def monitor_tasks():
+                nonlocal active_tasks
+
+                if shutdown_event.is_set() or not active_tasks:
+                    return
+
+                # Actualizar lista de tareas activas
+                completed_indices = [
+                    future.thread_index for future in futures
+                    if future.done() and not future.cancelled()
+                ]
+                active_tasks = [
+                    task for task in active_tasks
+                    if tasks.index(task) not in completed_indices
+                ]
+
+                # Registrar progreso cada 5% de completado
+                completed_percent = 100 - (len(active_tasks) * 100 // len(tasks))
+                if completed_percent % 2 == 0 and self.debug:
+                    schedule_ui_update('TTkLabel_analysis_stat','setText',f"{Icons.CLOCK}...{completed_percent}%")
+
+                # Programar próxima verificación
+                if active_tasks and not shutdown_event.is_set():
+                    threading.Timer(0.1, monitor_tasks).start()  # ¡Solo 100ms!
+
+            # Iniciar monitoreo
+            monitor_tasks()
+
+            # Enviar tareas al pool
+            for index, each_task in enumerate(tasks):
+                if shutdown_event.is_set():
+                    break
+
                 self.start_stop_watch(f'Thread-{index}', start=True)
                 future = pool.submit(self.process_block, each_task)
                 future.thread_index = index
@@ -1549,17 +1702,27 @@ class FileManagement:
                 future.info = each_task[1]
                 futures.append(future)
 
-            # Shutdown the executor to ensure all tasks are completed.
-            pool.shutdown(wait=True)  # Ensures that the loop waits for all submitted tasks to complete
+        # Procesar resultados solo si no se está cerrando
+        if not shutdown_event.is_set() and self.debug:
+            total_time = 0
+            total_data = 0
 
-        # Process results once all threads have completed execution
-        if self.debug:
-            for future in futures:  # Loop over stored futures
-                thread_index = future.thread_index
-                time_msg = self.start_stop_watch(f'Thread-{thread_index}', start=False)
-                data = future.info / (1024 * 1024)  # Processed data calculation
-                write_log(f"Thread {thread_index} completed in {time_msg}, "
-                      f"Processed {data:.2f} Mbytes, from line {tasks[thread_index][2]} to line {tasks[thread_index][3]}")
+            for future in futures:
+                if future.done() and not future.cancelled():
+                    thread_index = future.thread_index
+                    time_msg = self.start_stop_watch(f'Thread-{thread_index}', start=False)
+                    data = future.info / (1024 * 1024)
+
+                    total_time += float(time_msg.split()[0])
+                    total_data += data
+
+                    if self.debug:
+                        write_log(f"Thread {thread_index} completed in {time_msg}, "
+                                  f"Processed {data:.2f} MB")
+
+            if self.debug:
+                write_log(f"{Icons.SUCCESS} Análisis completado. "
+                          f"Total: {total_data:.2f} MB en {total_time:.2f}s")
 
     def set_file_format(self, file_format):
         """
@@ -3302,8 +3465,8 @@ class BlockExtractor:
         self.block_types = config.get("BLOCK_COLLECTION", {}).get("COLLECT", {})
         self.compiled_patterns = {
             block_name: {
-                "start": [re.compile(p) for p in block_def["START"]["EXPECT"]],
-                "end": [re.compile(p) for p in block_def.get("END", {}).get("EXPECT", [])]
+                "start": [re.compile(RegexLib.build_regex(p)) for p in block_def["START"]["EXPECT"]],
+                "end": [re.compile(RegexLib.build_regex(p)) for p in block_def.get("END", {}).get("EXPECT", [])]
             }
             for block_name, block_def in self.block_types.items()
         }
@@ -3312,7 +3475,11 @@ class BlockExtractor:
         self.references = {}
         for each_type in self.block_types:
             if "REFERENCE_ID" in self.block_types[each_type]:
-                self.references[each_type] = self.block_types[each_type]['REFERENCE_ID']
+                rreference = []
+                for each_reference in self.block_types[each_type]['REFERENCE_ID']:
+                    rreference.append(re.compile(RegexLib.build_regex(each_reference)))
+
+                self.references[each_type] = rreference
 
     def _is_log_line_start(self, line: str) -> bool:
         if self.log_line_start_regex:
@@ -3328,10 +3495,11 @@ class BlockExtractor:
         in_block: Dict[str, bool] = {key: False for key in self.block_types}
         line_check = 0 # check how many lines were taking in account after a block indentification...
         with open(self.file_path, 'r', encoding='utf-8') as f:
-            for line_number, line in enumerate(f, 1):
 
+            for line_number, line in enumerate(f, 1):
                 for block_name, patterns in self.compiled_patterns.items():
                     # Start match with access to match object
+
                     for p in patterns["start"]:
                         match = p.match(line)
                         if match:
@@ -3339,12 +3507,20 @@ class BlockExtractor:
                             blk = BlockItems()
                             blk.line_number = line_number
                             blk.type = block_name
+                            blk.reference = None
+                            # Check if given line has a matching reference
+                            # TODO: refactor this...
 
-                            if reference_key and reference_key in match.groupdict():
-                                blk.reference = match.group(reference_key)
-                            # if there're no explicit reference to pick up, let's assign line number as reference.
-                            if not reference_key:
-                                blk.reference = f"{line_number}"
+                            if not blk.reference:
+                                blk.reference = self._look_for_reference_id(block_name, line)
+
+
+
+                            # if reference_key and reference_key in match.groupdict():
+                            #     blk.reference = match.group(reference_key)
+                            # # if there're no explicit reference to pick up, let's assign line number as reference.
+                            # if not reference_key:
+                            #     blk.reference = f"{line_number}"
 
                             if line not in blk.content:
                                 blk.content.append(line)
@@ -3395,9 +3571,36 @@ class BlockExtractor:
 
         pass
 
+    def _look_for_reference_id(self, block_type, line):
+        """
+        Look for references Id's defined at configuration; for now it will return
+        very first one that makes a match...
+        :param line: log line to check
+        :return: reference that match with configured regex...
+        """
+
+        for each_reference in self.references[block_type]:
+            match = each_reference.search(line)
+            if match:
+                return match.group(1)
+
+        return None
+
+
     def _store_block(self, block_type: str, blk: BlockItems):
+        """
+        Store blocks found
+        :param block_type: type of block to store
+        :param blk: block items to store
+        :return: None
+        """
         if block_type not in self.collected_blocks:
             self.collected_blocks[block_type] = {}
+
+        if not blk.reference:
+            # If not reference was found will use line number...
+            blk.reference = blk.line_number
+
         if blk.reference not in self.collected_blocks[block_type]:
             self.collected_blocks[block_type][blk.reference] = []
 
@@ -3412,33 +3615,41 @@ class BlockExtractor:
         for block_type, blocks in self.collected_blocks.items():
             write_log(f"{block_type}: {len(blocks)} blocks collected.")
 
+    def get_reference(self, reference_id=None, block_type=None):
+        """
+        Look for given reference and return what is found
+        :param reference_id: to look for
+        :return: a dictionary specifying which block type reference id was found, None otherwise
+        """
 
-# def write_log(*args1, **kwargs):
-#     """Replacing the actual print command to print with timestamp"""
-#     # Adding new arguments to the print function signature
-#     # is probably a bad idea.
-#     # Instead consider testing if custom argument keywords
-#     # are present in kwargs
-#     global tui_logging
-#
-#     timestamp = "%s" % datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-#
-#     if 'tui_logging' not in globals():
-#         return __builtin__.write_log(*args1, **kwargs)
-#     else:
-#         msg = ""
-#         if args1:
-#             for s in args1:
-#                 msg += s + " "
-#         if kwargs:
-#             for each_arg in kwargs:
-#                 msg += f"{kwargs[each_arg]} "
-#
-#
-#         tui_logging.append(f"{timestamp} {msg}")
-#
-#         return None
+        results = {}
+        if reference_id:
+            # Returns a dictionary with blocks where given reference was found.
+            if not block_type:
+                for each_type in self.collected_blocks:
+                    if reference_id in self.collected_blocks[each_type]:
+                        results[each_type] = self.collected_blocks[each_type][reference_id]
 
+                return results
+            else:
+                if block_type in self.collected_blocks:
+                    if reference_id in self.collected_blocks[block_type]:
+                       return {block_type, self.collected_blocks[block_type][reference_id]}
+
+            return None
+
+        if not reference_id and not block_type:
+            # Return a dictionary with all blocks found
+            for each_type in self.collected_blocks:
+                results[each_type] = self.collected_blocks[each_type]
+
+            return results
+
+        if not reference_id and block_type and block_type in self.collected_blocks:
+            # return a list of references for given block_type
+            return self.collected_blocks[block_type]
+
+        return None
 
 def get_not_null(list_or_tuple, start=0):
     """
