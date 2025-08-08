@@ -596,7 +596,6 @@ class InteractiveWindow:
             # Opcional: guardar referencia al hilo para poder monitorearlo
             # self.active_threads.append(analysis_thread)
 
-
         def _trace(source):
             """
             Trace
@@ -604,12 +603,13 @@ class InteractiveWindow:
             :return:
             """
             global file_to_analyse
+
             if source == 'flow':
-                ref_id = list_flow.selectedLabels()[0]
+                ref_id = ttk.TTkString.toAscii(list_flow.selectedLabels()[0])
                 TTkButton_flow_trace.setEnabled(False)
 
             if source == 'txn':
-                ref_id = list_transactions.selectedLabels()[0]
+                ref_id = ttk.TTkString.toAscii(list_transactions.selectedLabels()[0])
                 TTkButton_tx_trace.setEnabled(False)
 
             if not source:
