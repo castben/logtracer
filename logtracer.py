@@ -974,8 +974,7 @@ class InteractiveWindow:
         list_flow: ttk.TTkList = root_window_flow.getWidgetByName('TTkList_flow')
         TTkButton_viewfile: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_viewfile')
 
-        TTkWindow_popup_new_data = None
-        # TTkWindow_popup_new_data: ttk.TTkWindow = root_window_popup_add_customer_ticket.getWidgetByName('TTkWindow_popup_new_data')
+        TTkWindow_popup_new_data: ttk.TTkWindow = root_window_popup_add_customer_ticket.getWidgetByName('TTkWindow_popup_new_data')
         # TTkWindow_popup_new_data_org = ttk.TTkWindow = root_window_popup_add_customer_ticket.getWidgetByName('TTkWindow_popup_new_data')
         TTkButton_popup_newcustomer_ok: ttk.TTkButton = root_window_popup_add_customer_ticket.getWidgetByName('TTkButton_popup_newcustomer_ok')
         TTkButton_popup_newcustomer_cancel: ttk.TTkButton = root_window_popup_add_customer_ticket.getWidgetByName('TTkButton_popup_newcustomer_cancel')
