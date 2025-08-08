@@ -540,13 +540,15 @@ class InteractiveWindow:
             new_size = (window_size[0]+5, window_size[1]+4)
             TTkTextEdit_quickview.resize(window_size[0]-5,window_size[1]-7)
 
-
         def _run_analysis(ref_id, file_to_analyse, co):
             """
             Función que ejecuta el análisis en un hilo separado
             """
             try:
-                write_log('\n\n\n')
+
+                write_log('=')
+                write_log('=')
+                write_log('=')
                 write_log('=============================================================================')
                 write_log(f'Starting Trace for {ref_id}')
 
