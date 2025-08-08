@@ -276,9 +276,13 @@ class InteractiveWindow:
             self.filename = filepath
             filepath = os.path.basename(filepath)
             self.filesize = os.path.getsize(self.filename)
-            # TTkLineEdit_logfile.setText(txt)
+
             TTkLabel_file_size.setText(ttk.TTkString(_filesize_str(self.filesize)))
             TTkButton_start_analysis.setEnabled(True)
+            TTkLabel_analysis_status.setText("")
+            TTkLabel_Flows.setText("")
+            TTkLabel_Parties.setText("")
+            TTkLabel_Transactions.setText("")
             TTkButton_viewfile.setEnabled(True)
 
             self.TTkWindow_customer_info.setTitle(f'Logs tracer - {filepath}')
