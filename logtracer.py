@@ -510,8 +510,17 @@ class InteractiveWindow:
 
 
             file_to_analyse.start_stop_watch('Main-search', True)
-            analysis_thread = threading.Thread(target=_analysis_process)
+            analysis_thread = threading.Thread(
+                target=_analysis_process,
+                args=(special_blocks,),
+                name="File Analysis",
+                daemon=True
+            )
             analysis_thread.start()
+            write_log(f'Started analysis for: {file_to_analyse.filename}')
+            # Verifica que el hilo se inició
+            # write_log(f"{Icons.SUCCESS} Hilo de análisis iniciado: {analysis_thread.name}")
+            # write_log(f"{Icons.INFO} Hilos activos después: {len(threading.enumerate())}")
 
         def _logging_resize():
             """
