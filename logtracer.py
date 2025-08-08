@@ -725,17 +725,19 @@ class InteractiveWindow:
             :param type: Customer or ticket
             :return:
             """
-            global TTkWindow_popup_new_data
-
-            TTkWindow_popup_new_data = root_window_popup_add_customer_ticket.getWidgetByName('TTkWindow_popup_new_data')
-
-            ttk.TTkHelper.overlay(TTkButton_new_customer, TTkWindow_popup_new_data, -2, -1)
+            TTkWindow_popup_new_data.setVisible(True)
+            TTkLineEdit_popup_newcustomer_customer.setEnabled(True)
+            TTkLineEdit_popup_newcustomer_customer.setText('')
+            TTkLineEdit_popup_newcustomer_ticket.setText('')
+            TTkWindow_popup_new_data.move(30,10)
+            TTkWindow_popup_new_data.raiseWidget()
+            # ttk.TTkHelper.overlay(TTkButton_new_customer, TTkWindow_popup_new_data, -2, -1)
             if type and type == 'ticket':
                 TTkLineEdit_popup_newcustomer_customer.setText(self.customer)
                 TTkLineEdit_popup_newcustomer_customer.setEnabled(False)
 
-            # TTkButton_new_customer.setEnabled(False)
-            # TTkButton_new_ticket.setEnabled(False)
+            TTkButton_new_customer.setEnabled(False)
+            TTkButton_new_ticket.setEnabled(False)
 
         def _process_new_data():
             """
