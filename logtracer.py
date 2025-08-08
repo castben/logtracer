@@ -141,19 +141,20 @@ class InteractiveWindow:
             try:
                 with open(filename, 'r') as hlogfile:
                     for line_number, each_line in enumerate(hlogfile, start=2):
+                        ttkline = ttk.TTkString(each_line.rstrip())
                         if starting_line>0:
                             if maxlines > 0:
                                 if starting_line <= line_number <= starting_line+maxlines:
                                     # self.TTkTextEdit_logfileviewer.append(each_line.rstrip())
-                                    buffer.append(each_line.rstrip())
+                                    buffer.append(HighlightCode.highlight(ttkline))
                             else:
                                 # self.TTkTextEdit_logfileviewer.append(each_line.rstrip())
-                                buffer.append(each_line.rstrip())
+                                buffer.append(HighlightCode.highlight(ttkline))
                         else:
                             # self.TTkTextEdit_logfileviewer.append(each_line.rstrip())
-                            buffer.append(each_line.rstrip())
+                            buffer.append(HighlightCode.highlight(ttkline))
 
-                self.TTkTextEdit_logfileviewer.setText("\n".join(buffer))
+                self.TTkTextEdit_logfileviewer.setText(ttk.TTkString("\n").join(buffer))
 
             except IOError as io:
                 write_log(f'Unable to open {filename} due to {io}', level="ERROR")
