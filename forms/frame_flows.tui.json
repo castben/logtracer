@@ -48,7 +48,7 @@
        0
       ],
       "Size": [
-       50,
+       49,
        28
       ],
       "Min Width": 0,
@@ -74,7 +74,7 @@
        "Geometry": [
         0,
         0,
-        50,
+        49,
         28
        ]
       },
@@ -156,7 +156,7 @@
        {
         "class": "TTkButton",
         "params": {
-         "Name": "TTkButton_close",
+         "Name": "TTkButton_flows_details",
          "Position": [
           14,
           25
@@ -165,14 +165,14 @@
           10,
           3
          ],
-         "Min Width": 7,
+         "Min Width": 9,
          "Min Height": 3,
          "Max Width": 65536,
          "Max Height": 65536,
          "Visible": true,
          "Enabled": true,
          "ToolTip": "",
-         "Text": "Close",
+         "Text": "Details",
          "Border": true,
          "Checkable": false,
          "Checked": false

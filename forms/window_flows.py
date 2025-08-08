@@ -2,13 +2,13 @@ from TermTk import TTkUtil, TTkUiLoader, TTk
 
 # Data generated using ttkDesigner
 widget = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
-    "eJyNk1tPE0EUgLfpZdtyKV4QUIyNiUkTSEV+Ai2griUQVngyZN0dORO2O3V3BqgJCY8lmReT8dkH/6A/wTMzW2wCiN1s9lzmnPnOpZelH3Nlx/wuVEuW+HBAlJz1/ZOP" +
-    "9HWXhaJPEq6ke0rSjLJEyfJ6+017TckiF1TpkHIYB1mm5DTGdFjCA5qQVMnKIEiDfmaOlHaCPmad66HvkCYROzv6ErMzDKrusoxynfiTanklr0BkaZ9+I0bteS+IrPVo" +
-    "0jykEQflObKutbeEHgPXaq0XnOfO945T0H405H5rcQ9oRj/HRI2ku5kEKEVa9BmLfTpQ0sHidoMoosmxudSxD5GVD8GQCay9hoXlspCV2EpYFriwDLULLGKbsD7h6TAP" +
-    "R26uMlkNgcZRSnRt5risYqatVPdCx7VgSs6MLaYhCmZyBAINLa17ywQeeA48xPeRKQge28/8CJ6MYAEWYWkSG57BsqxssDTCIVzJsk851g6LAp5PIEPTRmB+JIWXmMF6" +
-    "X43BpifBbnCteUv/yVWwj+GClRGsyvKWGf3tQG1vIQeyHXN172nG1SSXNkz2y+Q3XKve/L1ccnafxCTUS9fssYgoryCr3aSbK46QxRRT43YVQxbrr4t6NggSfdJFWy6L" +
-    "QEAX79nEd8srwDaaLLXemA3BOa71mLtxbToKY5aRHH1WN9Kg172iRncRvXgneskn57iR5Y5NsTKStQ6Q8ESvNU7bNQou+NUdZPDuFh6eBiG5HvGYZ9ry1P/FAzuy/vvn" +
-    "919N36bA+e5ewd79ty/+vV3P8eiroOHJKSXjiT69xmhYjMY9GA3EuGzu6TTNA5PnbhZy0xQIIadCliR2LzL8x4r2H3iGn88="))
+    "eJyNk1tv0zAUx1P1kra7lNvYhSEqJKRKm8rGR9i6DQidNi1sT2gyidmxlsYlcXZBmrTHTvILknnmgS/IR+DYTkbRGCNRlONjn+Pf//j4svJtoeqY50J1ZEWcD6mS075/" +
+    "/J697PEgG9BYKOme0CRlPFay+qq72l1RsiwypnRINYhImio5iTHrPBaExTRRsjYkCRmkZkllmwww670+zh2wOOSnh58ifopB9R2eMqETf1Adr+KVqKzssS/UDPveMyob" +
+    "fRa3D1goQHmObOrRa8qOQOhho0/O8sm3jlPS8+jI563H3Wcp+xhRNZLuRkzQCrXpcx75bKikg+J2SBiy+Mhs6tiXyto7cs4z1N5AYbmdyVpkLZQFLixC4wJFbFE+oCI5" +
+    "z8ORW6hU1gNgUZhQrc0sl3XMtJnoWui4DkzIqcJjCqJgKkeg0NLWqrdI4b7nwAP8HhpB8Mj+ZkbweASzMAfz49jwBBZlbY0nIR7Claz6TKB2mMvg6RgytG0E5kdSeI4Z" +
+    "7OyLAmxyHOwG14o3/59cJfsaLlgawbKsbpqj/ztQ15vNgWzFXF17lgo1zqUd4/Uy+Q3XsjdzJ5ec3qMRDXTTtfs8pMoryXov7uUDJ5PlBFNjd5UDHum/i+N0SGK90kVf" +
+    "bmckgx7us4HfpleCLXRZat0xa5kQ2NYF9+y1y7b+YUjxpkRpLmFaF9RIaHplLaGBEsq3Sqj49Ezfyl6RZGkkG+tAg2Pd4Hjurhlgq1/dwghvCrLWbzKRkIBeH3ZBNGmJ" +
+    "mv8igm3Z/Pn964+2b1PgSe9cwe7du8/9WZfDzxkLjk8YLc524RqjZTFad2C0EOOyvavTtPdNnttZ6E0XyTI5EfA4th2S4t3Nur8Av1CkDQ=="))
 
 root=TTk()
 root.layout().addWidget(widget)
