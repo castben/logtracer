@@ -1305,7 +1305,7 @@ def main():
 
         co = CordaObject.get_object(ref_id) # change here for parameter
         if not co:
-            print("Sorry but there's not information about {ref_id}...")
+            print(f"Sorry but there's not information about {ref_id}...")
             print("Exiting...")
             return None
 
@@ -1313,6 +1313,7 @@ def main():
         test.file = file_to_analyse
         test.parallel_process(co)
         c_uml = CreateUML(co, file_to_analyse)
+        ref_id = remove_unicode_symbols(ref_id)
         script = c_uml.generate_uml_pages(client_name='test', output_prefix=ref_id)
         print("\n".join(script))
         ##########################
