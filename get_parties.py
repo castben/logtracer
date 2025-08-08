@@ -7,6 +7,13 @@ class GetParties:
         self.x500list = []
         self.type = None
 
+    def clear(self):
+        """
+        Delete all collected party information
+        :return:
+        """
+        self.x500list = []
+
     def get_element_type(self):
         """
         Return element type for this item; element type could be "Party" which represents party element, or
