@@ -780,13 +780,16 @@
       "FLOW_TRANSITIONS": {
         "START": {
           "EXPECT": [
-            "^ --- Transition of flow \\[(?P<reference>[0-9a-f\\-]{36})\\] ---"
+            "^ --- Transition of flow \\[__flow_id__\\] ---"
           ]
         },
         "END": {
           "EXPECT": []
         },
-        "REFERENCE_ID": "reference"
+        "REFERENCE_ID":[
+          "__flow_id__"
+        ],
+        "ICON": "CHECK"
       },
       "ERRORS": {
         "START": {
@@ -796,7 +799,13 @@
         },
         "END": {
           "EXPECT": []
-        }
+        },
+        "REFERENCE_ID": [
+          "flow_id=__flow_id__",
+          "flow-id=__flow_id__",
+          "tx_id=__tx_id__"
+        ],
+        "ICON": "WARNING"
       }
     }
   },
