@@ -120,7 +120,7 @@ class InteractiveWindow:
             self.TTkWindow_logviewer.sizeChanged.connect(self._logview_resize)
 
             self.TTkMenuBarButton.menuButtonClicked.connect(lambda: self.TTkWindow_logviewer.setVisible(False))
-
+            self.TTkMenuBarButton_lfv_wordwrap.menuButtonClicked.connect(_wordwrap)
 
         def loadfile(self, filename, starting_line=0, maxlines=0):
             """
