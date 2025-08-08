@@ -5,6 +5,8 @@ import glob
 import os
 import argparse
 import re
+import signal
+import sys
 import threading
 from datetime import datetime
 from TermTk import TTkUtil, TTkUiLoader, TTk
@@ -13,13 +15,56 @@ from get_refIds import GetRefIds
 from object_class import Configs, FileManagement, BlockExtractor
 from object_class import CordaObject
 from get_parties import GetParties
+from support_icons import Icons
+from ui_commands import schedule_ui_update, process_ui_commands
 from uml import UMLEntityEndPoints, UMLStepSetup, CreateUML
 from log_handler import write_log, HighlightCode
 from log_handler import log_queue
 from TermTk.TTkCore.signal import pyTTkSlot
+from shutdown_event import shutdown_event
+
+
+def signal_handler(sig, frame):
+    """Maneja Ctrl+C y otras señales de terminación"""
+    if shutdown_event.is_set():
+        # Segundo Ctrl+C: cierre inmediato
+        write_log("Forcing closure", level="WARN")
+        sys.exit(1)
+
+    write_log("Request to shutdown, finishing all current tasks...", level="INFO")
+    shutdown_event.set()
+
+    # Programar cierre forzado en 15 segundos si no termina
+    threading.Timer(15.0, lambda: os._exit(1)).start()
+
+# Registrar manejador de señales
+signal.signal(signal.SIGINT, signal_handler)
 
 def get_configs():
     return Configs
+
+
+def remove_unicode_symbols(text):
+    """
+    Elimina emojis y símbolos Unicode (⚠️, ✅, etc.) pero mantiene texto normal
+    """
+    # Patrón para eliminar emojis y símbolos comunes
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # emoticonos
+        "\U0001F300-\U0001F5FF"  # símbolos y pictogramas
+        "\U0001F680-\U0001F6FF"  # transporte y mapas
+        "\U0001F700-\U0001F77F"  # símbolos alquímicos
+        "\U0001F780-\U0001F7FF"  # formas geométricas extendidas
+        "\U0001F800-\U0001F8FF"  # flechas extendidas
+        "\U0001F900-\U0001F9FF"  # componentes de símbolos
+        "\U0001FA00-\U0001FA6F"  # decoraciones de bandera
+        "\U00002702-\U000027B0"  # Dingbats
+        "\U000024C2-\U0001F251"
+        "]+"
+    )
+    return emoji_pattern.sub(r'', text).strip()
+
 
 class InteractiveWindow:
     """
@@ -42,17 +87,19 @@ class InteractiveWindow:
                                                      flags=ttk.TTkK.WindowFlag.WindowMinMaxButtonsHint)
 
             self.root_logviewer = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
-                "eJyFU0tv00AQdogTxw0PQUtpSypFnHIKjyuPQ0sA4aZUNNATqjb2NrOKvRvZu2mCVIljKs1x+b/MOgnKrV5ZO8/d7xt//uP/VVWvfG5sB309n3CLDweD8Q/x8qOKTcal" +
-                "thhMeV4IJS3W3nRfd19ZrGojrGupxSkrCov3qedYSc2E5LnF+oTlLCvKEv+UZXTqVp9yF0Im6tpi40wVQrsjf9lO5Ef3OPrn4jcv3Ul0yDHsC9m+EIkGG3nUTN4XLkag" +
-                "nRv22WyV/Op5FZenwCq/jAQ/RSGGKbcLDHqSkZU4c6BUOhATix7ROmNJIuSovNRbLo71EzZXhliHRGllG6ynS4sIQQAtCG+IxGeuMq7z+aqdcGtbYCMGkSY5d9zKcmzQ" +
-                "SZ9yNwXX14Em7q4jl6kaXYmUTwW/psHBA4elQjjgkbOyqMXhceTBE3q3S2aws9yeLmB3Ac9gD/aXPeXi8BxaWD9SeULHLbA2EJqGAHsGDjewQ3sJeRwdEGR4sUbaJFwD" +
-                "PtO9ROj/YPc3gnfgFdHBnXixeUIiaZ+abFhC3Nlw2+ea5dp9k6iC4XfOkvY3mc6paqtvUi3artYuDFZzkhEpoRqr1O0B+cWESdcXUGxlG2YwIBGbI5YTRawPldYqK82Y" +
-                "tE0AHPU10+2y1FCJvEyvppd85sbgMPtuABb9notgeAw8HjtR2VsMSofkdWsK+hfgLVF/R+/7qAIfSggGm7GSksdO8QXdaLr/AHinNBI="))
+                "eJyFU0tP3DAQznbDhmXbohbKqyBFPXGij2sfBygtIixFZVtOFTKJYSwSe5XYLFsJqcdFmqP7W/r3OnZCteqFWJbnne8bj3+Fv/+0A//d2E0M9XjILT4eDC6/iZcfVWoK" +
+                "LrXF6IqXlVDS4sybrddbryy2tRHWpcykOasqiw8pZ0dJzYTkpcXOkJWsqHxIeMgKqjrXJ9+JkJkaWZw9UpXQruQPu5mEyQOO4bH4yb06TDY4dvtCxici02CTgJJJ2+Pi" +
+                "ArRTu3123Tj3g6Dl/GRo/LUl+i4qcZZzO8FoVzKSMicOlMoHYmgxIFpHLMuEvPA/DerFsXPAxsoQ6y5RamSDnbyWiBBEsA7dGyLxmauC63LcpBNubSucTUHkWckdNx+O" +
+                "s1TpU+m64PI2oYdLd5bTXF2ci5xfCT6ixsEjh6VFOGDeSUWyzuFJEsBT2gueGSzWx7MJLE1gGVZgtc7xi8NzWMfOtiozKjfBmYHQ1ARYMbAxhR3iGvJlskaQ4cUd0h7h" +
+                "GvBrvZsJ/Q/s6pTxHrwiWbsXL/YOaEjiQ1OceYiLU2p8rFmp3Z0kLex+5SyLv8h8TFFzfZNrEbtYOzHYLmmMaBLaqcrdGZFeDZl0eRHZGtkwgxENsdlmJVHEzpnSWhX1" +
+                "XOb8XPs7uiO67CMNRcjT/PzqdERdHJVsaD3s0PWAxuKkscYk7wBPL1kzZl6hMbs1FcNOSk+H+E3XX/ivPr92XXZXuIfhrlf2byFx+aaCt9TCd7TfJy344KkY7KVKSp66" +
+                "l1NRabP1F5LoUGM="))
 
             self.TTkMenuBarButton: ttk.TTkMenuBarButton = self.root_logviewer.getWidgetByName('menuButton_lfv_exit')
             self.TTkFrame_logfileviewer: ttk.TTkFrame = self.root_logviewer.getWidgetByName('TTkFrame_logfileviewer')
             self.TTkTextEdit_logfileviewer: ttk.TTkTextEdit = self.root_logviewer.getWidgetByName('TTkTextEdit_logfileviewer')
             self.TTkWindow_logviewer.addWidget(self.TTkFrame_logfileviewer)
+            self.TTkMenuBarButton_lfv_wordwrap: ttk.TTkMenuBarButton = self.root_logviewer.getWidgetByName('menuButton_lfv_wordwrap')
             self._logview_resize()
 
             if starting_line:
