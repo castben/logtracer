@@ -194,6 +194,7 @@ class InteractiveWindow:
 
 
         HighlightCode('timestamps', r'[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}', '#00AAAA')
+        HighlightCode('timestamps', r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2},\d+Z','#00AAAA')
         HighlightCode('level', 'WARN', '#AAAA00')
         HighlightCode('level', 'WARNING', '#AAAA00')
         HighlightCode('level', r'\bINFO ', '#44AA00')
