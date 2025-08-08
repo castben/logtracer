@@ -598,7 +598,7 @@ class InteractiveWindow:
             if not source:
                 return
 
-            sref_id = remove_unicode_symbols(ref_id)
+            sref_id = Icons.remove_unicode_symbols(ref_id)
             co = CordaObject.get_object(sref_id)
 
             if not ref_id or not co:
