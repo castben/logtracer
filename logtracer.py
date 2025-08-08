@@ -434,10 +434,10 @@ class InteractiveWindow:
                     'Role': 15
                 }
 
-                tree_party.setHeaderLabels(party_headers)
+                self.tree_party.setHeaderLabels(party_headers)
                 # Set column width
                 for pos,header in enumerate(party_headers.keys()):
-                    tree_party.setColumnWidth(pos, party_headers[header])
+                    self.tree_party.setColumnWidth(pos, party_headers[header])
 
                 for each_party in FileManagement.get_all_unique_results('Party'):
                     if each_party.get_corda_role():
