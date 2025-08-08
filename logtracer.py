@@ -776,20 +776,17 @@ class InteractiveWindow:
             TTkComboBox_ticket.setCurrentText(self.ticket)
             TTkButton_new_customer.setEnabled(True)
             TTkButton_new_ticket.setEnabled(True)
-            TTkWindow_popup_new_data.close()
-
+            TTkWindow_popup_new_data.setVisible(False)
 
         def _close_popup_new_data():
             """
 
             :return:
             """
-            global TTkWindow_popup_new_data
-
-            TTkWindow_popup_new_data.close()
+            TTkWindow_popup_new_data.setVisible(False)
             TTkButton_new_customer.setEnabled(True)
             TTkButton_new_ticket.setEnabled(True)
-
+            TTkButton_new_customer.clearFocus()
 
         def _exit_application():
             """
