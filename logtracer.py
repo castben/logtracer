@@ -996,8 +996,8 @@ class InteractiveWindow:
 
         # Party
         frame_party = root_window_party.getWidgetByName('MainWindow_party')
-
-        tree_party: ttk.TTkTree = root_window_party.getWidgetByName('TTkTree_party')
+        TTkFrame_party = root_window_party.getWidgetByName('TTkTree_frame')
+        self.tree_party: ttk.TTkTree = root_window_party.getWidgetByName('TTkTree_party')
         TTKButton_show_party.clicked.connect(lambda: _show_hide_window('party'))
 
         #Main window
@@ -1009,7 +1009,9 @@ class InteractiveWindow:
         TTkButton_new_customer.clicked.connect(_add_new_data)
         TTkButton_new_ticket.clicked.connect(lambda: _add_new_data('ticket'))
         TTkButton_new_ticket.setEnabled(False)
-        TTkButton_main_exit.clicked.connect(_exit_aplication)
+        TTkButton_main_exit.clicked.connect(_exit_application)
+        TTkLabel_analysis_status.setVisible(False)
+        TTkWindow_popup_new_data.setVisible(False)
 
 
         # Flow
