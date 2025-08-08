@@ -500,9 +500,15 @@ class InteractiveWindow:
             file_to_analyse.add_process_to_execute(collect_parties)
             file_to_analyse.add_process_to_execute(collect_refIds)
 
-
             # Start all threads required
             # start a time watch
+            # Diagnóstico de hilos
+            # current_threads = threading.enumerate()
+            # write_log(f"{Icons.INFO} Hilos activos antes del análisis: {len(current_threads)}")
+            # for t in current_threads:
+            #     write_log(f"  - {t.name} (daemon: {t.daemon})")
+
+
             file_to_analyse.start_stop_watch('Main-search', True)
             analysis_thread = threading.Thread(target=_analysis_process)
             analysis_thread.start()
