@@ -302,6 +302,7 @@ class InteractiveWindow:
             ticket_list = _check_folders(app_path)
 
             if ticket_list:
+                TTkComboBox_ticket.clear()
                 TTkComboBox_ticket.addItems(ticket_list)
 
         def _check_folders(app_path=None):
