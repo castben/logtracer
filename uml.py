@@ -1136,7 +1136,7 @@ class CreateUML:
                 f'| Type      | {self.corda_object.type} |',
                 f'| Started   | {start_timestamp.strftime(time_format)} |',
                 f'| Finished  | {end_timestamp.strftime(time_format)} |',
-                f'| Duration  | {elapsed_time:.4f} |',
+                f'| Duration  | {time_msg} |',
                 'end title'
             ]
 
