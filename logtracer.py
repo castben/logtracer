@@ -445,7 +445,7 @@ class InteractiveWindow:
                     else:
                         role = 'party'
                     tree_element = ttk.TTkTreeWidgetItem([each_party.name, role])
-                    tree_party.addTopLevelItem(tree_element)
+                    self.tree_party.addTopLevelItem(tree_element)
                     if each_party.has_alternate_names():
                         for each_alternate in each_party.get_alternate_names():
                             child = ttk.TTkTreeWidgetItem([each_alternate, role])
