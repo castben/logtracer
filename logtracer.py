@@ -577,10 +577,9 @@ class InteractiveWindow:
             except Exception as e:
                 write_log(f"Error during analysis: {str(e)}", level='ERROR')
 
-
         def _start_trace(ref_id, file_to_analyse, co):
             """
-            Método que lanza el análisis en un hilo separado
+             Método que lanza el análisis en un hilo separado
             """
             # Mostrar mensaje de inicio en UI
             write_log(f"Starting analysis for {ref_id}...")
