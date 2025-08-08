@@ -948,6 +948,7 @@ class InteractiveWindow:
         TTkButton_new_customer: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_new_customer')
         TTkButton_new_ticket: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_new_ticket')
         TTkButton_main_exit: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_main_exit')
+        TTkLabel_analysis_status: ttk.TTkLabel = customer_info_widget.getWidgetByName('TTkLabel_analysis_stat')
 
         TTkButton_start_analysis: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_start_analysis')
         TTkWindow_logging: ttk.TTkWindow = root_window_logging.getWidgetByName("TTkWindow_logging")
