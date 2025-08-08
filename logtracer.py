@@ -1365,7 +1365,8 @@ if __name__ == "__main__":
     # -l /home/larry/IdeaProjects/logtracer/client-logs/ChainThat/CS-4002/Success-Transaction-logs.log
     # -l /home/larry/IdeaProjects/investigations/lab-constructor/investigation/ChainThat/CS-4002/client-logs/mnp-dev-party005-cordanode.log
     w = InteractiveWindow()
-    w.tk_window()
+    if not shutdown_event.is_set():
+        w.tk_window()
 
     parserargs = argparse.ArgumentParser()
     parserargs.add_argument('-l', '--log-file',
