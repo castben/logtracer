@@ -383,28 +383,33 @@ class InteractiveWindow:
                 if not results:
                     write_log('...')
                     return
-                TTkLabel_Flows.setText(f"{len(results['FLOW'])}")
-                TTkLabel_Transactions.setText(f"{len(results['TRANSACTION'])}")
+
+
+
 
                 # Flow list
-                for each_flow in results['FLOW']:
-                    sp_blk = special_blocks.get_reference(each_flow)
-                    if sp_blk:
-                        icn=""
-                        for each_blk in sp_blk:
-                            icn += f" {Icons.get(Configs.get_config_for(f'BLOCK_COLLECTION.COLLECT.{each_blk}.ICON'))}"
-                        each_flow = ttk.TTkString(f"{each_flow}{icn.lstrip()}")
-                    list_flow.addItem(each_flow)
+                if 'FLOW' in results:
+                    TTkLabel_Flows.setText(f"{len(results['FLOW'])}")
+                    for each_flow in results['FLOW']:
+                        sp_blk = special_blocks.get_reference(each_flow)
+                        if sp_blk:
+                            icn=""
+                            for each_blk in sp_blk:
+                                icn += f" {Icons.get(Configs.get_config_for(f'BLOCK_COLLECTION.COLLECT.{each_blk}.ICON'))}"
+                            each_flow = ttk.TTkString(f"{each_flow}{icn.lstrip()}")
+                        list_flow.addItem(each_flow)
 
                 # Transaction list
-                for each_tx in results['TRANSACTION']:
-                    sp_blk = special_blocks.get_reference(each_tx)
-                    if sp_blk:
-                        icn=""
-                        for each_blk in sp_blk:
-                            icn += f" {Icons.get(Configs.get_config_for(f'BLOCK_COLLECTION.COLLECT.{each_blk}.ICON'))}"
-                        each_tx = ttk.TTkString(f"{each_tx}{icn.lstrip()}")
-                    list_transactions.addItem(each_tx)
+                if 'TRANSACTION' in results:
+                    TTkLabel_Transactions.setText(f"{len(results['TRANSACTION'])}")
+                    for each_tx in results['TRANSACTION']:
+                        sp_blk = special_blocks.get_reference(each_tx)
+                        if sp_blk:
+                            icn=""
+                            for each_blk in sp_blk:
+                                icn += f" {Icons.get(Configs.get_config_for(f'BLOCK_COLLECTION.COLLECT.{each_blk}.ICON'))}"
+                            each_tx = ttk.TTkString(f"{each_tx}{icn.lstrip()}")
+                        list_transactions.addItem(each_tx)
 
                 # Party List
                 party_headers = {
