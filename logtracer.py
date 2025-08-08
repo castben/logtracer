@@ -615,7 +615,7 @@ class InteractiveWindow:
             if not source:
                 return
 
-            sref_id = ref_id.toAscii()
+            sref_id = remove_unicode_symbols(ref_id)
             co = CordaObject.get_object(sref_id)
 
             if not ref_id or not co:
@@ -623,7 +623,6 @@ class InteractiveWindow:
                 return
 
             _start_trace(ref_id, file_to_analyse, co)
-
 
         def _show_hide_window(window_name):
             """
