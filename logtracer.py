@@ -1324,7 +1324,27 @@ def main():
 if __name__ == "__main__":
     max_number_items_fNtx = 15
     tui_logging = None
-    file_to_analyse = None
+    # file_to_analyse = None
+
+    ## TESTS
+    # Configs.load_config()
+    #
+    # file_to_analyse = FileManagement('/home/larry/IdeaProjects/logtracer/checks/log-test.log',
+    #                                  block_size_in_mb=15, debug=True)
+    # # Analyse first 50 (by default) lines from given file_to_analyse to determine which Corda log format is
+    # # This is done to be able to separate key components from lines like Time stamp, severity level, and log
+    # # message
+    # file_to_analyse.discover_file_format()
+    # #
+    # # Analyse file for specific block lines that lack of key fields (like stack traces, and flow transitions):
+    #
+    # special_blocks = BlockExtractor(file_to_analyse, Configs.config)
+    # special_blocks.extract()
+    # special_blocks.summary()
+    # test = special_blocks.get_reference('33deaf04-1a1c-4f79-8a33-83c5c27a2979')
+    # test1 = special_blocks.get_reference(block_type='ERRORS')
+    # test3 = special_blocks.get_reference()
+    # pass
 
     # Small file with all roles
     # -l /home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log
