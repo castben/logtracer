@@ -1085,15 +1085,20 @@ class InteractiveWindow:
 
     @staticmethod
     def update_tui_from_queue():
+
+        # Si se está cerrando, procesar solo mensajes pendientes
+        if shutdown_event.is_set() and log_queue.empty():
+            return  # No programar más actualizaciones
+
         while not log_queue.empty():
             message = log_queue.get_nowait()
             tui_logging.append(message)  # Tu widget de logs en PyTermTk
+
             # tui_logging._verticalScrollBar.setValue(tui_logging._verticalScrollBar.maximum())
 
-
-
-        # Volver a revisar en 500 ms
-        threading.Timer(0.5, InteractiveWindow.update_tui_from_queue).start()
+        # Programar próxima revisión solo si no se está cerrando
+        if not shutdown_event.is_set():
+            threading.Timer(0.5, InteractiveWindow.update_tui_from_queue).start()
 
 def main():
     log_file = None
