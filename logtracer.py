@@ -365,7 +365,9 @@ class InteractiveWindow:
             schedule_ui_update('TTkLabel_analysis_stat','setVisible',True)
             schedule_ui_update('TTkLabel_analysis_stat', "setText", "Working...")
 
-            def _analysis_process():
+            _clear_components()
+
+            def _analysis_process(special_blocks:BlockExtractor):
                 """
                 Thread for analysis
                 :return:
