@@ -1022,6 +1022,7 @@ class InteractiveWindow:
         TTkButton_flow_quickview.clicked.connect(lambda: _quick_view( list_flow.selectedLabels()))
 
         # Transaction
+        TTkButton_tx_trace.setEnabled(False)
         TTkButton_tx_trace.clicked.connect(lambda: _trace('txn'))
         TTKButton_show_txn.clicked.connect(lambda: _show_hide_window('txn'))
         TTkButton_tx_quickview.setEnabled(False)
