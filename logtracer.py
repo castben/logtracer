@@ -903,6 +903,7 @@ class InteractiveWindow:
 
         self.TTkWindow_transaction = ttk.TTkWindow(parent=self.root,
                                              pos=(130, 1), size=(71, 32),
+                                             maxSize=(71, 32), minSize=(71, 32),
                                              title=ttk.TTkString("Transaction", ttk.TTkColor.ITALIC),
                                              border=True,
                                              layout=ttk.TTkGridLayout(),
