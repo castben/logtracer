@@ -388,10 +388,15 @@ class InteractiveWindow:
                     file_to_analyse.assign_roles()
 
                 write_log(f"Elapsed time:{time_msg}")
+                schedule_ui_update('TTkLabel_analysis_stat', "setText", '\u2705 Done...')
 
                 ##
                 ## Start filling components with data
                 if not file_to_analyse.get_all_unique_results():
+                    write_log('I was not able to process this file, it was not recognized as Corda log file', level='WARN')
+                    return
+
+                if not file_to_analyse.get_all_unique_results('Party'):
                     write_log('I was not able to process this file, it was not recognized as Corda log file', level='WARN')
                     return
 
