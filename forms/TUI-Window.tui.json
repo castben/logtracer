@@ -718,6 +718,34 @@
         "col": 0,
         "rowspan": 1,
         "colspan": 1
+       },
+       {
+        "class": "TTkLabel",
+        "params": {
+         "Name": "TTkLabel_analysis_stat",
+         "Position": [
+          21,
+          9
+         ],
+         "Size": [
+          35,
+          1
+         ],
+         "Min Width": 0,
+         "Min Height": 1,
+         "Max Width": 65536,
+         "Max Height": 65536,
+         "Visible": true,
+         "Enabled": true,
+         "ToolTip": "",
+         "Text": "",
+         "Color": "\u001b[38;2;0;255;255m",
+         "Alignment": 1
+        },
+        "row": 0,
+        "col": 0,
+        "rowspan": 1,
+        "colspan": 1
        }
       ]
      },
