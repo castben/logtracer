@@ -44,12 +44,12 @@
      "params": {
       "Name": "TTkFrame_flow",
       "Position": [
-       1,
+       0,
        0
       ],
       "Size": [
-       43,
-       30
+       50,
+       28
       ],
       "Min Width": 0,
       "Min Height": 0,
@@ -59,14 +59,14 @@
       "Enabled": true,
       "ToolTip": "",
       "Padding": [
-       1,
-       1,
-       1,
-       1
+       0,
+       0,
+       0,
+       0
       ],
       "Layout": "TTkLayout",
-      "Border": true,
-      "Title": "Flows"
+      "Border": false,
+      "Title": ""
      },
      "layout": {
       "class": "TTkLayout",
@@ -74,7 +74,7 @@
        "Geometry": [
         0,
         0,
-        41,
+        50,
         28
        ]
       },
@@ -88,7 +88,7 @@
           0
          ],
          "Size": [
-          41,
+          48,
           25
          ],
          "Min Width": 0,
@@ -99,14 +99,14 @@
          "Enabled": true,
          "ToolTip": "",
          "Padding": [
-          0,
-          0,
-          0,
-          0
+          1,
+          1,
+          1,
+          1
          ],
          "Layout": "TTkLayout",
-         "Border": false,
-         "Title": ""
+         "Border": true,
+         "Title": "Flows"
         },
         "layout": {
          "class": "TTkLayout",
@@ -114,8 +114,8 @@
           "Geometry": [
            0,
            0,
-           41,
-           25
+           46,
+           23
           ]
          },
          "children": [
@@ -128,8 +128,8 @@
              1
             ],
             "Size": [
-             39,
-             22
+             44,
+             21
             ],
             "Min Width": 0,
             "Min Height": 0,
@@ -158,7 +158,7 @@
         "params": {
          "Name": "TTkButton_close",
          "Position": [
-          13,
+          14,
           25
          ],
          "Size": [
@@ -216,7 +216,7 @@
         "params": {
          "Name": "TTkButton_flow_quickview",
          "Position": [
-          24,
+          26,
           25
          ],
          "Size": [

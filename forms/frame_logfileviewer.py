@@ -2,12 +2,13 @@ from TermTk import TTkUtil, TTkUiLoader, TTk
 
 # Data generated using ttkDesigner
 widget = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
-    "eJyFU0tv00AQdogTxw0PQUtpSypFnHIKjyuPQ0sA4aZUNNATqjb2NrOKvRvZu2mCVIljKs1x+b/MOgnKrV5ZO8/d7xt//uP/VVWvfG5sB309n3CLDweD8Q/x8qOKTcal" +
-    "thhMeV4IJS3W3nRfd19ZrGojrGupxSkrCov3qedYSc2E5LnF+oTlLCvKEv+UZXTqVp9yF0Im6tpi40wVQrsjf9lO5Ef3OPrn4jcv3Ul0yDHsC9m+EIkGG3nUTN4XLkag" +
-    "nRv22WyV/Op5FZenwCq/jAQ/RSGGKbcLDHqSkZU4c6BUOhATix7ROmNJIuSovNRbLo71EzZXhliHRGllG6ynS4sIQQAtCG+IxGeuMq7z+aqdcGtbYCMGkSY5d9zKcmzQ" +
-    "SZ9yNwXX14Em7q4jl6kaXYmUTwW/psHBA4elQjjgkbOyqMXhceTBE3q3S2aws9yeLmB3Ac9gD/aXPeXi8BxaWD9SeULHLbA2EJqGAHsGDjewQ3sJeRwdEGR4sUbaJFwD" +
-    "PtO9ROj/YPc3gnfgFdHBnXixeUIiaZ+abFhC3Nlw2+ea5dp9k6iC4XfOkvY3mc6paqtvUi3artYuDFZzkhEpoRqr1O0B+cWESdcXUGxlG2YwIBGbI5YTRawPldYqK82Y" +
-    "tE0AHPU10+2y1FCJvEyvppd85sbgMPtuABb9notgeAw8HjtR2VsMSofkdWsK+hfgLVF/R+/7qAIfSggGm7GSksdO8QXdaLr/AHinNBI="))
+    "eJyFU0tP3DAQznbDhmXbohbKqyBFPXGij2sfBygtIixFZVtOFTKJYSwSe5XYLFsJqcdFmqP7W/r3OnZCteqFWJbnne8bj3+Fv/+0A//d2E0M9XjILT4eDC6/iZcfVWoK" +
+    "LrXF6IqXlVDS4sybrddbryy2tRHWpcykOasqiw8pZ0dJzYTkpcXOkJWsqHxIeMgKqjrXJ9+JkJkaWZw9UpXQruQPu5mEyQOO4bH4yb06TDY4dvtCxici02CTgJJJ2+Pi" +
+    "ArRTu3123Tj3g6Dl/GRo/LUl+i4qcZZzO8FoVzKSMicOlMoHYmgxIFpHLMuEvPA/DerFsXPAxsoQ6y5RamSDnbyWiBBEsA7dGyLxmauC63LcpBNubSucTUHkWckdNx+O" +
+    "s1TpU+m64PI2oYdLd5bTXF2ci5xfCT6ixsEjh6VFOGDeSUWyzuFJEsBT2gueGSzWx7MJLE1gGVZgtc7xi8NzWMfOtiozKjfBmYHQ1ARYMbAxhR3iGvJlskaQ4cUd0h7h" +
+    "GvBrvZsJ/Q/s6pTxHrwiWbsXL/YOaEjiQ1OceYiLU2p8rFmp3Z0kLex+5SyLv8h8TFFzfZNrEbtYOzHYLmmMaBLaqcrdGZFeDZl0eRHZGtkwgxENsdlmJVHEzpnSWhX1" +
+    "XOb8XPs7uiO67CMNRcjT/PzqdERdHJVsaD3s0PWAxuKkscYk7wBPL1kzZl6hMbs1FcNOSk+H+E3XX/ivPr92XXZXuIfhrlf2byFx+aaCt9TCd7TfJy344KkY7KVKSp66" +
+    "l1NRabP1F5LoUGM="))
 
 root=TTk()
 root.layout().addWidget(widget)

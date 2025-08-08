@@ -112,6 +112,17 @@
      },
      "menuBar": {
       "bottom": {
+       "left": [
+        {
+         "params": {
+          "Name": "menuButton_lfv_wordwrap",
+          "ToolTip": "",
+          "Text": "Wordwrap ",
+          "Checkable": true,
+          "Checked": false
+         }
+        }
+       ],
        "center": [
         {
          "params": {
