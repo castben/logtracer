@@ -757,10 +757,21 @@ class InteractiveWindow:
                 write_log('Please supply a valid customer ticket...')
                 return
 
-            os.makedirs(f'{app_path}/{self.customer}/{self.ticket}')
+            new_full_path = f'{app_path}/{self.customer}/{self.ticket}'
 
-            TTkComboBox_customer.addItem(self.customer)
-            TTkComboBox_ticket.addItem(self.ticket)
+            if not os.path.exists(new_full_path):
+                ticketPath = f'{app_path}/{self.customer}/{self.ticket}'
+                customerPath = f'{app_path}/{self.customer}'
+                if not os.path.exists(customerPath):
+                    os.makedirs(customerPath)
+                    TTkComboBox_customer.addItem(self.customer)
+                    write_log(f'Adding new customer {self.customer}')
+                if not os.path.exists(ticketPath):
+                    os.makedirs(ticketPath)
+                    TTkComboBox_ticket.addItem(self.ticket)
+                    write_log(f'Adding new ticket {self.ticket} to {self.customer}')
+
+
             TTkComboBox_customer.setCurrentText(self.customer)
             TTkComboBox_ticket.setCurrentText(self.ticket)
             TTkButton_new_customer.setEnabled(True)
