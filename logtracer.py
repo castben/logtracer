@@ -341,6 +341,20 @@ class InteractiveWindow:
                 size_in_bytes /= 1024.0
             return f"{size_in_bytes:.2f} EB"
 
+        def _clear_components():
+            """
+            Clear all components lists/trees
+            :return:
+            """
+            # Clear all components
+            for each_item in list_flow.items().copy():
+                list_flow.removeItem(each_item)
+
+            for each_item in list_transactions.items().copy():
+                list_transactions.removeItem(each_item)
+
+            self.clear_tree_party()
+
         def _start_analysis():
             """
 
@@ -348,6 +362,8 @@ class InteractiveWindow:
             """
             global file_to_analyse
             TTkButton_start_analysis.setEnabled(False)
+            schedule_ui_update('TTkLabel_analysis_stat','setVisible',True)
+            schedule_ui_update('TTkLabel_analysis_stat', "setText", "Working...")
 
             def _analysis_process():
                 """
