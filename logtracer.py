@@ -1064,11 +1064,24 @@ class InteractiveWindow:
         root.layout().addWidget(self.TTkWindow_flow)
         root.layout().addWidget(self.TTkWindow_transaction)
         root.layout().addWidget(self.TTkWindow_quickview)
+        root.layout().addWidget(TTkWindow_popup_new_data)
         root.layout().addWidget(TTkWindow_logging)
         # root.layout().addWidget(TTkWindow_popup_new_data)
         InteractiveWindow.update_tui_from_queue()
+        process_ui_commands(root)
 
         root.mainloop()
+
+    def clear_tree_party(self):
+        """
+
+        :return:
+        """
+        # get all original settings to add them into new widget that will replace old one...
+        pos=self.tree_party.pos()
+        size=self.tree_party.size()
+        parent=self.tree_party.parentWidget()
+        self.tree_party = ttk.TTkTree(pos=pos,size=size,parent=parent)
 
     @staticmethod
     def update_tui_from_queue():
