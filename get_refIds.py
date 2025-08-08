@@ -10,7 +10,7 @@ class GetRefIds:
     def __init__(self, get_configs):
         self.Configs = get_configs
         self.file = None
-        self.x500list = []
+        # self.x500list = []
         self.type = None
 
     def get_element_type(self):
