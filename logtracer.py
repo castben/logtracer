@@ -880,13 +880,15 @@ class InteractiveWindow:
 
         self.TTkWindow_customer_info = ttk.TTkWindow(parent=self.root,
                                                      pos=(17, 1), size=(67, 26),
+                                                     maxSize=(67, 26),minSize=(67, 26),
                                                      title=ttk.TTkString("Logs Tracer", ttk.TTkColor.ITALIC),
                                                      border=True,
                                                      layout=ttk.TTkGridLayout())
 
 
         self.TTkWindow_flow = ttk.TTkWindow(parent=self.root,
-                                                     pos=(85, 1), size=(45, 34),
+                                                     pos=(85, 1), size=(51, 34),
+                                                     maxSize=(51, 34),minSize=(51, 34),
                                                      title=ttk.TTkString("Flows", ttk.TTkColor.ITALIC),
                                                      border=True,
                                                      layout=ttk.TTkGridLayout(),
