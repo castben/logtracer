@@ -109,6 +109,8 @@ class InteractiveWindow:
             :return:
             """
 
+            # TODO need to run this within a thread, at the moment is blocking UI
+
             self.TTkTextEdit_logfileviewer.setText("")
             self.TTkWindow_logviewer.setTitle(f'Log Viewer - {filename}')
             if starting_line == 0:
@@ -345,7 +347,7 @@ class InteractiveWindow:
 
             _clear_components()
 
-            def _analysis_process(special_blocks:BlockExtractor):
+            def _analysis_process():
                 """
                 Thread for analysis
                 :return:
@@ -384,14 +386,11 @@ class InteractiveWindow:
                     write_log('...')
                     return
 
-
-
-
                 # Flow list
                 if 'FLOW' in results:
                     TTkLabel_Flows.setText(f"{len(results['FLOW'])}")
                     for each_flow in results['FLOW']:
-                        sp_blk = special_blocks.get_reference(each_flow)
+                        sp_blk = file_to_analyse.special_blocks.get_reference(each_flow)
                         if sp_blk:
                             icn=""
                             for each_blk in sp_blk:
@@ -403,7 +402,7 @@ class InteractiveWindow:
                 if 'TRANSACTION' in results:
                     TTkLabel_Transactions.setText(f"{len(results['TRANSACTION'])}")
                     for each_tx in results['TRANSACTION']:
-                        sp_blk = special_blocks.get_reference(each_tx)
+                        sp_blk = file_to_analyse.special_blocks.get_reference(each_tx)
                         if sp_blk:
                             icn=""
                             for each_blk in sp_blk:
@@ -434,8 +433,6 @@ class InteractiveWindow:
                             child = ttk.TTkTreeWidgetItem([each_alternate, role])
                             tree_element.addChild(child)
 
-            # print("Starting analysis...")
-
             Configs.load_config()
 
             # Define default entity object endpoints...
@@ -451,9 +448,9 @@ class InteractiveWindow:
             #
             # Analyse file for specific block lines that lack of key fields (like stack traces, and flow transitions):
 
-            special_blocks = BlockExtractor(file_to_analyse, Configs.config)
-            special_blocks.extract()
-            special_blocks.summary()
+            file_to_analyse.special_blocks = BlockExtractor(file_to_analyse, Configs.config)
+            file_to_analyse.special_blocks.extract()
+            file_to_analyse.special_blocks.summary()
             #
             #
             # Setup party collection
@@ -483,27 +480,14 @@ class InteractiveWindow:
             file_to_analyse.add_process_to_execute(collect_parties)
             file_to_analyse.add_process_to_execute(collect_refIds)
 
-            # Start all threads required
-            # start a time watch
-            # Diagnóstico de hilos
-            # current_threads = threading.enumerate()
-            # write_log(f"{Icons.INFO} Hilos activos antes del análisis: {len(current_threads)}")
-            # for t in current_threads:
-            #     write_log(f"  - {t.name} (daemon: {t.daemon})")
-
-
             file_to_analyse.start_stop_watch('Main-search', True)
             analysis_thread = threading.Thread(
                 target=_analysis_process,
-                args=(special_blocks,),
                 name="File Analysis",
                 daemon=True
             )
             analysis_thread.start()
             write_log(f'Started analysis for: {file_to_analyse.filename}')
-            # Verifica que el hilo se inició
-            # write_log(f"{Icons.SUCCESS} Hilo de análisis iniciado: {analysis_thread.name}")
-            # write_log(f"{Icons.INFO} Hilos activos después: {len(threading.enumerate())}")
 
         def _logging_resize():
             """
@@ -701,6 +685,79 @@ class InteractiveWindow:
 
             root.layout().addWidget(logfile_viewer.TTkWindow_logviewer)
 
+        def _sb_view_details_for(selected_index, reference_id):
+            """
+            Show content of selected block
+            :param selected_index: selected index from
+            :return:
+            """
+
+            if not selected_index:
+                return
+
+            selected_item = selected_index[0].data(0).toAscii()
+            block_type = selected_index[0]._parent.data(0) # Dirty and not good way to get this, but there're no methods that can help me...
+            if ':' in selected_item:
+                idx, block_name = selected_item.split(':')
+                idx = int(idx)
+                _special_block_fill_details(idx,reference_id,block_type)
+
+
+            pass
+
+        def _special_block_fill_details(idx, reference_id, block_type):
+            """
+            Fill content of block
+            :param idx: index of content at the blocks
+            :param type:
+            :return:
+            """
+            global file_to_analyse
+
+            TTkTextEdit_specialblocks.setText("")
+            block_type = block_type.toAscii()
+            content = file_to_analyse.special_blocks.get_reference(reference_id=reference_id, block_type=block_type)
+
+            for each_line in content[block_type][idx].get_content():
+                TTkTextEdit_specialblocks.append(HighlightCode.highlight(ttk.TTkString(each_line.rstrip())))
+
+
+        def _special_block_details(reference_id):
+            """
+            Special block details
+            :return:
+            """
+            global file_to_analyse
+
+            reference_id = reference_id[0].toAscii()
+            reference_id = Icons.remove_unicode_symbols(reference_id)
+            results = file_to_analyse.special_blocks.get_reference(reference_id)
+            self.TTkWindow_specialblocks.setTitle(f'Details for {reference_id}')
+
+            if results:
+                TTkTree_specialblocks.setHeaderLabels(labels=['Type'])
+                TTkTree_specialblocks.setColumnWidth(0, 47)
+                for each_type in results:
+                    tree_element = ttk.TTkTreeWidgetItem([each_type])
+                    TTkTree_specialblocks.addTopLevelItem(tree_element)
+                    for idx,each_item in enumerate(results[each_type]):
+                        child = ttk.TTkTreeWidgetItem([f'{idx:0>3}:{each_item.__str__()}'])
+                        tree_element.addChild(child)
+
+                TTkTree_specialblocks.itemClicked.connect(lambda: _sb_view_details_for(TTkTree_specialblocks.selectedItems(),reference_id))
+
+
+
+            self.TTkWindow_specialblocks.setVisible(True)
+
+        def _special_blocks_window_resize():
+            """
+            Resize for special_block window
+            :return:
+            """
+
+
+
         @pyTTkSlot()
         def _add_new_data(type=None):
             """
@@ -858,6 +915,14 @@ class InteractiveWindow:
             "T/dE1qitzEhBR/KyjiaghXOgaJ7WtPaSdSJhtfThxoJUV1zgVpN76BmwAOM9MGE1Q7t1MZqIS5CDlf8VDNbQW7+QIT46y5EQeFNkNDfz0F9Y+G7eSfM8h9mbY0GaJ8df" +
             "v1hrtoKZrqw2gLi7+spQXWnGDl4e3V5l2sjApi4Ccx3m5ofi+u9wtYvgaifHP7430vyZLmx24cNfaMifISeKZL/LGSOuvmxDvJGi+i97/O4V"))
 
+        root_special_blocks = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
+            "eJylVGtr01AYTu0lvehEt24rbhAEoaBWV2Q/YO6mWWdZo4OByGly2HtYmlOSE12FgR8zOB+PH/xP/ijfk6S1aMcEE0Lee57nOW/7rfT9Z8lIryvVliUxGVMllxzn4j17" +
+            "scvdeEQDoaT5mYYR44GS5W5nq/NSyaKImdItZdcnUaTkXex5zQNBWEBDJStjEpJRlJaUjskIp9Z7mDtlgce/KFnt84gJPfKjatsl+w6VpQH7SlP3h71JZa3HAuuUeQKU" +
+            "bWAzeoeUnYPQbq1HLvPkW8Mo6DwG8nwWMT+wiA19qhJp7gUELU+bDue+w8ZKGkirTzyPBefpR43sprJyRCY8RtY1pJTbsaz4mYWEwIQNqF0hiQPKR1SEk7wdcQsVyaoL" +
+            "zPdCqrml5bKKk/ZDrYLua0NDrk4jn6IxdRnxhz53LyIF9zSWIuoB97V1bbcoPLANeIjPcsoMVrJXM4HVBNZgHVrz+OERbMjKDg89PIdrWXaYQBFgPYbNOexgZR04HyHD" +
+            "Y5yQZZ9MEdanCJ9v5ai29fQU1Ym99o+oCtmdooKnCTyT5i7FJfEjtRhQ327mgDLpGgjDoZdiz2Nipl5rLrhQwMIM6pndvBWqbBzh1lrH8WiYarYy51oDQUKhl0Sv3Qkl" +
+            "nvUu8Ce4SvVe7Atm6VqVxLIY4l5jTdHlvn6b6EdjEii7IE2M5XZMYthHKAf4HNoFeIOhG5Xv5nSMGZ3t/1B+aZApZe1kUi0+gFd/HICptQ7p79Vt5oEbhC/kSLv28u3C" +
+            "mwOeiZv8rcoCoeiiqlg2XB4E1NV/JxH+5uLOL23Vi28="))
 
         root=TTk()
 
@@ -895,6 +960,15 @@ class InteractiveWindow:
         self.TTkWindow_quickview = ttk.TTkWindow(parent=self.root,
                                                  pos=(40, 1), size=(120, 32),
                                                  title=ttk.TTkString("Quick View", ttk.TTkColor.ITALIC),
+                                                 border=True,
+                                                 layout=ttk.TTkGridLayout(),
+                                                 flags=ttk.TTkK.WindowFlag.WindowMinMaxButtonsHint)
+
+        self.TTkWindow_specialblocks = ttk.TTkWindow(parent=self.root,
+                                                 pos=(40, 1), size=(103, 27),
+                                                 minSize=(103, 27),
+                                                 maxSize=(103, 27),
+                                                 title=ttk.TTkString("Details for...", ttk.TTkColor.ITALIC),
                                                  border=True,
                                                  layout=ttk.TTkGridLayout(),
                                                  flags=ttk.TTkK.WindowFlag.WindowMinMaxButtonsHint)
@@ -952,17 +1026,24 @@ class InteractiveWindow:
         TTkButton_tx_quickview = ttk.TTkButton = root_window_transaction.getWidgetByName('TTkButton_tx_quickview')
         list_transactions = root_window_transaction.getWidgetByName('TTkList_transaction')
         frame_flow = root_window_flow.getWidgetByName('TTkFrame_flow')
+        TTkButton_flow_details: ttk.TTkButton = root_window_flow.getWidgetByName('TTkButton_flows_details')
         TTkLabel_Flows = ttk.TTkLabel = customer_info_widget.getWidgetByName('TTkLabel_Flows')
         TTKButton_show_flow: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_show_flow')
         list_flow: ttk.TTkList = root_window_flow.getWidgetByName('TTkList_flow')
         TTkButton_viewfile: ttk.TTkButton = customer_info_widget.getWidgetByName('TTkButton_viewfile')
 
         TTkWindow_popup_new_data: ttk.TTkWindow = root_window_popup_add_customer_ticket.getWidgetByName('TTkWindow_popup_new_data')
-        # TTkWindow_popup_new_data_org = ttk.TTkWindow = root_window_popup_add_customer_ticket.getWidgetByName('TTkWindow_popup_new_data')
         TTkButton_popup_newcustomer_ok: ttk.TTkButton = root_window_popup_add_customer_ticket.getWidgetByName('TTkButton_popup_newcustomer_ok')
         TTkButton_popup_newcustomer_cancel: ttk.TTkButton = root_window_popup_add_customer_ticket.getWidgetByName('TTkButton_popup_newcustomer_cancel')
         TTkLineEdit_popup_newcustomer_customer: ttk.TTkLineEdit = root_window_popup_add_customer_ticket.getWidgetByName('TTkLineEdit_popup_newcustomer_customer')
         TTkLineEdit_popup_newcustomer_ticket: ttk.TTkLineEdit = root_window_popup_add_customer_ticket.getWidgetByName('TTkLineEdit_popup_newcustomer_ticket')
+
+        # special blocks details
+        TTkFrame_specialblocks: ttk.TTkFrame = root_special_blocks.getWidgetByName('TTkFrame_specialblocks')
+        TTkTree_specialblocks: ttk.TTkTree = root_special_blocks.getWidgetByName('TTkTree_specialblocks')
+        TTkTextEdit_specialblocks: ttk.TTkTextEdit = root_special_blocks.getWidgetByName('TTkTextEdit_specialblocks')
+        self.TTkWindow_specialblocks.layout().addWidget(TTkFrame_specialblocks)
+        self.TTkWindow_specialblocks.setVisible(False)
 
         frame_flow.move(60,4)
 
@@ -1003,6 +1084,7 @@ class InteractiveWindow:
         TTKButton_show_flow.clicked.connect(lambda: _show_hide_window('flow'))
         list_flow.textClicked.connect(lambda: _quick_view_check('flows', list_flow.selectedLabels()))
         TTkButton_flow_quickview.clicked.connect(lambda: _quick_view( list_flow.selectedLabels()))
+        TTkButton_flow_details.clicked.connect(lambda: _special_block_details(list_flow.selectedLabels()))
 
         # Transaction
         TTkButton_tx_trace.setEnabled(False)
@@ -1033,7 +1115,7 @@ class InteractiveWindow:
 
         self.TTkWindow_transaction.addWidget(frame_transaction)
         self.TTkWindow_flow.addWidget(frame_flow)
-        self.TTkWindow_customer_info.addWidget(customer_info_widget)
+        self.TTkWindow_customer_info.addWidget(customer_info_widget.getWidgetByName('TTkFrame'))
         self.TTkWindow_party.addWidget(frame_party)
 
         customers = _check_folders()
@@ -1047,6 +1129,7 @@ class InteractiveWindow:
         root.layout().addWidget(self.TTkWindow_flow)
         root.layout().addWidget(self.TTkWindow_transaction)
         root.layout().addWidget(self.TTkWindow_quickview)
+        root.layout().addWidget(self.TTkWindow_specialblocks)
         root.layout().addWidget(TTkWindow_popup_new_data)
         root.layout().addWidget(TTkWindow_logging)
         # root.layout().addWidget(TTkWindow_popup_new_data)

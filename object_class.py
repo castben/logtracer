@@ -1169,8 +1169,9 @@ class FileManagement:
         self.identified_roles = {}
         self.debug = debug
         self.min_percent_merge = min_percent_merge  # Porcentaje mínimo para no fusionar el bloque final
-        self.special_blocks = {} # Collect all blocks that are not collectable by multithread process
+        self.special_blocks: BlockExtractor # Collect all blocks that are not collectable by multithread process
         self.log_line_regex = None
+
 
         if not self.rules:
             self.rules = Configs.get_config_for('CORDA_OBJECT_DEFINITIONS.OBJECTS.participant')
@@ -3449,6 +3450,17 @@ class BlockItems:
     def __str__(self):
         return f"[{self.type} @ line {self.line_number}] {len(self.content)} lines"
 
+    def get_content(self, idx=None):
+
+        if not idx:
+            return self.content
+
+        if idx > len(self.content):
+            return None
+
+        if 0 <= idx < len(self.content):
+            return self.content[idx]
+
 
 class BlockExtractor:
     """
@@ -3634,7 +3646,7 @@ class BlockExtractor:
             else:
                 if block_type in self.collected_blocks:
                     if reference_id in self.collected_blocks[block_type]:
-                       return {block_type, self.collected_blocks[block_type][reference_id]}
+                       return {block_type: self.collected_blocks[block_type][reference_id]}
 
             return None
 
