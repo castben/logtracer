@@ -22,6 +22,7 @@ from log_handler import write_log, HighlightCode
 from log_handler import log_queue
 from TermTk.TTkCore.signal import pyTTkSlot
 from shutdown_event import shutdown_event
+import lazy_loader
 
 
 def signal_handler(sig, frame):
@@ -53,10 +54,14 @@ class InteractiveWindow:
         A class to generate different logviewer windows
         """
 
-        def __init__(self, starting_line=None):
+        def __init__(self, filename, starting_line=None):
             """
 
             """
+            self.filename = filename
+            self.loader = lazy_loader.LazyTextLoader(filename, lines_per_chunk=500)
+            self.current_chunk_index = 0
+            self.scroll_threshold = 100  # Cargar nuevo chunk cuando falten 100 líneas
 
             self.TTkWindow_logviewer = ttk.TTkWindow(pos=(40, 1), size=(120, 32),
                                                      title=ttk.TTkString("Log Viewer", ttk.TTkColor.ITALIC),
@@ -79,6 +84,8 @@ class InteractiveWindow:
             self.TTkWindow_logviewer.addWidget(self.TTkFrame_logfileviewer)
             self.TTkMenuBarButton_lfv_wordwrap: ttk.TTkMenuBarButton = self.root_logviewer.getWidgetByName('menuButton_lfv_wordwrap')
             self._logview_resize()
+            self.TTkTextEdit_logfileviewer.setText("")
+            self.TTkWindow_logviewer.setTitle(f'Log Viewer -- {self.filename}')
 
             if starting_line:
                 self.starting_line = starting_line
@@ -96,7 +103,10 @@ class InteractiveWindow:
                     self.TTkTextEdit_logfileviewer.setLineWrapMode(ttk.TTkK.NoWrap)
 
             self.TTkWindow_logviewer.sizeChanged.connect(self._logview_resize)
-
+            # Cargar primer chunk
+            self._load_current_chunk()
+                    # Conectar evento de scroll
+            self.TTkTextEdit_logfileviewer._verticalScrollBar.valueChanged.connect(self._on_scroll)
             self.TTkMenuBarButton.menuButtonClicked.connect(lambda: self.TTkWindow_logviewer.setVisible(False))
             self.TTkMenuBarButton_lfv_wordwrap.menuButtonClicked.connect(_wordwrap)
 
@@ -111,7 +121,7 @@ class InteractiveWindow:
 
             # TODO need to run this within a thread, at the moment is blocking UI
 
-            self.TTkTextEdit_logfileviewer.setText("")
+            # self.TTkTextEdit_logfileviewer.setText("")
             self.TTkWindow_logviewer.setTitle(f'Log Viewer - {filename}')
             if starting_line == 0:
                 self.TTkTextEdit_logfileviewer.setLineNumberStarting(1)
@@ -159,11 +169,116 @@ class InteractiveWindow:
             new_size = (window_size[0]+5, window_size[1]+4)
             self.TTkTextEdit_logfileviewer.resize(window_size[0]-5,window_size[1]-7)
 
+        def _load_current_chunk(self):
+            """Carga el chunk actual en el widget manteniendo la posición del scroll"""
+            try:
+                # 1. Guardar posición actual del scroll
+                scroll_bar = self.TTkTextEdit_logfileviewer._verticalScrollBar
+                current_scroll_value = scroll_bar.value()
+                max_scroll_before = scroll_bar.maximum()
+
+                # 2. Obtener el chunk
+                lines, line_start = self.loader.get_chunk(self.current_chunk_index)
+
+                # 3. Configurar números de línea
+                first_line_num = self.current_chunk_index * self.loader.lines_per_chunk + 1
+                self.TTkTextEdit_logfileviewer.setLineNumber(first_line_num)
+
+                # 4. Desactivar temporalmente el evento de scroll
+                scroll_bar.valueChanged.disconnect(self._on_scroll)
+
+                # 5. Actualizar contenido
+                # self.TTkTextEdit_logfileviewer.setText('\n'.join(lines))
+                for each_line in lines:
+                    self.TTkTextEdit_logfileviewer.append(each_line.strip('\n'))
+                # 6. Recalcular posición del scroll
+                if max_scroll_before > 0:
+                    # Proporción de desplazamiento
+                    scroll_ratio = current_scroll_value / max_scroll_before
+
+                    # Aplicar misma proporción al nuevo contenido
+                    new_max = scroll_bar.maximum()
+                    new_value = int(scroll_ratio * new_max)
+
+                    # Ajustar para evitar saltos bruscos
+                    new_value = max(0, min(new_value, new_max))
+                    scroll_bar.setValue(new_value)
+
+                # 7. Volver a conectar el evento de scroll
+                scroll_bar.valueChanged.connect(self._on_scroll)
+
+                # 8. Pre-cargar chunks adyacentes
+                self.loader.preload_chunks(self.current_chunk_index)
+
+            except Exception as e:
+                write_log(f"{Icons.ERROR} Error en _load_current_chunk: {str(e)}", level="ERROR")
+
+        def _on_scroll(self, value):
+            """Maneja el evento de scroll de forma segura"""
+            try:
+                # Evitar procesamiento si estamos en medio de una carga
+                scroll_bar = self.TTkTextEdit_logfileviewer._verticalScrollBar
+
+                # Obtener rango del scroll
+                min_val = scroll_bar.minimum()
+                max_val = scroll_bar.maximum()
+
+                if max_val <= min_val:
+                    return
+
+                # Calcular porcentaje de scroll
+                percentage = (value - min_val) / (max_val - min_val)
+
+                # Umbral para carga anticipada (80% del scroll)
+                load_threshold = 0.8
+
+                # Cargar siguiente chunk si estamos cerca del final
+                if percentage >= load_threshold:
+                    if (self.current_chunk_index + 1 < len(self.loader.chunk_boundaries) and
+                            self._can_load_next_chunk()):
+                        self._load_next_chunk()
+
+                # Cargar chunk anterior si estamos cerca del inicio
+                elif percentage <= 0.2 and self.current_chunk_index > 0:
+                    if self._can_load_previous_chunk():
+                        self._load_previous_chunk()
+
+            except Exception as e:
+                write_log(f"{Icons.ERROR} Error en _on_scroll: {str(e)}", level="ERROR")
+
+        def _can_load_next_chunk(self):
+            """Verifica si podemos cargar el siguiente chunk"""
+            # Evitar carga si ya estamos cargando
+            return not hasattr(self, '_loading') or not self._loading
+
+        def _can_load_previous_chunk(self):
+            """Verifica si podemos cargar el chunk anterior"""
+            return not hasattr(self, '_loading') or not self._loading
+
+        def _load_next_chunk(self):
+            """Carga el siguiente chunk"""
+            if self.current_chunk_index + 1 < len(self.loader.chunk_boundaries):
+                self._loading = True
+                self.current_chunk_index += 1
+                self._load_current_chunk()
+                self._loading = False
+
+        def _load_previous_chunk(self):
+            """Carga el chunk anterior"""
+            if self.current_chunk_index > 0:
+                self._loading = True
+                self.current_chunk_index -= 1
+                self._load_current_chunk()
+                self._loading = False
+
+#=======================
+
     def __init__(self):
         """
 
         """
         self.root = None
+        self.filepath = None
         self.TTkWindow_logging = None
         self.TTkWindow_customer_info = None
         self.filename = None
@@ -171,14 +286,6 @@ class InteractiveWindow:
         self.ticket = None
         self.generated_files = {}
         self.filesize = 0
-
-
-        HighlightCode('timestamps', r'[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}', '#00AAAA')
-        HighlightCode('timestamps', r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2},\d+Z','#00AAAA')
-        HighlightCode('level', 'WARN', '#AAAA00')
-        HighlightCode('level', 'WARNING', '#AAAA00')
-        HighlightCode('level', r'\bINFO ', '#44AA00')
-        HighlightCode('level', 'ERROR ', '#FF8800')
 
         #
 
@@ -254,9 +361,11 @@ class InteractiveWindow:
             # logfile_name.setWrapWidth(6)
 
             self.filename = filepath
+            self.filepath = os.path.dirname(filepath)
             filepath = os.path.basename(filepath)
             self.filesize = os.path.getsize(self.filename)
-
+            #write_log(f'Setting up last path visited to file picker...{self.filepath}')
+            TTkFileButtonPicker.setPath(self.filepath)
             TTkLabel_file_size.setText(ttk.TTkString(_filesize_str(self.filesize)))
             TTkButton_start_analysis.setEnabled(True)
             TTkLabel_analysis_status.setText("")
@@ -268,6 +377,20 @@ class InteractiveWindow:
             self.TTkWindow_customer_info.setTitle(f'Logs tracer - {filepath}')
             write_log('Checking for existing diagrams...')
             self.check_generated_files()
+
+        def _remember_last_path():
+            # if not self.filepath:
+            #     self.filepath = TTkFileButtonPicker.path()
+            #     TTkFileButtonPicker.setPath(self.filepath)
+            #     write_log(f'Saving last path...({self.filepath})')
+            # else:
+            #     # if self.filepath and self.filepath != TTkFileButtonPicker.path():
+            #     #     self.filepath = os.path.dirname(TTkFileButtonPicker.path())
+            #     # else:
+
+            if self.filepath:
+                write_log(f'Setting up last path visited to file picker...{self.filepath}')
+                TTkFileButtonPicker.setPath(self.filepath)
 
         def _fill_tickets(customer):
             """
@@ -344,6 +467,7 @@ class InteractiveWindow:
             TTkButton_start_analysis.setEnabled(False)
             schedule_ui_update('TTkLabel_analysis_stat','setVisible',True)
             schedule_ui_update('TTkLabel_analysis_stat', "setText", "Working...")
+
 
             _clear_components()
 
@@ -433,7 +557,7 @@ class InteractiveWindow:
                             child = ttk.TTkTreeWidgetItem([each_alternate, role])
                             tree_element.addChild(child)
 
-            Configs.load_config()
+            # Configs.load_config()
 
             # Define default entity object endpoints...
             UMLEntityEndPoints.load_default_endpoints()
@@ -677,9 +801,9 @@ class InteractiveWindow:
             :return:
             """
 
-            logfile_viewer = InteractiveWindow.LogfileViewer()
+            logfile_viewer = InteractiveWindow.LogfileViewer(self.filename)
 
-            logfile_viewer.loadfile(self.filename)
+            # logfile_viewer.loadfile(self.filename)
 
             logfile_viewer.TTkWindow_logviewer.setParent(self.root)
 
@@ -714,13 +838,43 @@ class InteractiveWindow:
             """
             global file_to_analyse
 
-            TTkTextEdit_specialblocks.setText("")
+            self.TTkTextEdit_specialblocks.setText("")
             block_type = block_type.toAscii()
             content = file_to_analyse.special_blocks.get_reference(reference_id=reference_id, block_type=block_type)
 
             for each_line in content[block_type][idx].get_content():
-                TTkTextEdit_specialblocks.append(HighlightCode.highlight(ttk.TTkString(each_line.rstrip())))
+                self.TTkTextEdit_specialblocks.append(HighlightCode.highlight(ttk.TTkString(each_line.rstrip())))
 
+        def _special_block_resize():
+            """
+
+            :return:
+            """
+            tree_parent_size = self.TTkTree_specialblocks.parentWidget().size()
+            details_parent_size = self.TTkTextEdit_specialblocks.parentWidget().size()
+
+            self.TTkTree_specialblocks.resize(tree_parent_size[0]-2, tree_parent_size[1]-3)
+            self.TTkTextEdit_specialblocks.resize(details_parent_size[0]-2, details_parent_size[1]-3)
+
+        def _special_block_details_wordwrap():
+            """
+
+            :return:
+            """
+            if self.TTkmenuButton_sp_wordwrap.isChecked():
+                self.TTkTextEdit_specialblocks.setLineWrapMode(ttk.TTkK.WidgetWidth)
+                self.TTkmenuButton_sp_wordwrap.clearFocus()
+            else:
+                self.TTkTextEdit_specialblocks.setLineWrapMode(ttk.TTkK.NoWrap)
+
+        def _special_block_details_exit():
+            """
+
+            :return:
+            """
+            self.TTkWindow_specialblocks.setVisible(False)
+            self.TTkTextEdit_specialblocks.setText("")
+            self.clear_spb_tree()
 
         def _special_block_details(reference_id):
             """
@@ -735,28 +889,18 @@ class InteractiveWindow:
             self.TTkWindow_specialblocks.setTitle(f'Details for {reference_id}')
 
             if results:
-                TTkTree_specialblocks.setHeaderLabels(labels=['Type'])
-                TTkTree_specialblocks.setColumnWidth(0, 47)
+                self.TTkTree_specialblocks.setHeaderLabels(labels=['Type'])
+                self.TTkTree_specialblocks.setColumnWidth(0, 47)
                 for each_type in results:
                     tree_element = ttk.TTkTreeWidgetItem([each_type])
-                    TTkTree_specialblocks.addTopLevelItem(tree_element)
+                    self.TTkTree_specialblocks.addTopLevelItem(tree_element)
                     for idx,each_item in enumerate(results[each_type]):
                         child = ttk.TTkTreeWidgetItem([f'{idx:0>3}:{each_item.__str__()}'])
                         tree_element.addChild(child)
 
-                TTkTree_specialblocks.itemClicked.connect(lambda: _sb_view_details_for(TTkTree_specialblocks.selectedItems(),reference_id))
-
-
+                self.TTkTree_specialblocks.itemClicked.connect(lambda: _sb_view_details_for(self.TTkTree_specialblocks.selectedItems(),reference_id))
 
             self.TTkWindow_specialblocks.setVisible(True)
-
-        def _special_blocks_window_resize():
-            """
-            Resize for special_block window
-            :return:
-            """
-
-
 
         @pyTTkSlot()
         def _add_new_data(type=None):
@@ -765,6 +909,7 @@ class InteractiveWindow:
             :param type: Customer or ticket
             :return:
             """
+            self.TTkWindow_customer_info.setEnabled(False)
             TTkWindow_popup_new_data.setVisible(True)
             TTkLineEdit_popup_newcustomer_customer.setEnabled(True)
             TTkLineEdit_popup_newcustomer_customer.setText('')
@@ -773,7 +918,17 @@ class InteractiveWindow:
             TTkWindow_popup_new_data.raiseWidget()
             # ttk.TTkHelper.overlay(TTkButton_new_customer, TTkWindow_popup_new_data, -2, -1)
             if type and type == 'ticket':
-                TTkLineEdit_popup_newcustomer_customer.setText(self.customer)
+                if self.customer:
+                    TTkLineEdit_popup_newcustomer_customer.setText(self.customer)
+                else:
+                    write_log('Please set proper customer name before adding a new ticket...', level="WARN")
+                    TTkButton_new_customer.setEnabled(True)
+                    TTkButton_new_ticket.setEnabled(True)
+                    self.TTkWindow_customer_info.setEnabled(True)
+                    TTkWindow_popup_new_data.setVisible(False)
+                    return
+
+
                 TTkLineEdit_popup_newcustomer_customer.setEnabled(False)
 
             TTkButton_new_customer.setEnabled(False)
@@ -827,6 +982,7 @@ class InteractiveWindow:
             TTkButton_new_customer.setEnabled(True)
             TTkButton_new_ticket.setEnabled(True)
             TTkButton_new_customer.clearFocus()
+            self.TTkWindow_customer_info.setEnabled(True)
 
         def _exit_application():
             """
@@ -843,6 +999,8 @@ class InteractiveWindow:
             write_log("Exiting...", level="INFO")
             shutdown_event.set()
             root.quit()
+
+
 
         # Data generated using ttkDesigner
         customer_info_widget = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
@@ -916,13 +1074,14 @@ class InteractiveWindow:
             "v1hrtoKZrqw2gLi7+spQXWnGDl4e3V5l2sjApi4Ccx3m5ofi+u9wtYvgaifHP7430vyZLmx24cNfaMifISeKZL/LGSOuvmxDvJGi+i97/O4V"))
 
         root_special_blocks = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
-            "eJylVGtr01AYTu0lvehEt24rbhAEoaBWV2Q/YO6mWWdZo4OByGly2HtYmlOSE12FgR8zOB+PH/xP/ijfk6S1aMcEE0Lee57nOW/7rfT9Z8lIryvVliUxGVMllxzn4j17" +
-            "scvdeEQDoaT5mYYR44GS5W5nq/NSyaKImdItZdcnUaTkXex5zQNBWEBDJStjEpJRlJaUjskIp9Z7mDtlgce/KFnt84gJPfKjatsl+w6VpQH7SlP3h71JZa3HAuuUeQKU" +
-            "bWAzeoeUnYPQbq1HLvPkW8Mo6DwG8nwWMT+wiA19qhJp7gUELU+bDue+w8ZKGkirTzyPBefpR43sprJyRCY8RtY1pJTbsaz4mYWEwIQNqF0hiQPKR1SEk7wdcQsVyaoL" +
-            "zPdCqrml5bKKk/ZDrYLua0NDrk4jn6IxdRnxhz53LyIF9zSWIuoB97V1bbcoPLANeIjPcsoMVrJXM4HVBNZgHVrz+OERbMjKDg89PIdrWXaYQBFgPYbNOexgZR04HyHD" +
-            "Y5yQZZ9MEdanCJ9v5ai29fQU1Ym99o+oCtmdooKnCTyT5i7FJfEjtRhQ327mgDLpGgjDoZdiz2Nipl5rLrhQwMIM6pndvBWqbBzh1lrH8WiYarYy51oDQUKhl0Sv3Qkl" +
-            "nvUu8Ce4SvVe7Atm6VqVxLIY4l5jTdHlvn6b6EdjEii7IE2M5XZMYthHKAf4HNoFeIOhG5Xv5nSMGZ3t/1B+aZApZe1kUi0+gFd/HICptQ7p79Vt5oEbhC/kSLv28u3C" +
-            "mwOeiZv8rcoCoeiiqlg2XB4E1NV/JxH+5uLOL23Vi28="))
+            "eJyNVG1P2zAQTte0oS0w1vEyNiZF+9SJwWDS/gCvE6EMjY5ukybkJgZbpHGV2INOQuJjkfzR+x/7iTvbadcJJkgUxXe+uzzP3eNcu79+lxxzXamGdHm/h5WcbrXOP9O3" +
+            "WywUXZxwJb0fOM0oS5QsvVtdX11TssgFVTqlFMYoy5SchJxNlnBEE5wqWe6hFHUzE+IeoC5UrTZhr02TiF0oOXHIMsp1ye+qEbjBIyzdI/oTG/MkeI5lpUkTv00jTlTg" +
+            "QDJYHzA9I1yblSa6zDf3HKeg98GR71uPd0wz2omxGkhvO0GwivSyxVjcoj0lHaB1iKKIJmfmo469sSzvoz4TwLoClPK1kOXYroAQ8cgSqVwBiV3Mupin/TwdcHOVyYmQ" +
+            "0DhKseZmwk2lnLlObJCaXBi5TrIeDimKOzELzzNFpmxHipg81qsvwTwmTwKH1OF5ariRWfuaG5D5AVkgz8iijiwGBX1j8kJOQfXdlEZDKuUNlkYwl4EstSiHpsjaFoZZ" +
+            "xZl/ymBckxaKvxOjs0w1nWtBXlqmyxow8S3B46AOBMkr+JolNgHf2Un1eIe8xjyGyDK01BJZDuoPJFIYEYFGvxmQFenlaNUI19I4rtfBTI7LwqoBiBa+5NsR5SNki2PO" +
+            "O3vujKA2gpl7ocraPkjdPxDdjmns7JjpH3GUcq2soCArnzCK/I9J3IeoalPEnPo6Vg2ELKYgCdBzMWSxfntgZz2U6DwPfPlaICE9OIpiA6VAUZY7jHPWtacrxqfcKG1I" +
+            "dN5ECohIgOfJBYz+IkU9ZVC7ugVwGNvgbYPX90HomwSH5yg/LMaAw3IjMiRLqTlS4+Xr/5bHl7rHenZt6W4b4+sN+aazRUb2oIFBUCD78DSBiB3e+2Gt6lAtK+u3hpDr" +
+            "ZdYOIVh7sFiqG3qqvvmXPUwvnpZGiv+qeC53/EcnhZFOpu/XiXfErBYGIm+HM2oHuu3Cd0UJWQtZkuBQ/zIzGIdY/QONReYz"))
 
         root=TTk()
 
@@ -960,15 +1119,6 @@ class InteractiveWindow:
         self.TTkWindow_quickview = ttk.TTkWindow(parent=self.root,
                                                  pos=(40, 1), size=(120, 32),
                                                  title=ttk.TTkString("Quick View", ttk.TTkColor.ITALIC),
-                                                 border=True,
-                                                 layout=ttk.TTkGridLayout(),
-                                                 flags=ttk.TTkK.WindowFlag.WindowMinMaxButtonsHint)
-
-        self.TTkWindow_specialblocks = ttk.TTkWindow(parent=self.root,
-                                                 pos=(40, 1), size=(103, 27),
-                                                 minSize=(103, 27),
-                                                 maxSize=(103, 27),
-                                                 title=ttk.TTkString("Details for...", ttk.TTkColor.ITALIC),
                                                  border=True,
                                                  layout=ttk.TTkGridLayout(),
                                                  flags=ttk.TTkK.WindowFlag.WindowMinMaxButtonsHint)
@@ -1039,11 +1189,16 @@ class InteractiveWindow:
         TTkLineEdit_popup_newcustomer_ticket: ttk.TTkLineEdit = root_window_popup_add_customer_ticket.getWidgetByName('TTkLineEdit_popup_newcustomer_ticket')
 
         # special blocks details
-        TTkFrame_specialblocks: ttk.TTkFrame = root_special_blocks.getWidgetByName('TTkFrame_specialblocks')
-        TTkTree_specialblocks: ttk.TTkTree = root_special_blocks.getWidgetByName('TTkTree_specialblocks')
-        TTkTextEdit_specialblocks: ttk.TTkTextEdit = root_special_blocks.getWidgetByName('TTkTextEdit_specialblocks')
-        self.TTkWindow_specialblocks.layout().addWidget(TTkFrame_specialblocks)
+        self.TTkTree_specialblocks: ttk.TTkTree = root_special_blocks.getWidgetByName('TTkTree_specialblocks')
+        self.TTkTextEdit_specialblocks: ttk.TTkTextEdit = root_special_blocks.getWidgetByName('TTkTextEdit_specialblocks')
+        self.TTkWindow_specialblocks: ttk.TTkWindow = root_special_blocks.getWidgetByName('TTkWindow_specialblocks')
         self.TTkWindow_specialblocks.setVisible(False)
+        self.TTkWindow_specialblocks.sizeChanged.connect(_special_block_resize)
+        self.TTkmenuButton_sp_wordwrap:  ttk.TTkMenuBarButton = root_special_blocks.getWidgetByName('menuButton_sp_wordwrap')
+        self.TTkmenuButton_sp_exit:  ttk.TTkMenuBarButton = root_special_blocks.getWidgetByName('menuButton_sp_exit')
+        self.TTkmenuButton_sp_wordwrap.menuButtonClicked.connect(_special_block_details_wordwrap)
+        self.TTkmenuButton_sp_exit.menuButtonClicked.connect(_special_block_details_exit)
+
 
         frame_flow.move(60,4)
 
@@ -1056,6 +1211,7 @@ class InteractiveWindow:
         # FilePicker
         TTkButton_viewfile.setEnabled(False)
         TTkFileButtonPicker.pathPicked.connect(_filetxtchange)
+        TTkFileButtonPicker.clicked.connect(_remember_last_path)
         TTkButton_viewfile.clicked.connect(_viewlogfile)
 
         # Party
@@ -1148,6 +1304,14 @@ class InteractiveWindow:
         size=self.tree_party.size()
         parent=self.tree_party.parentWidget()
         self.tree_party = ttk.TTkTree(pos=pos,size=size,parent=parent)
+
+    def clear_spb_tree(self):
+
+        pos=self.TTkTree_specialblocks.pos()
+        size=self.TTkTree_specialblocks.size()
+        parent=self.TTkTree_specialblocks.parentWidget()
+        name = self.TTkTree_specialblocks.name()
+        self.TTkTree_specialblocks = ttk.TTkTree(parent=parent, size=size, pos=pos, name=name)
 
     @staticmethod
     def update_tui_from_queue():
@@ -1386,10 +1550,45 @@ def main():
         return file_to_analyse
     return None
 
+def load_highlights():
+    """
+
+    :return:
+    """
+
+    highlights = Configs.get_config_for('FILE_SETUP.CODE_HIGHLIGHTS')
+
+    for each_env in highlights:
+        for each_item in highlights[each_env]:
+            for each_color in highlights[each_env][each_item]:
+                desc = f'{each_env}:{each_item}'
+                for each_rgx in highlights[each_env][each_item][each_color]:
+                    HighlightCode(desc, each_rgx, each_color)
+
+    pass
+
+    # HighlightCode('timestamps', r'[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}', '#00AAAA')
+    # HighlightCode('timestamps', r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[,.]\d+Z','#00AAAA')
+    # HighlightCode('level', 'WARN', '#AAAA00')
+    # HighlightCode('level', 'WARNING', '#AAAA00')
+    # HighlightCode('level', r'\bINFO ', '#44AA00')
+    # HighlightCode('level', 'ERROR ', '#FF8800')
+    # HighlightCode("specialBlocks", "Timestamp:",'#44AA00')
+    # HighlightCode("specialBlocks", "Event:",'#44AA00')
+    # HighlightCode("specialBlocks", "Actions:",'#44AA00')
+    # HighlightCode("specialBlocks", "Continuation:",'#44AA00')
+    # HighlightCode("specialBlocks", "isFlowResumed:",'#44AA00')
+    # HighlightCode("specialBlocks", "Diff between previous and next state:",'#44AA00')
+    # HighlightCode("specialBlocks", "checkpoint\\..*:",'#44AA00')
+
 
 if __name__ == "__main__":
     max_number_items_fNtx = 15
     tui_logging = None
+    Configs.load_config()
+    load_highlights()
+
+
     # file_to_analyse = None
 
     ## TESTS

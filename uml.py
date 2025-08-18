@@ -92,7 +92,6 @@ class UMLStep:
         :return:
         """
 
-
         # TODO:
         #       1) obtener el objeto UML candidato
         #       2) extraer los settings y opciones para este objeto
@@ -120,58 +119,61 @@ class UMLStep:
         fields_found = list(expected_fields)
         fields_orig = list(expected_fields)
         # delete any field that is not in regex line
-        for each_field in expected_fields:
-            ztag, zaction = each_field.split(':')
-            rgx = self.get(UMLStep.Attribute.REGEX_TO_APPLY)
-            if ((f"__{zaction}__" not in rgx and f"<{zaction}>" not in rgx) and
-                    (f"__{ztag}__" not in rgx and f"<{ztag}>" not in rgx)):
-                fields_found.remove(each_field)
+        try:
+            for each_field in expected_fields:
+                ztag, zaction = each_field.split(':')
+                rgx = self.get(UMLStep.Attribute.REGEX_TO_APPLY)
+                if ((f"__{zaction}__" not in rgx and f"<{zaction}>" not in rgx) and
+                        (f"__{ztag}__" not in rgx and f"<{ztag}>" not in rgx)):
+                    fields_found.remove(each_field)
 
-        expected_fields = fields_found
+            expected_fields = fields_found
 
-        extra_data_list = list(set(fields_orig) - set(fields_found))
+            extra_data_list = list(set(fields_orig) - set(fields_found))
 
-        extra_data = self.extract_extra_data(extra_data_list)
+            extra_data = self.extract_extra_data(extra_data_list)
 
-        line_message = self.get(UMLStep.Attribute.LINE_MESSAGE)
+            line_message = self.get(UMLStep.Attribute.LINE_MESSAGE)
 
-        match = self.get(UMLStep.Attribute.REGEX_COMPILED).search(line_message)
-        # Extract any defined field on this line
-        fields = match.groupdict()
-        if extra_data:
-            fields.update(extra_data)
-        if fields:
-            self.set(UMLStep.Attribute.FIELDS, fields)
+            match = self.get(UMLStep.Attribute.REGEX_COMPILED).search(line_message)
+            # Extract any defined field on this line
+            fields = match.groupdict()
+            if extra_data:
+                fields.update(extra_data)
+            if fields:
+                self.set(UMLStep.Attribute.FIELDS, fields)
 
-        # Try to extract all fields on this line (expected_fields)
-        for each_field in expected_fields:
-            field,action = each_field.split(':')
-            #
-            # Check if I have value for given field
-            if action in fields and action not in uml_actions:
-                # collect appropriate uml action for this field
-                uml_actions[field] = fields[action]
+            # Try to extract all fields on this line (expected_fields)
+            for each_field in expected_fields:
+                field,action = each_field.split(':')
+                #
+                # Check if I have value for given field
+                if action in fields and action not in uml_actions:
+                    # collect appropriate uml action for this field
+                    uml_actions[field] = fields[action]
 
-                # continue
+                    # continue
 
-            # Unable to get proper definition from extracted fields, so then look for another way
-            # to extract such information...
-            #
+                # Unable to get proper definition from extracted fields, so then look for another way
+                # to extract such information...
+                #
 
-            definition = CordaObject.get_corda_object_definition_for(action, True)
+                definition = CordaObject.get_corda_object_definition_for(action, True)
 
-            if definition:
-                if isinstance(definition, str):
-                    definition = [definition]
-                for each_definition in definition:
-                    pattern = RegexLib.build_regex(each_definition)
-                    check = re.search(pattern, line_message)
-                    if check:
-                        # uml_actions[f"{field}|{check.group(1)}"] = action
-                        uml_actions[action] = f"{field}|{check.group(1)}"
-                        break
+                if definition:
+                    if isinstance(definition, str):
+                        definition = [definition]
+                    for each_definition in definition:
+                        pattern = RegexLib.build_regex(each_definition)
+                        check = re.search(pattern, line_message)
+                        if check:
+                            # uml_actions[f"{field}|{check.group(1)}"] = action
+                            uml_actions[action] = f"{field}|{check.group(1)}"
+                            break
 
-            self.set(UMLStep.Attribute.UML_COMMAND_DEFINITION, uml_actions)
+                self.set(UMLStep.Attribute.UML_COMMAND_DEFINITION, uml_actions)
+        except BaseException as be:
+            write_log(f"Unable to determine endpoints due to {be}", level="ERROR")
 
         return self
 
@@ -418,7 +420,7 @@ class UMLStepSetup:
                 continue
 
         # Si ningún formato funciona
-        raise ValueError(f"Unable to parse this timestamp: {timestamp_str}, please a parsing format at JSON file")
+        raise ValueError(f"Unable to parse this timestamp: {timestamp_str}, please add a parsing format at JSON configuration file")
 
 
     def set_element_type(self, element_type):
@@ -451,7 +453,7 @@ class UMLStepSetup:
     def process_uml_chunk(self, chunk: Dict[int, str]):
         """Procesa un bloque del diccionario y genera los UMLSteps"""
         write_log(f"[{threading.current_thread().name}]: {len(chunk)} "
-              f"steps processed: {list(chunk.keys())[0]} - {list(chunk.keys())[len(chunk)-1]}" )
+              f"Checking for valid UML steps, lines processed: {list(chunk.keys())[0]} - {list(chunk.keys())[len(chunk)-1]}" )
 
         for line_num, line in chunk.items():
             # uml_step = parse_line_to_uml_step(line)
@@ -917,7 +919,8 @@ class CreateUML:
             else:
                 time_msg = f'{elapsed_time:.4f} seconds.'
 
-            self.uml('uml_start', instruction=Configs.get_config(section="UML_CONFIG", param="title",sub_param="CONTENT"))
+            self.uml('uml_start',
+                     instruction=Configs.get_config(section="UML_CONFIG", param="title",sub_param="CONTENT"))
 
             title = [
                 'title',

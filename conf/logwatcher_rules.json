@@ -4,6 +4,21 @@
   },
   "VERSION": {
     "IDENTITY_FORMAT": {
+      "SDX Six": {
+        "EXPECT": "^\\|([0-9 :,-]+)\\|([A-Z]+)\\|(.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 ]+): ([a-zA-Z0-9-\\?=. \\\":\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
       "DLT Service": {
         "EXPECT": "^\\d+\\s*([0-9-:.ZT]*)\\s*(\\[[A-Z ]*\\]) (.*)",
         "FIELDS": [
@@ -773,6 +788,43 @@
         "%d-%b-%Y %H:%M:%S",
         "%Y%m%d %H:%M:%S"
       ]
+    },
+    "CODE_HIGHLIGHTS":
+    {
+      "LOG_VIEWER": {
+        "LEVEL": {
+          "#AAAA00": [
+            "Warn|WARN|WARNING"
+          ],
+          "#44AA00": [
+            "\\bINFO\\b"
+          ],
+          "#FF8800": [
+            "\\bERROR\\b"
+          ],
+          "#00AAAA": [
+            "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}",
+            "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[,.]\\d+Z",
+            "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}[,.]\\d+",
+            "[0-9]{2}/[0-9]{2}-[0-9]{4}:[0-9]{2}:[0-9]{2}:[0-9]{2}"
+          ]
+        }
+      },
+      "SPECIAL_BLOCKS":{
+        "DETAILS": {
+          "#44AA00": [
+            "Timestamp:",
+            "Event:",
+            "Actions:",
+            "Continuation:",
+            "isFlowResumed:",
+            "Diff between previous and next state:",
+            "checkpoint\\..*:",
+            "isAnyCheckpointPersisted:",
+            "pendingDeduplicationHandlers:"
+          ]
+        }
+      }
     }
   },
   "BLOCK_COLLECTION": {

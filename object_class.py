@@ -1143,7 +1143,7 @@ class FileManagement:
 
     unique_results = {}
 
-    def __init__(self, filename, block_size_in_mb, debug=False,scan_lines=50,min_percent_merge=15):
+    def __init__(self, filename, block_size_in_mb, debug=False,scan_lines=7000,min_percent_merge=15):
         """
         Class created to manage all file operations. This class will help to process large files spliting them into
         blocks and starting up a thread per block.
@@ -1656,7 +1656,10 @@ class FileManagement:
         """
         tasks = [(start, size, start_line, end_line) for start, size, start_line, end_line in self.chunk_info]
         write_log(f"{Icons.INFO} Iniciando procesamiento de {len(tasks)} bloques")
-
+        if not self.logfile_format:
+            write_log(f'{Icons.ERROR} Unable to process this file, I can\'t determine its format')
+            write_log(f'{Icons.MAGNIFYING_GLASS} Add proper format at configuration file under \'IDENTITY_FORMAT\' section...')
+            return
         # Variables para monitoreo
         futures = []
         active_tasks = tasks.copy()
