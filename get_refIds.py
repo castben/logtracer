@@ -76,9 +76,10 @@ class GetRefIds:
             # This will try to match given line with all possible patterns for required ID's these patterns came
             # from definition file at CORDA_OBJECT in there you will see all definitions program is looking for to
             # identify a CORDA_OBJECT
-
-            cordaobject_id_match = re.finditer(corda_object_detection, each_line)
-
+            try:
+                cordaobject_id_match = re.finditer(corda_object_detection, each_line)
+            except BaseException as be:
+                pass
             if cordaobject_id_match:
                 group_count = 0
                 co = None
@@ -157,9 +158,9 @@ class GetRefIds:
         except IOError as io:
             write_log('Sorry unable to open %s due to %s' % (self.file.logfile_format, io), level='ERROR')
             return None
-        except BaseException as be:
-            write_log(f'Unknown error, stopping processing', level='ERROR')
-            return None
+        # except BaseException as be:
+        #     write_log(f'Unknown error, stopping processing {be}', level='ERROR')
+        #     return None
 
 
     def execute(self, each_line, current_line):

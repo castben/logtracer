@@ -44,11 +44,11 @@
      "params": {
       "Name": "TTkFrame",
       "Position": [
-       2,
+       0,
        0
       ],
       "Size": [
-       63,
+       67,
        22
       ],
       "Min Width": 0,
@@ -66,7 +66,7 @@
       ],
       "Layout": "TTkLayout",
       "Border": true,
-      "Title": "Customer Info"
+      "Title": ""
      },
      "layout": {
       "class": "TTkLayout",
@@ -74,7 +74,7 @@
        "Geometry": [
         0,
         0,
-        61,
+        65,
         20
        ]
       },
@@ -84,7 +84,7 @@
         "params": {
          "Name": "TTkLabel",
          "Position": [
-          1,
+          2,
           1
          ],
          "Size": [
@@ -112,7 +112,7 @@
         "params": {
          "Name": "TTkLabel-1",
          "Position": [
-          1,
+          2,
           3
          ],
          "Size": [
@@ -140,7 +140,7 @@
         "params": {
          "Name": "TTkFileButtonPicker",
          "Position": [
-          0,
+          2,
           5
          ],
          "Size": [
@@ -174,7 +174,7 @@
         "params": {
          "Name": "TTkButton_start_analysis",
          "Position": [
-          0,
+          2,
           8
          ],
          "Size": [
@@ -203,7 +203,7 @@
         "params": {
          "Name": "TTkLabel-3",
          "Position": [
-          1,
+          3,
           14
          ],
          "Size": [
@@ -231,7 +231,7 @@
         "params": {
          "Name": "TTkLabel-4",
          "Position": [
-          1,
+          3,
           16
          ],
          "Size": [
@@ -259,7 +259,7 @@
         "params": {
          "Name": "TTkLabel-2",
          "Position": [
-          1,
+          3,
           12
          ],
          "Size": [
@@ -287,7 +287,7 @@
         "params": {
          "Name": "TTkLabel_Parties",
          "Position": [
-          15,
+          17,
           12
          ],
          "Size": [
@@ -315,7 +315,7 @@
         "params": {
          "Name": "TTkLabel_Transactions",
          "Position": [
-          15,
+          17,
           14
          ],
          "Size": [
@@ -343,7 +343,7 @@
         "params": {
          "Name": "TTkLabel_Flows",
          "Position": [
-          15,
+          17,
           16
          ],
          "Size": [
@@ -371,7 +371,7 @@
         "params": {
          "Name": "TTkButton_show_party",
          "Position": [
-          25,
+          27,
           12
          ],
          "Size": [
@@ -400,7 +400,7 @@
         "params": {
          "Name": "TTkButton_show_flow",
          "Position": [
-          25,
+          27,
           16
          ],
          "Size": [
@@ -429,7 +429,7 @@
         "params": {
          "Name": "TTkButton_show_transaction",
          "Position": [
-          25,
+          27,
           14
          ],
          "Size": [
@@ -458,7 +458,7 @@
         "params": {
          "Name": "TTkButton_viewfile",
          "Position": [
-          38,
+          42,
           6
          ],
          "Size": [
@@ -487,7 +487,7 @@
         "params": {
          "Name": "TTkComboBox_customer",
          "Position": [
-          11,
+          12,
           1
          ],
          "Size": [
@@ -534,7 +534,7 @@
         "params": {
          "Name": "TTkLabel-5",
          "Position": [
-          21,
+          23,
           6
          ],
          "Size": [
@@ -562,7 +562,7 @@
         "params": {
          "Name": "TTkLabel_file_size",
          "Position": [
-          27,
+          29,
           6
          ],
          "Size": [
@@ -590,7 +590,7 @@
         "params": {
          "Name": "TTkButton_new_customer",
          "Position": [
-          38,
+          42,
           1
          ],
          "Size": [
@@ -619,7 +619,7 @@
         "params": {
          "Name": "TTkButton_new_ticket",
          "Position": [
-          38,
+          42,
           3
          ],
          "Size": [
@@ -648,7 +648,7 @@
         "params": {
          "Name": "TTkComboBox_ticket",
          "Position": [
-          11,
+          12,
           3
          ],
          "Size": [
@@ -695,7 +695,7 @@
         "params": {
          "Name": "TTkButton_main_exit",
          "Position": [
-          40,
+          43,
           17
          ],
          "Size": [
@@ -724,7 +724,7 @@
         "params": {
          "Name": "TTkLabel_analysis_stat",
          "Position": [
-          21,
+          23,
           9
          ],
          "Size": [

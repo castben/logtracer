@@ -111,7 +111,40 @@
       ]
      },
      "menuBar": {
+      "top": {
+       "right": [
+        {
+         "params": {
+          "Name": "menuButton_qv_pages",
+          "ToolTip": "",
+          "Text": "Page 1/1",
+          "Checkable": false,
+          "Checked": false
+         }
+        }
+       ]
+      },
       "bottom": {
+       "center": [
+        {
+         "params": {
+          "Name": "menuButton_qv_ppage",
+          "ToolTip": "",
+          "Text": "Previous Page",
+          "Checkable": false,
+          "Checked": false
+         }
+        },
+        {
+         "params": {
+          "Name": "menuButton_qv_npage",
+          "ToolTip": "",
+          "Text": "Next Page",
+          "Checkable": false,
+          "Checked": false
+         }
+        }
+       ],
        "right": [
         {
          "params": {

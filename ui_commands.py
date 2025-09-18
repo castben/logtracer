@@ -8,6 +8,8 @@ from support_icons import Icons
 
 # Cola para comandos de UI
 ui_command_queue = Queue()
+# Cola de funciones
+callback_queue = Queue()
 
 def schedule_ui_update(component_name, method, *args, **kwargs):
     """
@@ -51,6 +53,8 @@ def process_ui_commands(root_tui):
 
             # Ejecutar método
             getattr(widget, command["method"])(*command["args"], **command["kwargs"])
+            # if command["method"] == 'setText':
+            #     write_log(f'Updating widget {command["component"]} with value: ({command["args"]}, {command["kwargs"]})')
 
         except Exception as e:
             write_log(
@@ -61,3 +65,28 @@ def process_ui_commands(root_tui):
     # Programar próxima verificación
     if not shutdown_event.is_set():
         threading.Timer(0.05, lambda: process_ui_commands(root_tui)).start()
+
+
+def schedule_callback(func, *args, **kwargs):
+    """Programa una función para ejecutarse en el hilo principal"""
+    callback_queue.put({
+        "function": func,
+        "args": args,
+        "kwargs": kwargs
+    })
+
+def process_callbacks():
+    """Procesa callbacks en el hilo principal"""
+    while not callback_queue.empty():
+        if shutdown_event.is_set():
+            return
+
+        callback = callback_queue.get_nowait()
+        try:
+            callback["function"](*callback["args"], **callback["kwargs"])
+        except Exception as e:
+            write_log(f"{Icons.ERROR} Error en callback: {str(e)}", level="ERROR")
+
+    # Programar próxima verificación
+    if not shutdown_event.is_set():
+        threading.Timer(0.05, process_callbacks).start()

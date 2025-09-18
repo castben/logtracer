@@ -13,7 +13,8 @@ from log_handler import write_log
 from shutdown_event import shutdown_event
 from support_icons import Icons
 from ui_commands import schedule_ui_update
-
+import signal
+from contextlib import contextmanager
 
 class CordaObject:
     """
@@ -58,6 +59,8 @@ class CordaObject:
         self.timestamp = None
         self.error_level = None
         self.uml_steps = OrderedDict()
+        self._uml_steps_lock = threading.RLock()  # ✅ Lock para acceso seguro
+
 
     @classmethod
     def clear_all(cls):
@@ -357,8 +360,8 @@ class CordaObject:
         :param umlstep: UMLStep object associated to this line
         :return:
         """
-
-        self.uml_steps[line] = umlstep
+        with self._uml_steps_lock:  # ✅ Proteger escritura
+            self.uml_steps[line] = umlstep
 
     # def load_from_database(self):
     #     """
@@ -956,7 +959,6 @@ class CordaObject:
 
         return None
 
-
     def add_reference(self, line, creference):
         """
         Add a new reference line to this object, this will be used to make the tracing of this object
@@ -1135,6 +1137,7 @@ class CordaObject:
         FLOW_AND_TRANSACTIONS = "Flows&Transactions"
         UML_STEPS = "UML-Steps"
         PARTY = "Party"
+        ERROR_ANALYSIS = 'Error-Log'
 
 class FileManagement:
     """
@@ -1143,7 +1146,7 @@ class FileManagement:
 
     unique_results = {}
 
-    def __init__(self, filename, block_size_in_mb, debug=False,scan_lines=7000,min_percent_merge=15):
+    def __init__(self, filename, block_size_in_mb=1, debug=False,scan_lines=7000,min_percent_merge=15):
         """
         Class created to manage all file operations. This class will help to process large files spliting them into
         blocks and starting up a thread per block.
@@ -1187,67 +1190,6 @@ class FileManagement:
         :return:
         """
         cls.unique_results = {}
-
-    def identify_party_role(self, line):
-        """
-        This method will try to identify a specific party like a Notary or log producer (low_owner)
-        :return:
-        """
-
-        get_role_definitions = Configs.get_config_for("UML_ENTITY.OBJECTS")
-        for each_role in get_role_definitions:
-            expect = Configs.get_config_for(f"UML_ENTITY.OBJECTS.{each_role}.EXPECT")
-            if not expect:
-                continue
-
-            # list of patterns from configuration *may* have macrovariables used to replace parties and
-            # other stuff like "__notary__" or "__participant__" this need to be "expanded" into real one, to be
-            # able to get correct regex patter to look for
-
-            # Expand regex:
-            # for each_expect in expect:
-            # real_regex = RegexLib.build_regex(each_expect)
-
-            check_pattern = RegexLib.regex_to_use(expect, line)
-
-            if  check_pattern is None:
-                # No role found for this entity
-                continue
-            real_regex = RegexLib.build_regex(expect[check_pattern])
-            validate = re.search(real_regex, line)
-
-            # TODO: actual regext to pull x500 still buggy and it doesn't collect x500 names correctly
-            #
-            if validate:
-                x = X500NameParser(rules=self.rules['RULES'])
-                x500 = x.parse_line(validate.group(1), [])
-                self.add_party_role(x500[0].string(), each_role)
-
-    def add_party_role(self, party, role):
-        """
-        this method will collect all roles found on file, when running x500name identification
-        this will help to save time for this step verifying same line
-        :param party: party you want to add
-        :param role: role assigned to this party
-        :return:
-        """
-
-        if role not in self.identified_roles:
-            self.identified_roles[role] = set()
-
-        self.identified_roles[role].add(party)
-
-    def get_party_role(self, role=None):
-        """
-        Return roles found
-        :param role: role name
-        :return: list party found under that role, if not role defined, it will return actual roles found
-        """
-
-        if role and role in self.identified_roles:
-            return list(self.identified_roles[role])
-
-        return list(self.identified_roles.keys())
 
     @staticmethod
     def get_element(element_type, element_reference_id):
@@ -1359,6 +1301,80 @@ class FileManagement:
             FileManagement.unique_results[element_type][item.reference_id].append(item)
         else:
             FileManagement.unique_results[element_type].setdefault(item.reference_id, item)
+
+    @staticmethod
+    def print_parties():
+
+        for index,each_id in enumerate(FileManagement.get_all_unique_results('Party')):
+            if each_id.get_corda_role():
+                role = f'{each_id.get_corda_role()}'
+            else:
+                role = 'party'
+            write_log(f"[{index+1:>3}] [{role:^11}] {each_id.name}")
+            if each_id.has_alternate_names():
+                for each_alternate_name in each_id.get_alternate_names():
+                    write_log(f"              `-->  {each_alternate_name}")
+
+    def identify_party_role(self, line):
+        """
+        This method will try to identify a specific party like a Notary or log producer (low_owner)
+        :return:
+        """
+
+        get_role_definitions = Configs.get_config_for("UML_ENTITY.OBJECTS")
+        for each_role in get_role_definitions:
+            expect = Configs.get_config_for(f"UML_ENTITY.OBJECTS.{each_role}.EXPECT")
+            if not expect:
+                continue
+
+            # list of patterns from configuration *may* have macrovariables used to replace parties and
+            # other stuff like "__notary__" or "__participant__" this need to be "expanded" into real one, to be
+            # able to get correct regex patter to look for
+
+            # Expand regex:
+            # for each_expect in expect:
+            # real_regex = RegexLib.build_regex(each_expect)
+
+            check_pattern = RegexLib.regex_to_use(expect, line)
+
+            if  check_pattern is None:
+                # No role found for this entity
+                continue
+            real_regex = RegexLib.build_regex(expect[check_pattern])
+            validate = re.search(real_regex, line)
+
+            # TODO: actual regext to pull x500 still buggy and it doesn't collect x500 names correctly
+            #
+            if validate:
+                x = X500NameParser(rules=self.rules['RULES'])
+                x500 = x.parse_line(validate.group(1), [])
+                self.add_party_role(x500[0].string(), each_role)
+
+    def add_party_role(self, party, role):
+        """
+        this method will collect all roles found on file, when running x500name identification
+        this will help to save time for this step verifying same line
+        :param party: party you want to add
+        :param role: role assigned to this party
+        :return:
+        """
+
+        if role not in self.identified_roles:
+            self.identified_roles[role] = set()
+
+        self.identified_roles[role].add(party)
+
+    def get_party_role(self, role=None):
+        """
+        Return roles found
+        :param role: role name
+        :return: list party found under that role, if not role defined, it will return actual roles found
+        """
+
+        if role and role in self.identified_roles:
+            return list(self.identified_roles[role])
+
+        return list(self.identified_roles.keys())
 
     def assign_roles(self):
         """
@@ -1595,61 +1611,6 @@ class FileManagement:
                 write_log(f"Error Processing block {start_line}-{end_line}: {str(e)}", level="ERROR")
             return None
 
-    def parallel_processing_x(self):
-        """
-        Launch all assigned threads in parallel to process each block of log file.
-        TODO: AI Corrections/advices
-        :return:
-        """
-        tasks = [(start, size, start_line, end_line) for start, size, start_line, end_line in self.chunk_info]
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
-            futures = []
-            active_tasks = []  # Tareas activas que no se han cancelado
-            # Submit all tasks to the executor and store future objects.
-            import time
-            time.sleep(0.5)
-            write_log(f"{Icons.CLOCK} [Hilo {threading.current_thread().name}] Delay de prueba completado")
-
-            for index, each_task in enumerate(tasks):
-                if shutdown_event.is_set():
-                    break
-                self.start_stop_watch(f'Thread-{index}', start=True)
-                future = pool.submit(self.process_block, each_task)
-                future.thread_index = index
-                future.start_time = self.get_statistics_data(f'Thread-{index}', 'chrono-start')
-                future.info = each_task[1]
-                futures.append(future)
-                active_tasks.append(each_task)
-                write_log(f"{Icons.SUCCESS} [Hilo {threading.current_thread().name}] Procesamiento paralelo iniciado")
-
-
-            # Monitorear tareas activas
-            while active_tasks and not shutdown_event.is_set():
-                # Actualizar active_tasks con tareas aún en ejecución
-                active_tasks = [task for task in active_tasks
-                                if not any(future.done() for future in futures
-                                           if future.thread_index == tasks.index(task))]
-
-            # Si se solicitó cierre, cancelar tareas pendientes
-            if shutdown_event.is_set():
-                write_log(f"Cancelando {len(active_tasks)} tareas pendientes...", level="INFO")
-                for future in futures:
-                    if not future.done():
-                        future.cancel()
-
-            # Esperar a que terminen todas las tareas (completadas o canceladas)
-            concurrent.futures.wait(futures, return_when=concurrent.futures.ALL_COMPLETED)
-
-        # Process results once all threads have completed execution
-        if not shutdown_event.is_set() and  self.debug:
-            for future in futures:  # Loop over stored futures
-                thread_index = future.thread_index
-                time_msg = self.start_stop_watch(f'Thread-{thread_index}', start=False)
-                data = future.info / (1024 * 1024)  # Processed data calculation
-                write_log(f"Thread {thread_index} completed in {time_msg}, "
-                      f"Processed {data:.2f} Mbytes, from line {tasks[thread_index][2]} to line {tasks[thread_index][3]}")
-
     def parallel_processing(self):
         """
         Procesamiento paralelo CORREGIDO para mantener la UI responsive
@@ -1685,7 +1646,11 @@ class FileManagement:
                 # Registrar progreso cada 5% de completado
                 completed_percent = 100 - (len(active_tasks) * 100 // len(tasks))
                 if completed_percent % 2 == 0 and self.debug:
-                    schedule_ui_update('TTkLabel_analysis_stat','setText',f"{Icons.CLOCK}...{completed_percent}%")
+                    if completed_percent != 100:
+                        schedule_ui_update('TTkLabel_analysis_stat','setText',f"{Icons.CLOCK}...{completed_percent}%")
+                    else:
+                        schedule_ui_update('TTkLabel_analysis_stat', "setText", '\u2705 Done...')
+
 
                 # Programar próxima verificación
                 if active_tasks and not shutdown_event.is_set():
@@ -1728,6 +1693,8 @@ class FileManagement:
                 write_log(f"{Icons.SUCCESS} Análisis completado. "
                           f"Total: {total_data:.2f} MB en {total_time:.2f}s")
 
+
+
     def set_file_format(self, file_format):
         """
         Corda file format recognized
@@ -1747,36 +1714,6 @@ class FileManagement:
         else:
             return "UNKNOWN"
 
-    def discover_file_formatX(self):
-        """
-        Analyse first self.scan_lines (25 by default) lines from given file to determine which Corda log format is
-        This is done to be able to separate key components from lines like Time stamp, severity level, and log message
-        TODO: Method suggested by IA
-        :return:
-        """
-
-        # Proposed optimization:
-        # Use NumPy's vectorized operations to replace the nested for loops.
-        try:
-            with open(self.filename, "r") as hfile:
-                lines = [line.strip() for line in hfile]
-
-                if not self.logfile_format and 0 < len(lines) <= self.scan_lines:
-                    versions = Configs.get_config_for("VERSION.IDENTITY_FORMAT")
-
-                    # Use NumPy's where function to avoid explicit for loops.
-                    version_matches = np.vectorize(lambda x: re.search(x["EXPECT"], lines[0]))
-                    matches = [version_matches(version) for version in versions]
-
-                    if any(matches):
-                        self.logfile_format = next((version for match, version in zip(matches, versions) if match), "UNKNOWN")
-                        write_log("Log file format recognized as: %s" % self.logfile_format)
-                else:
-                    self.logfile_format = "UNKNOWN"
-        except IOError as io:
-            write_log(f'Unable to open {self.filename} due to {io}')
-            exit(0)
-
     def discover_file_format(self):
         """
         Analyse first self.scan_lines ( 25 by default) lines from given file to determine which Corda log format is
@@ -1785,6 +1722,7 @@ class FileManagement:
         :return:
         """
         versions = Configs.get_config_for("VERSION.IDENTITY_FORMAT")
+        write_log(f'Please wait, reading file {self.filename} and searching for its structure.')
         try:
             with open(self.filename, "r") as hfile:
                 for line, each_line in enumerate(hfile):
@@ -1799,20 +1737,6 @@ class FileManagement:
                                 break
         except IOError as io:
             write_log(f'Unable to open {self.filename} due to {io}')
-            exit(0)
-
-    @staticmethod
-    def print_parties():
-
-        for index,each_id in enumerate(FileManagement.get_all_unique_results('Party')):
-            if each_id.get_corda_role():
-                role = f'{each_id.get_corda_role()}'
-            else:
-                role = 'party'
-            write_log(f"[{index+1:>3}] [{role:^11}] {each_id.name}")
-            if each_id.has_alternate_names():
-                for each_alternate_name in each_id.get_alternate_names():
-                    write_log(f"              `-->  {each_alternate_name}")
 
 class Party:
     """
@@ -2805,6 +2729,7 @@ class Configs:
                     Configs.set_config(config_value=rule_file['VERSION'], section="VERSION")
                     Configs.set_config(config_value=rule_file["BLOCK_COLLECTION"], section="BLOCK_COLLECTION")
                     Configs.set_config(config_value=rule_file["FILE_SETUP"], section="FILE_SETUP")
+                    Configs.set_config(config_value=rule_file['WATCH_FOR'], section='WATCH_FOR')
             write_log("Object definition and rules loaded")
 
         except IOError as io:
@@ -3156,7 +3081,8 @@ class RegexLib:
     @staticmethod
     def regex_to_use(regex_list, message_line, force_groups=False):
         """
-        Given a regex_list, which will contain all regex; and the line to find out which regex can be applied into it
+        Given a regex_list, which will contain all regex; and the line to find out which regex
+        can be applied into it
         :param regex_list: a regex list with all possible regex to try
         :param message_line: the actual message that need to be parsed
         :param force_groups: if given list of regex has no groups on it, this method will fail as it depends on
@@ -3179,21 +3105,17 @@ class RegexLib:
         concatenated_idx_groups = RegexLib.set_concatenated_index_groups(no_group_names)
         # Join all regex into one
 
-        # all_expects = ''
-        # for each_item in no_group_names:
-        #     all_expects += '|' + each_item
-        #
-        # tall_expects = all_expects[1:]
-        # all_expects = tall_expects
-
         all_expects = '|'.join(no_group_names)
 
         group_idx_match = None
-
+        start_time = time.time()
         try:
             # Check if given line has a valid regex to be applied
             expression = RegexLib.use(all_expects)
+
+            # with TimeoutError.Timeout(second=0.5):
             check_match = expression.findall(message_line)
+
             # check_match = re.findall(all_expects, message_line)
             #
             # Using result from findall; search which group was valid
@@ -3203,9 +3125,16 @@ class RegexLib:
             match_expression_index = next(a for a, b in enumerate(check_match[0]) if b)
             # I've found a good group save it for reference
             group_idx_match = match_expression_index
+            elapsed = time.time() - start_time
+            if elapsed > 0.1:  # Más de 100ms
+                write_log(f"⚠️ Regex lento ({elapsed*1000:.2f}ms) para línea de {len(message_line)} chars",
+                          level="WARN")
         except BaseException as be:
             # No regex has a match with given line
             return None
+        except TimeoutError:
+            pass
+
 
         # If we don't match any regex for this line, then doesn't make sense to continue with it... return None
         if group_idx_match is None:
@@ -3464,7 +3393,6 @@ class BlockItems:
         if 0 <= idx < len(self.content):
             return self.content[idx]
 
-
 class BlockExtractor:
     """
     Extracts structured blocks from a log file, driven by regex patterns defined in a config dictionary.
@@ -3665,6 +3593,190 @@ class BlockExtractor:
             return self.collected_blocks[block_type]
 
         return None
+
+class Error:
+    """
+    A class that represents an error
+    """
+
+    def __init__(self):
+        """
+
+        """
+        self.reference_id = None
+        self.timestamp = None
+        self.log_line = None
+        self.line_number = None
+        self.type = None
+        self.category = None
+
+class KnownErrors:
+    """
+    Object class that contain known errors
+    """
+
+    errors = {}
+    configs: Configs = None
+
+
+    def __init__(self):
+        """
+
+        :param config:
+        """
+
+        self.category = None
+        self.name = None
+        self.error_strings = None
+        self.alert_type = None
+        self.report_only_to = None
+
+    @classmethod
+    def get_categories(cls):
+        """
+        Return a list of actual loaded error categories
+        :return: list of strings
+        """
+
+        return list(cls.errors.keys())
+
+    @classmethod
+    def get(cls, category=None, name=None):
+        """
+        Return given error
+        :param category: return all errors known under given category
+        :param name: return all errors with given name
+        :return: a dictionary
+        """
+
+        result = {}
+
+        if category and not name and category in KnownErrors.errors:
+            return KnownErrors.errors[category]
+
+        if not category and name:
+            for each_category in KnownErrors.errors:
+                for each_error in KnownErrors.errors[each_category]:
+                    if each_error.name == name:
+                        result[each_category][each_error.name] = each_error
+
+        if category and name:
+            if category in KnownErrors.errors and name in KnownErrors.errors[category]:
+                return KnownErrors.errors[category][name]
+
+        return None
+
+    @classmethod
+    def initialize(cls):
+        """
+        Initialize class to load all known errors
+        :return:
+        """
+
+        for each_category in cls.configs.get_config_for('WATCH_FOR'):
+            for each_error in cls.configs.get_config_for(f'WATCH_FOR.{each_category}'):
+                known_error = KnownErrors()
+                known_error.category = each_category
+                known_error.name = each_error
+                known_error.error_strings = []
+                for each_regex in cls.configs.get_config_for(f'WATCH_FOR.{each_category}.{each_error}.error_strings'):
+                    compiled = re.compile(each_regex)
+                    known_error.error_strings.append(compiled)
+
+                known_error.alert_type = cls.configs.get_config_for(f'WATCH_FOR.{each_category}.{each_error}.alert_types')
+                known_error.report_only_to = cls.configs.get_config_for(f'WATCH_FOR.{each_category}.{each_error}.report_only_to')
+                known_error.add()
+
+
+
+    def add(self):
+        """
+        Add this into error list
+        :return:
+        """
+
+        if self.category not in KnownErrors.errors:
+            KnownErrors.errors[self.category] = {}
+
+        KnownErrors.errors[self.category][self.name] = self
+
+class LogAnalysis:
+    """
+    A class that analyse log to search for known errors
+    """
+
+    def __init__(self, file: FileManagement, config: Configs):
+        """
+
+        :param file:
+        """
+
+        self.file = file
+        self.config = config
+        self.found_errors = {}
+
+
+    def parse(self, line, current_line):
+        """
+        Parsing line searching for known errors
+        :param line: log line to parse
+        :return:
+        """
+        found_errors = []
+        for each_category in KnownErrors.get_categories():
+            for each_error in KnownErrors.get(category=each_category):
+                for rgx in KnownErrors.get(each_category,each_error).error_strings:
+                    match = rgx.findall(line)
+                    if match:
+                        error = Error()
+                        error.category = each_category
+                        error.name = each_error
+                        error.log_line = line
+                        error.reference_id = line
+                        error.line_number = current_line
+                        error.timestamp = None
+                        # if each_category not in found_errors:
+                        #     found_errors[each_category] = {}
+                        #
+                        # if each_error not in found_errors[each_category]:
+                        #     found_errors[each_category][each_error] = []
+                        #
+                        # found_errors[each_category][each_error].append(error)
+                        found_errors.append(error)
+
+        return found_errors
+
+class TimeoutError(Exception):
+    """Excepción personalizada para el timeout."""
+    pass
+
+
+    @staticmethod
+    @contextmanager
+    def Timeout(seconds):
+        """
+        Context manager que genera un TimeoutError si el código dentro
+        tarda más de 'seconds' segundos en ejecutarse.
+
+        Uso:
+            with timeout_context(0.5):
+                # Código que puede tardar
+                pass
+        """
+        def timeout_handler(signum, frame):
+            raise write_log(TimeoutError(f"La operación excedió el tiempo límite de {seconds} segundos"))
+
+        # Establecer la señal de alarma
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(int(seconds))  # alarm requiere segundos enteros
+
+        try:
+            yield
+        finally:
+            # Cancelar la alarma y restaurar el manejador original
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+
 
 def get_not_null(list_or_tuple, start=0):
     """

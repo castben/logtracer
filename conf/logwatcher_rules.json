@@ -65,7 +65,7 @@
         }
       },
       "CUSTOM_CHAINTHAT": {
-        "EXPECT": "(\\d{2}:\\d{2}:\\d{2}\\.[0-9]+) \\[[A-Za-z0-9- \\(\\)]+\\] ([A-Z ]+)  [a-zA-Z0-9.]* \\| (.*)",
+        "EXPECT": "^([0-9ZT:.-]+)(?: \\d{2}:\\d{2}:\\d{2}\\.\\d{3})? \\[[A-Za-z0-9- ()]+\\] ([A-Z]+) (.*)",
         "FIELDS": [
           "timestamp",
           "error_level",
@@ -846,7 +846,9 @@
       "ERRORS": {
         "START": {
           "EXPECT": [
-            "^\\[(INFO|WARN|ERROR)\\s+\\]\\s+\\d{4}-\\d{2}-\\d{2}T[^\\s]+.*Error \\d+ of \\d+:"
+            "^\\[(INFO|WARN|ERROR)\\s+\\]\\s+\\d{4}-\\d{2}-\\d{2}T[^\\s]+.*Error \\d+ of \\d+:",
+            ".*StaffedFlowHospital.*Error \\d+ of \\d+:",
+            "\"Detail: Key \\(peer_party_id,.* [0-9A-F]{64}\\) already exists.\""
           ]
         },
         "END": {
@@ -855,7 +857,8 @@
         "REFERENCE_ID": [
           "flow_id=__flow_id__",
           "flow-id=__flow_id__",
-          "tx_id=__tx_id__"
+          "tx_id=__tx_id__",
+          "\"Detail: Key \\(peer_party_id,.* __tx_id__\\) already exists.\""
         ],
         "ICON": "WARNING"
       }
@@ -1552,7 +1555,8 @@
           "ref=__tx_id__",
           "Tx \\[__tx_id__\\]",
           "Transaction \\[__tx_id__\\]",
-          ".tx_id.:.__tx_id__."
+          ".tx_id.:.__tx_id__.",
+          "Detail: Key \\(peer_party_id,.* __tx_id__\\) already exists."
         ],
         "ANALYSIS": {
           "DESCRIPTION": "This section specify how to extract actual status message from the log for transaction found RegEx will keep pattern to match(can add more than one) and its values represent fields to extract",

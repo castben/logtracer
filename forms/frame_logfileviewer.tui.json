@@ -100,7 +100,7 @@
          "ToolTip": "",
          "Line Number": true,
          "Line Number Starting": 1,
-         "Read Only": true,
+         "Read Only": false,
          "Multi Line": true
         },
         "row": 0,
@@ -123,7 +123,7 @@
          }
         }
        ],
-       "center": [
+       "right": [
         {
          "params": {
           "Name": "menuButton_lfv_exit",

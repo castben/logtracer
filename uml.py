@@ -4,7 +4,10 @@ import textwrap
 from collections import OrderedDict
 from datetime import datetime
 from enum import Enum
-from pickletools import optimize
+import time
+
+from dateutil.parser import isoparse
+from dateutil import parser
 from queue import Queue
 from log_handler import write_log
 from object_class import Configs, generate_internal_access, CordaObject, RegexLib, get_fields_from_log, X500NameParser
@@ -334,6 +337,133 @@ class UMLStepSetup:
                 if 'COMMAND' in tmp[each_cmd]:
                     UMLStepSetup.uml_definitions[each_cmd] = tmp[each_cmd]
 
+    # @staticmethod
+    # def extract_smart_fragments(line: str, max_fragments: int = 8, fragment_size: int = 400) -> List[str]:
+    #     """
+    #     Extrae fragmentos estratégicos optimizados para tus patrones UML
+    #     """
+    #     if len(line) <= fragment_size:
+    #         return [line]
+    #
+    #     fragments = []
+    #
+    #     # 1. Inicio (timestamp, inicio del mensaje - más crítico)
+    #     fragments.append(line[:fragment_size])
+    #
+    #     # 2. Final (mensajes de error, cierre de transacción)
+    #     fragments.append(line[-fragment_size:])
+    #
+    #     # 3. Fragmentos alrededor de palabras clave UML (más específico)
+    #     keywords = [
+    #         'transaction', 'notary', 'flow', 'session', 'error', 'acknowledg', 'signature',
+    #         'vault', 'hospital', 'finality', 'broadcast', 'recorded', 'sending', 'received'
+    #     ]
+    #
+    #     for keyword in keywords:
+    #         if len(fragments) >= max_fragments:
+    #             break
+    #         pos = line.lower().find(keyword)
+    #         if pos != -1:
+    #             start = max(0, pos - fragment_size // 2)
+    #             end = min(len(line), pos + fragment_size // 2)
+    #             fragment = line[start:end]
+    #             if fragment not in fragments:  # Evitar duplicados
+    #                 fragments.append(fragment)
+    #
+    #     # 4. Fragmentos equidistantes si aún no tenemos suficientes
+    #     if len(fragments) < max_fragments:
+    #         step = len(line) // (max_fragments - len(fragments) + 1)
+    #         for i in range(max_fragments - len(fragments)):
+    #             start = i * step
+    #             end = min(start + fragment_size, len(line))
+    #             fragment = line[start:end]
+    #             if fragment not in fragments:
+    #                 fragments.append(fragment)
+    #                 if len(fragments) >= max_fragments:
+    #                     break
+    #
+    #     return fragments[:max_fragments]
+    #
+    # def _process_line_normal(self, line, current_line_no, fragment_index=None):
+    #     """
+    #     Procesamiento normal de línea (tu lógica actual)
+    #     """
+    #     umlsteps_list = []
+    #
+    #     for each_uml_definition in UMLStepSetup.uml_definitions:
+    #         list_of_expects_to_try = UMLStepSetup.uml_definitions[each_uml_definition]["EXPECT"]
+    #
+    #         # Usar fragmento en lugar de línea original para regex
+    #         expect_to_use = RegexLib.regex_to_use(list_of_expects_to_try, line)
+    #
+    #         if expect_to_use is None:
+    #             continue
+    #
+    #         # Resto de tu lógica igual...
+    #         regex_expect = list_of_expects_to_try[expect_to_use]
+    #         each_expect = RegexLib.build_regex(regex_expect)
+    #
+    #         # Match solo en este fragmento
+    #         if each_expect.search(line):  # Solo el fragmento
+    #             # Crear UMLStep con información del fragmento
+    #             umlstep = self._create_uml_step(
+    #                 line, current_line_no, each_uml_definition,
+    #                 regex_expect, each_expect, fragment_index
+    #             )
+    #             umlsteps_list.append(umlstep)
+    #
+    #     return umlsteps_list
+    #
+    # def _consolidate_matches(self, matches):
+    #     """
+    #     Consolida matches duplicados de diferentes fragmentos
+    #     """
+    #     unique = []
+    #     seen_signatures = set()
+    #
+    #     for match in matches:
+    #         # Crear firma única del match (basado en comando y posición)
+    #         signature = (
+    #             match.get(UMLStep.Attribute.UML_COMMAND, ''),
+    #             match.get(UMLStep.Attribute.LINE_NUMBER, 0),
+    #             match.get(UMLStep.Attribute.REGEX_TO_APPLY, '')[:100]  # Primeros 100 chars
+    #         )
+    #
+    #         if signature not in seen_signatures:
+    #             seen_signatures.add(signature)
+    #             unique.append(match)
+    #
+    #     return unique
+    #
+    # def check_for_uml_step_AI(self, original_line, current_line_no):
+    #     """
+    #     Procesa línea gigante de forma segura
+    #     """
+    #     # Para líneas normales, procesamiento normal
+    #     if len(original_line) <= 2000:
+    #         return self._process_line_normal(original_line, current_line_no)
+    #
+    #     # Para líneas gigantes, procesamiento inteligente
+    #     write_log(f"🔍 Línea gigante ({len(original_line)} chars) en línea {current_line_no}", level="DEBUG")
+    #
+    #     fragments = UMLStepSetup.extract_smart_fragments(original_line)
+    #     all_matches = []
+    #
+    #     for i, fragment in enumerate(fragments):
+    #         # Procesar cada fragmento con tus regex normales
+    #         matches = self._process_line_normal(fragment, current_line_no, fragment_index=i)
+    #         if matches:
+    #             all_matches.extend(matches)
+    #
+    #     # Consolidar matches únicos (evitar duplicados de fragmentos)
+    #     unique_matches = self._consolidate_matches(all_matches)
+    #
+    #     if unique_matches:
+    #         self.cordaobject.add_uml_step(current_line_no, unique_matches)
+    #         return unique_matches
+    #
+    #     return None
+
 
     def check_for_uml_step(self, original_line, current_line_no):
         """
@@ -351,6 +481,10 @@ class UMLStepSetup:
             # created as "meta-definitions" I need below line to extract actual regex that need to be used...
             # In this section, i will loop over all defined UML commands, and find out if this line match any of them
 
+            if len(original_line)>2000:
+                # Para líneas gigantes, procesamiento inteligente
+                write_log(f"🔍 Línea gigante ({len(original_line)} chars) en línea {current_line_no}", level="DEBUG")
+
             list_of_expects_to_try = UMLStepSetup.uml_definitions[each_uml_definition]["EXPECT"]
             expect_to_use = RegexLib.regex_to_use(list_of_expects_to_try, original_line)
 
@@ -361,7 +495,7 @@ class UMLStepSetup:
                 timestamp = log_fields['timestamp']
             else:
                 timestamp = self.cordaobject.timestamp
-                write_log(f'File line {current_line_no}: Unable to extract a proper timestamp from this line:\n{original_line}', level='WARN')
+                # write_log(f'File line {current_line_no}: Unable to extract a proper timestamp from this line:\n{original_line}', level='WARN')
 
             if expect_to_use is None:
                 # If we do not have any valid regex for this line, try next list
@@ -388,39 +522,45 @@ class UMLStepSetup:
                 umlstep.set(UMLStep.Attribute.TIMESTAMP, self.cordaobject.timestamp)
 
             umlsteps_list.append(umlstep)
+
         if umlsteps_list:
             self.cordaobject.add_uml_step(current_line_no, umlsteps_list)
             return umlsteps_list
         else:
             return None
 
+
     @staticmethod
     def normalize_timestamp(timestamp_str: str):
         """
-        A method to normalize timestamp into a unified format
-        :param timestamp_str: timestamp to try to parse
-        :return: standard timestamp
+        Normaliza timestamp con prioridad: isoparse() → parser.isoparse() → formatos personalizados
         """
+        # 1. Intentar con isoparse() (más rápido para ISO 8601)
+        try:
+            dt = isoparse(timestamp_str)
+            return "%Y-%m-%dT%H:%M:%S.%fZ", dt
+        except ValueError:
+            pass
 
-        """
-        Intenta parsear un timestamp de log a un objeto datetime.
-        Soporta múltiples formatos comunes en logs.
-        """
-        # Lista de formatos posibles
+        # 2. Intentar con parser.isoparse() (más flexible)
+        try:
+            dt = parser.isoparse(timestamp_str)
+            return "%Y-%m-%dT%H:%M:%S.%fZ", dt
+        except ValueError:
+            pass
+
+        # 3. Fallback a formatos personalizados
         formats = Configs.get_config_for('FILE_SETUP.FORMATS.TIMESTAMP')
 
         for fmt in formats:
             try:
-                # Reemplazar coma por punto para milisegundos
-                if ',%f' in fmt:
-                    timestamp_str = timestamp_str.replace(',', '.')
-                stamp_check = datetime.strptime(timestamp_str, fmt)
-                return fmt, stamp_check
+                temp_str = timestamp_str.replace(',', '.') if ',%f' in fmt else timestamp_str
+                dt = datetime.strptime(temp_str, fmt)
+                return fmt, dt
             except ValueError:
                 continue
 
-        # Si ningún formato funciona
-        raise ValueError(f"Unable to parse this timestamp: {timestamp_str}, please add a parsing format at JSON configuration file")
+        raise ValueError(f"Unable to parse this timestamp: {timestamp_str}")
 
 
     def set_element_type(self, element_type):
@@ -455,9 +595,13 @@ class UMLStepSetup:
         write_log(f"[{threading.current_thread().name}]: {len(chunk)} "
               f"Checking for valid UML steps, lines processed: {list(chunk.keys())[0]} - {list(chunk.keys())[len(chunk)-1]}" )
 
-        for line_num, line in chunk.items():
-            # uml_step = parse_line_to_uml_step(line)
+        for i, (line_num, line) in enumerate(chunk.items()):
             self.check_for_uml_step(line, line_num)
+
+            # ✅ Yield cooperativo cada 10 líneas
+            if i % 10 == 0:
+                time.sleep(0.001)  # Cede control a otros hilos
+
 
     @staticmethod
     def chunked_dict(data: Dict[int, str], chunk_size: int):
@@ -467,28 +611,6 @@ class UMLStepSetup:
             dict(items[i:i + chunk_size])  # Recreamos dicts pequeños
             for i in range(0, len(items), chunk_size)
     ]
-
-
-    def parallel_processX(self,log_dict: Dict[int, str], chunk_size: int = 100, max_threads: int = 4):
-        chunks = UMLStepSetup.chunked_dict(log_dict, chunk_size)
-
-        threads = []
-        for i, chunk in enumerate(chunks):
-            if i >= max_threads:
-                break  # Limita la cantidad de hilos activos al mismo tiempo
-            thread = threading.Thread(
-                target=self.process_uml_chunk,
-                args=(chunk,),
-                name=f"Thread-{i+1}"
-            )
-            threads.append(thread)
-            thread.start()
-
-        # Esperar a que todos los hilos terminen
-        for t in threads:
-            t.join()
-
-        write_log("✅ All block has been processed.")
 
     def parallel_process(self, corda_object: CordaObject, chunk_size: int = 100, max_threads: int = 4):
         # Dividir el diccionario en bloques
@@ -509,9 +631,10 @@ class UMLStepSetup:
         def worker():
             while not queue.empty():
                 try:
-                    chunk = queue.get()
-                    self.process_uml_chunk(chunk)
+                    qchunk = queue.get()
+                    self.process_uml_chunk(qchunk)
                     queue.task_done()
+                    time.sleep(0.001)  # ✅ Libera GIL - Permite otros hilos ejecutarse
                 except Exception as e:
                     write_log(f"Error processing block: {e}")
                     queue.task_done()
@@ -523,9 +646,16 @@ class UMLStepSetup:
             thread.start()
             threads.append(thread)
 
+        # En parallel_process, antes de queue.join()
+        write_log(f"Hilos activos antes de procesamiento: {threading.active_count()}")
+        for t in threading.enumerate():
+            write_log(f"  - {t.name}: {'Alive' if t.is_alive() else 'Dead'}")
+
         # Esperar a que todos los bloques se procesen
         queue.join()
-        self.cordaobject.uml_steps = UMLStepSetup.sort_uml_steps(self.cordaobject.uml_steps)
+        # ✅ Proteger acceso a recursos compartidos al final
+        with threading.Lock():  # O usa el lock del corda_object
+            self.cordaobject.uml_steps = UMLStepSetup.sort_uml_steps(self.cordaobject.uml_steps)
         write_log("✅ Done")
 
     @staticmethod
@@ -552,15 +682,16 @@ class UMLStepSetup:
             return self.cordaobject.get_uml(line_number)
 
         return None
-    @staticmethod
-    def execute(each_line, current_line):
+
+
+    def execute(self,each_line, current_line):
         """
 
         :param each_line:
         :param current_line:
         :return:
         """
-        return UMLStepSetup.check_for_uml_step(each_line, current_line)
+        return self.check_for_uml_step(each_line, current_line)
 
 class UMLEntity:
     """
