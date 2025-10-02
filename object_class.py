@@ -3079,7 +3079,7 @@ class RegexLib:
         return RegexLib.compiled_regex_cache[signature]
 
     @staticmethod
-    def regex_to_use(regex_list, message_line, force_groups=False):
+    def regex_to_use(regex_list, message_line, force_groups=False,line_no=None):
         """
         Given a regex_list, which will contain all regex; and the line to find out which regex
         can be applied into it
@@ -3115,7 +3115,15 @@ class RegexLib:
 
             # with TimeoutError.Timeout(second=0.5):
             check_match = expression.findall(message_line)
-
+            elapsed = time.time() - start_time
+            if elapsed > 0.5:  # Más de 500ms
+                if line_no:
+                    write_log(f"⚠️ {line_no:<6} Regex lento ({elapsed*1000:.2f}ms) la cual contiene {len(message_line)} chars"
+                              f" {len(message_line)} chars",
+                              level="WARN")
+                else:
+                    write_log(f"⚠️ Regex lento ({elapsed*1000:.2f}ms) para línea de {len(message_line)} chars",
+                              level="WARN")
             # check_match = re.findall(all_expects, message_line)
             #
             # Using result from findall; search which group was valid
@@ -3125,10 +3133,7 @@ class RegexLib:
             match_expression_index = next(a for a, b in enumerate(check_match[0]) if b)
             # I've found a good group save it for reference
             group_idx_match = match_expression_index
-            elapsed = time.time() - start_time
-            if elapsed > 0.1:  # Más de 100ms
-                write_log(f"⚠️ Regex lento ({elapsed*1000:.2f}ms) para línea de {len(message_line)} chars",
-                          level="WARN")
+
         except BaseException as be:
             # No regex has a match with given line
             return None

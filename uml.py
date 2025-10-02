@@ -486,7 +486,7 @@ class UMLStepSetup:
                 write_log(f"🔍 Línea gigante ({len(original_line)} chars) en línea {current_line_no}", level="DEBUG")
 
             list_of_expects_to_try = UMLStepSetup.uml_definitions[each_uml_definition]["EXPECT"]
-            expect_to_use = RegexLib.regex_to_use(list_of_expects_to_try, original_line)
+            expect_to_use = RegexLib.regex_to_use(list_of_expects_to_try, original_line, current_line_no)
 
             # Extract timestamp from current line where this step was found:
             log_fields = get_fields_from_log(original_line,self.file.logfile_format, self.file)
