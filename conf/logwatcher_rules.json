@@ -789,8 +789,7 @@
         "%Y%m%d %H:%M:%S"
       ]
     },
-    "CODE_HIGHLIGHTS":
-    {
+    "CODE_HIGHLIGHTS": {
       "LOG_VIEWER": {
         "LEVEL": {
           "#AAAA00": [
@@ -824,6 +823,15 @@
             "pendingDeduplicationHandlers:"
           ]
         }
+      }
+    },
+    "SCAN_SETUP": {
+      "IGNORE_LINES": {
+        "LINE_SIZE": 3000,
+        "EXPECT": [
+          "EntityPrinter",
+          "net.corda.node.services.vault.VaultSchema"
+        ]
       }
     }
   },
