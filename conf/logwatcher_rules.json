@@ -830,7 +830,8 @@
         "LINE_SIZE": 3000,
         "EXPECT": [
           "EntityPrinter",
-          "net.corda.node.services.vault.VaultSchema"
+          "net.corda.node.services.vault.VaultSchema",
+          "DBFlowCheckpointBlob"
         ]
       }
     }
