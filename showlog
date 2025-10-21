@@ -298,8 +298,13 @@ def parse(log_line, selected_layout=None):
             else:
                 if each_field in line_values:
                     if line_values[each_field]:
-                        final_output = final_output + f"{line_values[each_field]} "
-                        final_output_values[each_field] = line_values[each_field]
+                        reformat_variable = expand_variable(line_values[each_field])
+                        # final_output = final_output + f"{line_values[each_field]} "
+                        final_output = final_output + f"{reformat_variable} "
+                        if isinstance(line_values[each_field],dict):
+                            final_output_values[each_field] = reformat_variable
+                        else:
+                            final_output_values[each_field] = line_values[each_field]
 
     final_log_output = desired_output_format
     # This will delete any label corresponding to a field, if field is not found in current line, it will be deleted
@@ -345,6 +350,29 @@ def parse(log_line, selected_layout=None):
 
     return final_log_output.strip(" ")
 
+def expand_variable(variable):
+    """
+    This will print content of a variable that it is a dictionary, content will be printed without any order
+    :param variable: actual dictionary variable to print
+    :return: a string with all dictionary values on the same line, if variable is not a dictionary will be returned as
+    it is.
+    """
+
+    rvariable = ""
+    # These labels will not be printed, only label, it will still print its content
+    no_label = ['message','thread','logger']
+    if isinstance(variable,dict):
+        for each_value in variable:
+            if each_value not in no_label:
+                rvariable = rvariable +  f"{each_value}: {variable[each_value]} "
+            else:
+                rvariable = rvariable + f"{expand(variable[each_value])} "
+
+    if rvariable:
+        return rvariable
+
+    return variable
+
 
 def generate_internal_access(variable_dict, variable_to_get):
     """
@@ -368,6 +396,8 @@ def generate_internal_access(variable_dict, variable_to_get):
 
             # print(f"Unable to access variable_dict{fvariable} from this line: {variable_dict}")
             return None, None
+
+    return None
 
 
 def check_conversions(variable_to_convert, value):
