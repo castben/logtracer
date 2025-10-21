@@ -1565,7 +1565,8 @@
           "Tx \\[__tx_id__\\]",
           "Transaction \\[__tx_id__\\]",
           ".tx_id.:.__tx_id__.",
-          "Detail: Key \\(peer_party_id,.* __tx_id__\\) already exists."
+          "Detail: Key \\(peer_party_id,.* __tx_id__\\) already exists.",
+          "tx_id: __tx_id__"
         ],
         "ANALYSIS": {
           "DESCRIPTION": "This section specify how to extract actual status message from the log for transaction found RegEx will keep pattern to match(can add more than one) and its values represent fields to extract",
