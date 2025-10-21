@@ -592,13 +592,18 @@ class UMLStepSetup:
         """
         pass
 
-
     def process_uml_chunk(self, chunk: Dict[int, str]):
         """Procesa un bloque del diccionario y genera los UMLSteps"""
+
         write_log(f"[{threading.current_thread().name}]: {len(chunk)} "
               f"Checking for valid UML steps, lines processed: {list(chunk.keys())[0]} - {list(chunk.keys())[len(chunk)-1]}" )
 
         for i, (line_num, line) in enumerate(chunk.items()):
+
+            if len(line)>self.Configs.get_config_for("FILE_SETUP.SCAN_SETUP.IGNORE_LINES.MAX_LINE_SIZE"):
+                # Para líneas gigantes, procesamiento inteligente
+                write_log(f"🔍 Huge line ({len(line)} chars) detected at line number {line_num}", level="DEBUG")
+
             self.check_for_uml_step(line, line_num)
 
             # ✅ Yield cooperativo cada 10 líneas
