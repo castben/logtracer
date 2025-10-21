@@ -316,6 +316,11 @@ class UMLStepSetup:
     file = None
     uml_definitions = {}
     full_rule_search = None
+    # Max character per line to support, this is done to prevent excessive delays on Regex processing
+    max_line_size = None
+    # If a huge line is being scanned, this will contain list of strings that prevent it to be scanned, so program can
+    # safely ignore them.
+    ignore_lines = None
 
     def __init__(self, get_configs, corda_object):
         """
