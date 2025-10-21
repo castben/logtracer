@@ -796,40 +796,6 @@ def getKeys(val, old="$", lfields_found=None):
     return lfields_found
 
 
-def getKeysxx(val, old="$"):
-    global fields_found
-    if isinstance(val, dict):
-        for k in val.keys():
-            getKeys(val[k], old + "." + str(k))
-    elif isinstance(val, list):
-        for i, k in enumerate(val):
-            getKeys(k, old + "." + str(i))
-    else:
-        # print("{} : {}".format(old, str(val)))
-        old = old.lstrip(".")
-        if old not in fields_found:
-            fields_found.append(old)
-
-    return fields_found
-
-
-def getKeysx(val,  listofkeys, old="$"):
-
-    if isinstance(val, dict):
-        for k in val.keys():
-            getKeysx(val[k], listofkeys, old + "." + str(k))
-    # elif isinstance(val, list):
-    #     for i, k in enumerate(val):
-    #         getKeysx(k, listofkeys, old + "." + str(i))
-    else:
-        # print("{} : {}".format(old, str(val)))
-        old = old.lstrip(".")
-        if old not in listofkeys:
-            listofkeys.append(old)
-
-    return listofkeys
-
-
 def list_log_file_fields(used_file):
     """
     List actual found fields.
