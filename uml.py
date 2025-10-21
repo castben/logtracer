@@ -24,7 +24,6 @@ class UMLCommand:
         self.attribute = {}
         self.configs = configs
         self.command_action = {}
-
         self.initialize()
 
     def initialize(self):
