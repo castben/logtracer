@@ -340,6 +340,9 @@ class UMLStepSetup:
             for each_cmd in tmp:
                 if 'COMMAND' in tmp[each_cmd]:
                     UMLStepSetup.uml_definitions[each_cmd] = tmp[each_cmd]
+            UMLStepSetup.max_line_size = UMLStepSetup.Configs.get_config_for("FILE_SETUP.SCAN_SETUP.IGNORE_LINES.MAX_LINE_SIZE")
+            UMLStepSetup.ignore_lines = re.compile(r"|".join(UMLStepSetup.Configs.get_config_for("FILE_SETUP.SCAN_SETUP.IGNORE_LINES.EXPECT")))
+
 
     # @staticmethod
     # def extract_smart_fragments(line: str, max_fragments: int = 8, fragment_size: int = 400) -> List[str]:
