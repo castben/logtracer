@@ -1598,7 +1598,8 @@
           "Flow with id __flow_id__ has been waiting ",
           "flowId=\\[__flow_id__",
           "flowId=__flow_id__",
-          "'flow_id': '__flow_id__'"
+          "'flow_id': '__flow_id__'",
+          "flow_id: __flow_id__"
         ],
         "ANALYSIS": {
           "DESCRIPTION": "This section specify how to extract actual status message from the log for transaction found RegEx will keep pattern to match(can add more than one) and its values represent fields to extract",
