@@ -827,7 +827,7 @@
     },
     "SCAN_SETUP": {
       "IGNORE_LINES": {
-        "LINE_SIZE": 3000,
+        "MAX_LINE_SIZE": 3000,
         "EXPECT": [
           "EntityPrinter",
           "net.corda.node.services.vault.VaultSchema",
