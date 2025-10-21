@@ -488,10 +488,6 @@ class UMLStepSetup:
             # created as "meta-definitions" I need below line to extract actual regex that need to be used...
             # In this section, i will loop over all defined UML commands, and find out if this line match any of them
 
-            if len(original_line)>2000:
-                # Para líneas gigantes, procesamiento inteligente
-                write_log(f"🔍 Línea gigante ({len(original_line)} chars) en línea {current_line_no}", level="DEBUG")
-
             list_of_expects_to_try = UMLStepSetup.uml_definitions[each_uml_definition]["EXPECT"]
             expect_to_use = RegexLib.regex_to_use(list_of_expects_to_try, original_line, current_line_no)
 
