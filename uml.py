@@ -1135,9 +1135,10 @@ class CreateUML:
         final_uml = []
         if not section:
             for each_section in self.final_uml:
-                if each_section == 'uml_body':
-                    result = self.optimize_highlight_blocks(each_section)
-                    final_uml.extend(result)
+                if each_section == 'uml_body' and False:
+                    # result = self.optimize_highlight_blocks(each_section)
+                    # final_uml.extend(result)
+                    final_uml.extend(self.final_uml[each_section])
                 else:
                     final_uml.extend(self.final_uml[each_section])
 
