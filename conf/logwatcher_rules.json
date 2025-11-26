@@ -1629,6 +1629,32 @@
             ]
           }
         }
+      },
+      "MESSAGE": {
+        "DESCRIPTION": "This represents message ID that span between nodes...",
+        "EXPECT": [
+          "messageId=__message_id__"
+        ],
+        "ANALYSIS": {
+          "DESCRIPTION": "This section specify how to extract actual status message from the log for transaction found RegEx will keep pattern to match(can add more than one) and its values represent fields to extract",
+          "EXPECT": {
+            " - ([a-zA-Z =,:\\.]+)\\.": [
+              "Stage"
+            ],
+            "- ([a-zA-Z0-9- =,[\\]]+ admitted to hospital in state)": [
+              "Stage"
+            ],
+            "- (Notary responded) \\([A-Za-z0-9= ,]+\\)": [
+              "Stage"
+            ],
+            "\\|([a-zA-Z0-9- \\(\\)_;.,=:]+)": [
+              "Stage"
+            ],
+            "(Caching flow sandbox for.*) \\(cache size": [
+              "Stage"
+            ]
+          }
+        }
       }
     }
   }
