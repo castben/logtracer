@@ -1464,6 +1464,14 @@
             "tx_id"
           ]
         },
+        "message_id": {
+          "EXPECT": [
+            "[A-Z0-9-]"
+          ],
+          "APPLY_TO": [
+            "message_id"
+          ]
+        },
         "source": {
           "EXPECT": [
             "Notary responded \\(__participant__\\)",
