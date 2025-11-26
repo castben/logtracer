@@ -1105,8 +1105,8 @@
           "Flow\\((?P<message>action=[a-z_]+);",
           "(?P<message>Stored new attachment)",
           "(?P<message>Flow \\[__flow_id__\\] failed to be finalised\\..*\\.\\s)",
-          "(?P<message>BankRelationshipState).*\\[party.=__source__,party.=__destination__\\],uid.*idMutualAccount=__idMutualAccount__.*,owner=.*,party=__accountOwner__\\],sides.*flow-id=__flow_id__,"
-
+          "(?P<message>BankRelationshipState).*\\[party.=__source__,party.=__destination__\\],uid.*idMutualAccount=__idMutualAccount__.*,owner=.*,party=__accountOwner__\\],sides.*flow-id=__flow_id__,",
+          "(?P<message>Started initiated flow net.corda.node.services.transactions.NonValidatingNotaryFlow).*flow-id=__flow_id__.*origin=__source__"
         ],
         "FIELDS": [
           "note over:message",
