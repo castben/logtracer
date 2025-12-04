@@ -2,7 +2,8 @@ import concurrent.futures
 import hashlib
 import json
 import mmap
-import os,re,time
+import os,time
+import regex as re
 import threading
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
@@ -533,7 +534,7 @@ class CordaObject:
         return CordaObject.log_owner
 
     @staticmethod
-    def analyse(original_line, uml_definition):
+    def analyse(original_line, uml_definition, line_no=None):
         """
         Analyse line and covert it into UML
         :return:
@@ -959,7 +960,7 @@ class CordaObject:
 
         return None
 
-    def add_reference(self, line, creference):
+    def add_reference(self, line, creference, line_no=None):
         """
         Add a new reference line to this object, this will be used to make the tracing of this object
         this action will also:
@@ -979,7 +980,7 @@ class CordaObject:
                 return
 
             # Analyse UML -- Create UML step
-            uml = self.analyse(creference["message"])
+            uml = self.analyse(creference["message"], line_no=line_no)
 
             if uml:
                 if "uml" not in creference:
@@ -1315,7 +1316,7 @@ class FileManagement:
                 for each_alternate_name in each_id.get_alternate_names():
                     write_log(f"              `-->  {each_alternate_name}")
 
-    def identify_party_role(self, line):
+    def identify_party_role(self, line, line_no=None):
         """
         This method will try to identify a specific party like a Notary or log producer (low_owner)
         :return:
@@ -1335,7 +1336,7 @@ class FileManagement:
             # for each_expect in expect:
             # real_regex = RegexLib.build_regex(each_expect)
 
-            check_pattern = RegexLib.regex_to_use(expect, line)
+            check_pattern = RegexLib.regex_to_use(expect, line, line_no=line_no)
 
             if  check_pattern is None:
                 # No role found for this entity
@@ -1586,7 +1587,7 @@ class FileManagement:
                                 # if method running is related to parties, line below will run an extra
                                 # analysis on that line to see if this line is able to identify a role (like owner of log
                                 # or notary...
-                                self.identify_party_role(line)
+                                self.identify_party_role(line,start_line+i)
 
                             if result:
                                 if each_method not in local_results:
@@ -2179,7 +2180,7 @@ class X500NameParser:
         # return rx500_names
         return x500_list
 
-    def identify_party_role(self, line):
+    def identify_party_role(self, line, line_no=None):
         """
         This method will try to identify a specific party like a Notary or log producer (low_owner)
         :return:
@@ -2200,7 +2201,7 @@ class X500NameParser:
             # for each_expect in expect:
             # real_regex = RegexLib.build_regex(each_expect)
 
-            check_pattern = RegexLib.regex_to_use(expect, line)
+            check_pattern = RegexLib.regex_to_use(expect, line, line_no=line_no)
 
             if  check_pattern is None:
                 # No role found for this entity
@@ -3079,7 +3080,7 @@ class RegexLib:
         return RegexLib.compiled_regex_cache[signature]
 
     @staticmethod
-    def regex_to_use(regex_list, message_line, force_groups=False,line_no=None):
+    def regex_to_use(regex_list, message_line, force_groups=False,line_no=None, timeout=25000):
         """
         Given a regex_list, which will contain all regex; and the line to find out which regex
         can be applied into it
@@ -3114,11 +3115,14 @@ class RegexLib:
             expression = RegexLib.use(all_expects)
 
             # with TimeoutError.Timeout(second=0.5):
-            check_match = expression.findall(message_line)
+            if timeout:
+                check_match = expression.findall(message_line, timeout=timeout)
+            else:
+                check_match = expression.findall(message_line)
             elapsed = time.time() - start_time
-            if elapsed > 0.5:  # Más de 500ms
+            if elapsed*1000 > 10000:  # Más de 500ms
                 if line_no:
-                    write_log(f"⚠️ {line_no:<6} Regex lento ({elapsed*1000:.2f}ms) la cual contiene {len(message_line)} chars"
+                    write_log(f"⚠️ Line:{line_no:<6} -- Regex lento ({elapsed*1000:.2f}ms) la cual contiene {len(message_line)} chars"
                               f" {len(message_line)} chars",
                               level="WARN")
                 else:
@@ -3304,8 +3308,12 @@ class RegexLib:
         #                 self.tp.append({group_name[value_position]: each_match})
         #                 tpaux.append(each_match)
 
-        def __init__(self, pattern, string, flags=re.MULTILINE):
-            matches = re.finditer(pattern, string, flags)
+        def __init__(self, pattern, string, flags=re.MULTILINE, timeout=None):
+            if timeout:
+                matches = re.finditer(pattern, string, flags, timeout=timeout)
+            else:
+                matches = re.finditer(pattern, string, flags)
+
             self.tp = ()
             for matchNum, match in enumerate(matches, start=1):
                 #
@@ -3911,17 +3919,21 @@ def get_fields_from_log(line, log_version, file):
 
     # if there not format at all, stop process
     if not file.logfile_format:
-        write_log("I'm not able to recognize log format, in this case I will not be able to pull correct information")
-        write_log("I was unable to find a version template for this file, please create one under VERSION->IDENTITY_FORMAT")
-        exit(0)
+        write_log("I'm not able to recognize log format, in this case I will not be able to pull correct information", level="ERROR")
+        write_log("I was unable to find a version template for this file, please create one under VERSION->IDENTITY_FORMAT", level="ERROR")
+        return None
 
     extract_fields = Configs.get_config_for(f"VERSION.IDENTITY_FORMAT.{file.logfile_format}")
 
     if not extract_fields:
-        write_log("No logfile definitions to check please define at least one (at the section 'VERSION')")
-        exit(0)
+        write_log("No logfile definitions to check please define at least one (at the section 'VERSION')", level="ERROR")
+        return None
 
     fields = re.search(extract_fields["EXPECT"], line)
+    if not fields:
+        write_log(f"I was not able to extract any fields from line:\n{line}", level="WARN")
+        write_log(f"Possible error or incomplete EXPECT for {file.logfile_format}", level="WARN")
+        return None
 
     if fields:
         if len(fields.groups()) == len(extract_fields["FIELDS"]):
@@ -3929,6 +3941,6 @@ def get_fields_from_log(line, log_version, file):
                 result[each_field] = fields.group(extract_fields["FIELDS"].index(each_field) + 1)
         else:
             write_log("Unable to parse log file properly using %s, expecting %s fields got %s fields from extraction" %
-                  (file.logfile_format, len(extract_fields["FIELDS"]), len(fields.groups())))
+                  (file.logfile_format, len(extract_fields["FIELDS"]), len(fields.groups())), level="WARN")
 
     return result

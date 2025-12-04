@@ -489,12 +489,12 @@ class UMLStepSetup:
             # In this section, i will loop over all defined UML commands, and find out if this line match any of them
 
             list_of_expects_to_try = UMLStepSetup.uml_definitions[each_uml_definition]["EXPECT"]
-            expect_to_use = RegexLib.regex_to_use(list_of_expects_to_try, original_line, current_line_no)
+            expect_to_use = RegexLib.regex_to_use(list_of_expects_to_try, original_line, line_no=current_line_no, timeout=25000)
 
             # Extract timestamp from current line where this step was found:
             log_fields = get_fields_from_log(original_line,self.file.logfile_format, self.file)
 
-            if 'timestamp' in log_fields:
+            if log_fields and 'timestamp' in log_fields:
                 timestamp = log_fields['timestamp']
             else:
                 timestamp = self.cordaobject.timestamp
@@ -600,9 +600,9 @@ class UMLStepSetup:
 
         for i, (line_num, line) in enumerate(chunk.items()):
 
-            if len(line)>self.Configs.get_config_for("FILE_SETUP.SCAN_SETUP.IGNORE_LINES.MAX_LINE_SIZE"):
+            if line and len(line)>self.Configs.get_config_for("FILE_SETUP.SCAN_SETUP.IGNORE_LINES.MAX_LINE_SIZE"):
                 # Para líneas gigantes, procesamiento inteligente
-                write_log(f"🔍 Huge line ({len(line)} chars) detected at line number {line_num}", level="DEBUG")
+                write_log(f"🔍 Huge line ({len(line)} chars) detected at line number {line_num}", level="WARN")
 
             self.check_for_uml_step(line, line_num)
 
