@@ -644,7 +644,7 @@ class UMLStepSetup:
                     queue.task_done()
                     time.sleep(0.001)  # ✅ Libera GIL - Permite otros hilos ejecutarse
                 except Exception as e:
-                    write_log(f"Error processing block: {e}")
+                    write_log(f"Error processing block: {e}",level="ERROR")
                     queue.task_done()
 
         # Crear y lanzar hilos
