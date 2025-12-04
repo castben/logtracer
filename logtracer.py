@@ -1749,7 +1749,77 @@ def load_highlights():
     # HighlightCode("specialBlocks", "checkpoint\\..*:",'#44AA00')
 
 def test():
-    from object_class import LogAnalysis
+    # from object_class import LogAnalysis
+    #
+    # testfile = FileManagement(args.log_file)
+    # testfile.pre_analysis()
+    # testfile.discover_file_format()
+    #
+    # with open(args.log_file,'r') as htest:
+    #     tlog = LogAnalysis(testfile, Configs)
+    #     line = 1
+    #     for each_line in htest:
+    #         tlog.parse(each_line.rstrip(),line)
+    #         line = +1
+    log_file = args.log_file
+
+    # Create file_to_analyse object containing file_to_analyse that will be analysed, starting with a block-size of 15 Mbytes
+    file_to_analyse = FileManagement(log_file, block_size_in_mb=15, debug=True)
+    # Analyse first 50 (by default) lines from given file_to_analyse to determine which Corda log format is
+    # This is done to be able to separate key components from lines like Time stamp, severity level, and log
+    # message
+    file_to_analyse.discover_file_format()
+    #
+    # Analyse file for specific block lines that lack of key fields (like stack traces, and flow transitions):
+
+    special_blocks = BlockExtractor(file_to_analyse, Configs.config)
+    special_blocks.extract()
+    special_blocks.summary()
+    #
+    #
+    # Setup party collection
+    #
+    # Set actual configuration to use, and create object that will manage "Parties"
+    collect_parties = GetParties(Configs)
+    # Set file_to_analyse that will be used to extract information from
+    collect_parties.set_file(file_to_analyse)
+    # Set specific type we are going to collect
+    collect_parties.set_element_type(CordaObject.Type.PARTY)
+    #
+    # Setting up collection of other data like Flows and Transactions
+    #
+    # Setup corresponding Config to use, and create object that will manage "RefIds" (Flows and transactions)
+    collect_refIds = GetRefIds(Configs)
+    # Set actual file_to_analyse that will be used to pull data from
+    collect_refIds.set_file(file_to_analyse)
+    # Set specific type of element we are going to extract
+    collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
+
+    # Pre-analyse the file_to_analyse to figure out how to read it, if file_to_analyse is bigger than blocksize then file_to_analyse will be
+    # Divided by chunks and will be created a thread for each one of them to read it
+    file_to_analyse.pre_analysis() # Calculate on fly proper chunk sizes to accommodate lines correctly
+    #
+    # Add proper methods to handle each collection
+    #
+    file_to_analyse.add_process_to_execute(collect_parties)
+    file_to_analyse.add_process_to_execute(collect_refIds)
+
+    # start a time watch
+    file_to_analyse.start_stop_watch('Main-search', True)
+    # Start all threads required
+    file_to_analyse.parallel_processing()
+    # Prepare new execution
+    # Clean up old processes:
+    file_to_analyse.remove_process_to_execute(CordaObject.Type.PARTY)
+    file_to_analyse.remove_process_to_execute(CordaObject.Type.FLOW_AND_TRANSACTIONS)
+
+    # Stopping timewatch process and get time spent
+    time_msg = file_to_analyse.start_stop_watch('Main-search', False)
+    pass
+
+    if args.list_transactions:
+        tc = 0
+        tl = file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS,True)
 
     testfile = FileManagement('/home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log')
     testfile.pre_analysis()
