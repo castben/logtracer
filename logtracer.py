@@ -978,6 +978,9 @@ class InteractiveWindow:
             block_type = block_type.toAscii()
             content = file_to_analyse.special_blocks.get_reference(reference_id=reference_id, block_type=block_type)
 
+            if content:
+                self.TTkTextEdit_specialblocks.setLineNumberStarting(content[block_type][idx].line_number-1)
+
             for each_line in content[block_type][idx].get_content():
                 self.TTkTextEdit_specialblocks.append(HighlightCode.highlight(ttk.TTkString(each_line.rstrip())))
 
@@ -1338,6 +1341,7 @@ class InteractiveWindow:
         self.TTkTextEdit_specialblocks: ttk.TTkTextEdit = root_special_blocks.getWidgetByName('TTkTextEdit_specialblocks')
         self.TTkWindow_specialblocks: ttk.TTkWindow = root_special_blocks.getWidgetByName('TTkWindow_specialblocks')
         self.TTkWindow_specialblocks.setVisible(False)
+        self.TTkTextEdit_specialblocks.setReadOnly(False)
         self.TTkWindow_specialblocks.sizeChanged.connect(_special_block_resize)
         self.TTkmenuButton_sp_wordwrap:  ttk.TTkMenuBarButton = root_special_blocks.getWidgetByName('menuButton_sp_wordwrap')
         self.TTkmenuButton_sp_exit:  ttk.TTkMenuBarButton = root_special_blocks.getWidgetByName('menuButton_sp_exit')
