@@ -1821,14 +1821,32 @@ def test():
         tc = 0
         tl = file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS,True)
 
-    testfile = FileManagement('/home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log')
-    testfile.pre_analysis()
-    testfile.discover_file_format()
+        print(f"Transactions found:")
+        for each_tx in tl:
+            if each_tx.get_type() == 'TRANSACTION':
+                tc = tc +1
+                print(f'{tc: >3} - {each_tx.get_reference_id()}')
 
-    with open('/home/larry/IdeaProjects/logtracer/c4-logs/node-Omega-X-SolutionEng.log','r') as htest:
-        tlog = LogAnalysis(testfile, Configs)
-        for each_line in htest:
-            tlog.parse(each_line.rstrip())
+        print(f'Transactions found... {tc}\n\n')
+
+    if args.list_flows:
+        print('Flows found:')
+        fc = 0
+        for each_tx in file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS,True):
+            if each_tx.get_type() == 'FLOW':
+                fc = fc + 1
+                print(f'{fc:>3} - {each_tx.get_reference_id()}')
+        print(f'Flows found... {fc}\n\n')
+
+    if args.list_parties:
+        print('Parties found:')
+        pc = 0
+        for each_tx in file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY,True):
+            pc = pc + 1
+            print(f'{pc:>3} - {each_tx.name}')
+
+        print(f'Parties found... {pc}')
+
     pass
 
 if __name__ == "__main__":
@@ -1881,18 +1899,30 @@ if __name__ == "__main__":
     # Huge files:
     # -l /home/larry/IdeaProjects/logtracer/client-logs/ChainThat/CS-4002/Success-Transaction-logs.log
     # -l /home/larry/IdeaProjects/investigations/lab-constructor/investigation/ChainThat/CS-4002/client-logs/mnp-dev-party005-cordanode.log
-    w = InteractiveWindow()
-    #
-    if not shutdown_event.is_set():
-        w.tk_window()
+
 
     parserargs = argparse.ArgumentParser()
     parserargs.add_argument('-l', '--log-file',
                             help='Give actual log file to analyse')
     parserargs.add_argument('-r', '--reference',
                             help='Reference ID to trace flow-id or tx-id')
+    parserargs.add_argument('-t', '--list-transactions',
+                            help='list all transactions found', action="store_true")
+    parserargs.add_argument('-f', '--list-flows',
+                            help='list all flows found', action="store_true")
+    parserargs.add_argument('-p', '--list-parties',
+                            help='list all parties found', action="store_true")
 
     args = parserargs.parse_args()
+
+    if args.log_file and args.list_transactions or args.list_flows:
+        test()
+
+    if not args.log_file:
+        w = InteractiveWindow()
+        #
+        if not shutdown_event.is_set():
+            w.tk_window()
 
     pass
 
