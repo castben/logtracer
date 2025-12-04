@@ -64,6 +64,36 @@
           ]
         }
       },
+      "CUSTOM_CHAINTHAT-0": {
+        "EXPECT": "^\\[([A-Z ]+)\\] ([0-9T:,-]+) (.*)",
+        "FIELDS": [
+          "error_level",
+          "timestamp",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
+      "CUSTOM_CHAINTHAT-1": {
+        "EXPECT": "^([0-9ZT:.-]+)(?: \\d{2}:\\d{2}:\\d{2}\\.\\d{3})? \\[[A-Za-z0-9- ()]+\\] ([A-Z]+)\\s*\\|.*\\|(.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
       "CUSTOM_CHAINTHAT": {
         "EXPECT": "^([0-9ZT:.-]+)(?: \\d{2}:\\d{2}:\\d{2}\\.\\d{3})? \\[[A-Za-z0-9- ()]+\\] ([A-Z]+) (.*)",
         "FIELDS": [
@@ -1177,7 +1207,9 @@
           "(?P<message>Signing initial transaction)",
           ".*WARN.*(?P<message>Propagating error).*flow-id=__flow_id__.*tx_id=__tx_id__",
           "(?P<message>The following parties received the notary signature: \\[.*\\])",
-          "(?P<message>The following parties received the un-notarised transaction: \\[.*\\])"
+          "(?P<message>The following parties received the un-notarised transaction: \\[.*\\])",
+          "(?P<message>Checking if there are any missing attachment dependencies for transaction) __tx_id__.*,flow-id=__flow_id__",
+          "(?P<message>flow - Calling flow: [a-zA-Z0-9.@_]+).*flow_id=__flow_id__"
         ],
         "FIELDS": [
           "note over:message",
@@ -1360,7 +1392,7 @@
       "OBJECTS": {
         "participant": {
           "EXPECT": [
-            "(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"{]+)*"
+            "\\b(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"{]+)*"
           ],
           "APPLY_TO": [
             "source",
@@ -1387,7 +1419,7 @@
                 "length": "<128",
                 "mandatory": true,
                 "occurrences": "1",
-                "expect": "(O=[^=\\[\\]\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
+                "expect": "(\\bO=[^=\\[\\]\\n\\!\\@\\#\\$\\%\\^\\*\\(\\)~\\?\\>\\<\\&\\/\\,\\\\.\\\",]*)"
               },
               "L": {
                 "length": "<64",
@@ -1437,7 +1469,7 @@
         },
         "notary": {
           "EXPECT": [
-            "(?:CN|O|OU|L|ST|C)=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"{]+)*"
+            "\\b(?:CN|O|OU|L|ST|C)\\b=[^,]+(?:,\\s*(?:CN|O|OU|L|ST|C)=[^,\"{]+)*"
           ],
           "APPLY_TO": [
             "source",
@@ -1458,7 +1490,7 @@
         },
         "tx_id": {
           "EXPECT": [
-            "[A-Z0-9]{64}"
+            "[A-F0-9]{64}"
           ],
           "APPLY_TO": [
             "tx_id"
@@ -1555,7 +1587,7 @@
     },
     "CORDA_OBJECTS": {
       "TRANSACTION": {
-        "DESCRIPTION": "This will define how to extract a 'TRANSACTION' and how to recognize it, 'EXPECT' will specify how to actually identify it",
+        "DESCRIPTION": "This will define how to extract a 'TRANSACTION' and how to recognize it, 'EXPECT' will specify how to actually identify it\n\"__tx_id__\\\\([0-9]+\\\\)\\\\s+->\\\\sStateConsumptionDetails\\\\(hashOfTransactionId=\",\"ref=__tx_id__\",",
         "EXPECT": [
           "tx_id=__tx_id__",
           "tx-id=__tx_id__",
@@ -1567,9 +1599,7 @@
           "unspentOutputs=\\[__tx_id__,?\\]",
           "spentOutputs=\\[__tx_id__,?\\]",
           "NotaryException: Unable to notarise transaction __tx_id__ :",
-          "__tx_id__\\([0-9]+\\)\\s+->\\sStateConsumptionDetails\\(hashOfTransactionId=",
           "The duplicate key value is\\s*\\(__tx_id__\\)",
-          "ref=__tx_id__",
           "Tx \\[__tx_id__\\]",
           "Transaction \\[__tx_id__\\]",
           ".tx_id.:.__tx_id__.",
