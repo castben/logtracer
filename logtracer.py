@@ -978,6 +978,10 @@ class InteractiveWindow:
             block_type = block_type.toAscii()
             content = file_to_analyse.special_blocks.get_reference(reference_id=reference_id, block_type=block_type)
 
+            if not content:
+                write_log(f"Unable to find any {block_type} for id {reference_id}...", level="WARN")
+                return
+
             if content:
                 self.TTkTextEdit_specialblocks.setLineNumberStarting(content[block_type][idx].line_number-1)
 
