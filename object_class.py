@@ -62,6 +62,52 @@ class CordaObject:
         self.uml_steps = OrderedDict()
         self._uml_steps_lock = threading.RLock()  # ✅ Lock para acceso seguro
 
+    def to_dict(self):
+        """Convierte el objeto a diccionario serializable"""
+        return {
+            'reference_id': self.reference_id,
+            'type': self.type,
+            'line_number': self.line_number,
+            'timestamp': self.timestamp,
+            'error_level': self.error_level,
+            'data': self.data,
+            'references': dict(self.references),
+            'uml_steps': self._serialize_uml_steps(),
+        }
+
+    def from_dict(self, data: dict):
+        """Crea objeto desde diccionario"""
+        self.reference_id = data.get('reference_id')
+        self.type = data.get('type')
+        self.line_number = data.get('line_number')
+        self.timestamp = data.get('timestamp')
+        self.error_level = data.get('error_level')
+        self.data = data.get('data', {})
+        self.references = OrderedDict(data.get('references', {}))
+        self._deserialize_uml_steps(data.get('uml_steps', {}))
+        return self
+
+    def _serialize_uml_steps(self):
+        """Serializa OrderedDict de UMLSteps"""
+        serialized = {}
+        for line_num, steps in self.uml_steps.items():
+            serialized[str(line_num)] = [step.__dict__ for step in steps]
+        return serialized
+
+    def _deserialize_uml_steps(self, serialized):
+        """Deserializa OrderedDict de UMLSteps"""
+        self.uml_steps = OrderedDict()
+        for line_num_str, steps_data in serialized.items():
+            line_num = int(line_num_str)
+            steps = []
+            for step_data in steps_data:
+                # Aquí debes recrear tu objeto UMLStep desde el dict
+                from uml import UMLStep  # Ajustar import
+                step = UMLStep()
+                for key, value in step_data.items():
+                    setattr(step, key, value)
+                steps.append(step)
+            self.uml_steps[line_num] = steps
 
     @classmethod
     def clear_all(cls):
