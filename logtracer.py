@@ -1491,9 +1491,13 @@ class InteractiveWindow:
         if shutdown_event.is_set() and log_queue.empty():
             return  # No programar más actualizaciones
 
+
         while not log_queue.empty():
             message = log_queue.get_nowait()
-            tui_logging.append(message)  # Tu widget de logs en PyTermTk
+            if w:
+                tui_logging.append(message)  # Tu widget de logs en PyTermTk
+            else:
+                print(message)
 
             # tui_logging._verticalScrollBar.setValue(tui_logging._verticalScrollBar.maximum())
 
@@ -1919,7 +1923,7 @@ if __name__ == "__main__":
 
     args = parserargs.parse_args()
 
-    if args.log_file and args.list_transactions or args.list_flows:
+    if args.log_file and args.list_transactions or args.list_flows or args.list_parties:
         test()
 
     if not args.log_file:
