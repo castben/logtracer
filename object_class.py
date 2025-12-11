@@ -3498,75 +3498,79 @@ class BlockExtractor:
         current_blocks: Dict[str, BlockItems] = {}
         in_block: Dict[str, bool] = {key: False for key in self.block_types}
         line_check = 0 # check how many lines were taking in account after a block indentification...
-        with open(self.file_path, 'r', encoding='utf-8') as f:
+        try:
+            with open(self.file_path, 'r', encoding='utf-8') as f:
 
-            for line_number, line in enumerate(f, 1):
-                for block_name, patterns in self.compiled_patterns.items():
-                    # Start match with access to match object
+                for line_number, line in enumerate(f, 1):
+                    for block_name, patterns in self.compiled_patterns.items():
+                        # Start match with access to match object
 
-                    for p in patterns["start"]:
-                        match = p.match(line)
-                        if match:
-                            reference_key = self.references.get(block_name)
-                            blk = BlockItems()
-                            blk.line_number = line_number
-                            blk.type = block_name
-                            blk.reference = None
-                            # Check if given line has a matching reference
-                            # TODO: refactor this...
+                        for p in patterns["start"]:
+                            match = p.match(line)
+                            if match:
+                                reference_key = self.references.get(block_name)
+                                blk = BlockItems()
+                                blk.line_number = line_number
+                                blk.type = block_name
+                                blk.reference = None
+                                # Check if given line has a matching reference
+                                # TODO: refactor this...
 
-                            if not blk.reference:
-                                blk.reference = self._look_for_reference_id(block_name, line)
+                                if not blk.reference:
+                                    blk.reference = self._look_for_reference_id(block_name, line)
 
 
 
-                            # if reference_key and reference_key in match.groupdict():
-                            #     blk.reference = match.group(reference_key)
-                            # # if there're no explicit reference to pick up, let's assign line number as reference.
-                            # if not reference_key:
-                            #     blk.reference = f"{line_number}"
+                                # if reference_key and reference_key in match.groupdict():
+                                #     blk.reference = match.group(reference_key)
+                                # # if there're no explicit reference to pick up, let's assign line number as reference.
+                                # if not reference_key:
+                                #     blk.reference = f"{line_number}"
 
-                            if line not in blk.content:
-                                blk.content.append(line)
+                                if line not in blk.content:
+                                    blk.content.append(line)
 
-                            if in_block.get(block_name) and current_blocks.get(block_name):
-                                self._store_block(block_name, current_blocks[block_name])
+                                if in_block.get(block_name) and current_blocks.get(block_name):
+                                    self._store_block(block_name, current_blocks[block_name])
 
-                            current_blocks[block_name] = blk
-                            in_block[block_name] = True
-                            break  # Stop checking further patterns for this line
+                                current_blocks[block_name] = blk
+                                in_block[block_name] = True
+                                break  # Stop checking further patterns for this line
 
-                    # End match (optional)
-                    if in_block.get(block_name) and patterns["end"]:
-                        if any(p.match(line) for p in patterns["end"]):
-                            current_blocks[block_name].content.append(line)
-                            self._store_block(block_name, current_blocks[block_name])
-                            in_block[block_name] = False
-                            continue
-
-                    # Inside block logic
-                    if in_block.get(block_name):
-                        if not self._is_log_line_start(line):
-                            if line not in current_blocks[block_name].content:
+                        # End match (optional)
+                        if in_block.get(block_name) and patterns["end"]:
+                            if any(p.match(line) for p in patterns["end"]):
                                 current_blocks[block_name].content.append(line)
-                            continue
-                        else:
-                            # Force collection, actual block contents has not stacktrace, or any other
-                            # information, so get next line...
-                            if len(current_blocks[block_name].content) < 2 and line_check == 0:
-                                line_check += 1
+                                self._store_block(block_name, current_blocks[block_name])
+                                in_block[block_name] = False
                                 continue
 
-                            # Found a new log line while in a block: close current block first
+                        # Inside block logic
+                        if in_block.get(block_name):
+                            if not self._is_log_line_start(line):
+                                if line not in current_blocks[block_name].content:
+                                    current_blocks[block_name].content.append(line)
+                                continue
+                            else:
+                                # Force collection, actual block contents has not stacktrace, or any other
+                                # information, so get next line...
+                                if len(current_blocks[block_name].content) < 2 and line_check == 0:
+                                    line_check += 1
+                                    continue
+
+                                # Found a new log line while in a block: close current block first
+                                self._store_block(block_name, current_blocks[block_name])
+                                in_block[block_name] = False
+                                line_check = 0
+                                # Do NOT continue: this line may start another block
+
+                        # Implicit end of block
+                        if in_block.get(block_name):
                             self._store_block(block_name, current_blocks[block_name])
                             in_block[block_name] = False
-                            line_check = 0
-                            # Do NOT continue: this line may start another block
-
-                    # Implicit end of block
-                    if in_block.get(block_name):
-                        self._store_block(block_name, current_blocks[block_name])
-                        in_block[block_name] = False
+        except IOError as io:
+            write_log(f'Sorry unable to open {self.file_path} due to: {io}')
+            return
 
         # Store remaining open blocks
         for block_name, blk in current_blocks.items():
