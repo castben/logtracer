@@ -1663,7 +1663,7 @@ class FileManagement:
         Procesamiento paralelo CORREGIDO para mantener la UI responsive
         """
         tasks = [(start, size, start_line, end_line) for start, size, start_line, end_line in self.chunk_info]
-        write_log(f"{Icons.INFO} Iniciando procesamiento de {len(tasks)} bloques")
+        write_log(f"{Icons.INFO} Block processing initiated with {len(tasks)} blocks")
         if not self.logfile_format:
             write_log(f'{Icons.ERROR} Unable to process this file, I can\'t determine its format')
             write_log(f'{Icons.MAGNIFYING_GLASS} Add proper format at configuration file under \'IDENTITY_FORMAT\' section...')
@@ -1737,7 +1737,7 @@ class FileManagement:
                                   f"Processed {data:.2f} MB")
 
             if self.debug:
-                write_log(f"{Icons.SUCCESS} Análisis completado. "
+                write_log(f"{Icons.SUCCESS} Analysis complete. "
                           f"Total: {total_data:.2f} MB en {total_time:.2f}s")
 
 
@@ -1784,6 +1784,9 @@ class FileManagement:
                                 break
         except IOError as io:
             write_log(f'Unable to open {self.filename} due to {io}')
+        except UnicodeDecodeError as ue:
+            write_log(f'Unable to read this file due to: {ue}', level="ERROR")
+            return
 
 class Party:
     """
@@ -3168,11 +3171,10 @@ class RegexLib:
             elapsed = time.time() - start_time
             if elapsed*1000 > 10000:  # Más de 500ms
                 if line_no:
-                    write_log(f"⚠️ Line:{line_no:<6} -- Regex lento ({elapsed*1000:.2f}ms) la cual contiene {len(message_line)} chars"
-                              f" {len(message_line)} chars",
+                    write_log(f"⚠️ Line:{line_no:<6} -- Slow regex ({elapsed*1000:.2f}ms) line contains {len(message_line)} chars",
                               level="WARN")
                 else:
-                    write_log(f"⚠️ Regex lento ({elapsed*1000:.2f}ms) para línea de {len(message_line)} chars",
+                    write_log(f"⚠️ Slow regex ({elapsed*1000:.2f}ms) line contains {len(message_line)} chars",
                               level="WARN")
             # check_match = re.findall(all_expects, message_line)
             #
