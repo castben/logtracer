@@ -1214,8 +1214,8 @@
           ".*WARN.*(?P<message>Propagating error).*flow-id=__flow_id__.*tx_id=__tx_id__",
           "(?P<message>The following parties received the notary signature: \\[.*\\])",
           "(?P<message>The following parties received the un-notarised transaction: \\[.*\\])",
-          "(?P<message>Checking if there are any missing attachment dependencies for transaction) __tx_id__.*,flow-id=__flow_id__",
-          "(?P<message>flow - Calling flow: [a-zA-Z0-9.@_]+).*flow_id=__flow_id__"
+          "(?P<message>Checking if there are any missing attachment dependencies for transaction) __tx_id__.*, flow-id=__flow_id__",
+          "(?P<message>flow - Calling flow: [a-zA-Z0-9.@_]+).*flow-id=__flow_id__"
         ],
         "FIELDS": [
           "note over:message",
