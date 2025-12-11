@@ -235,7 +235,7 @@ class LazyListManager:
 
         # Actualizar estado de carga
         total = len(self.filtered_items)
-        write_log(f"Mostrando {min(end, total)} de {total} elementos")
+        write_log(f"Showing {min(end, total)} out of {total} items")
         # if hasattr(self.list_widget.parent(), 'status_label'):
         #
         #     self.list_widget.parent().status_label.setText(
