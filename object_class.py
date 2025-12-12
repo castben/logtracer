@@ -1491,56 +1491,64 @@ class FileManagement:
         line_counter = 1
         self.chunk_info = []
 
-        with open(self.filename, 'r') as file:
-            while file.tell() < file_size:
-                start_pos = file.tell()
-                start_line = line_counter
+        try:
+            with open(self.filename, 'r') as file:
+                while file.tell() < file_size:
+                    start_pos = file.tell()
+                    start_line = line_counter
 
-                remaining = file_size - start_pos
+                    remaining = file_size - start_pos
 
-                # Si estamos cerca del final y el resto es menor al porcentaje mínimo, fusionamos
-                if remaining < (self.block_size * self.min_percent_merge / 100):
-                    chunk = file.read(remaining)
-                    last_newline = chunk.rfind('\n')
-                    if last_newline != -1:
-                        end_pos = start_pos + last_newline + 1
-                        lines_in_chunk = chunk[:last_newline + 1].count('\n')
+                    # Si estamos cerca del final y el resto es menor al porcentaje mínimo, fusionamos
+                    if remaining < (self.block_size * self.min_percent_merge / 100):
+                        chunk = file.read(remaining)
+                        last_newline = chunk.rfind('\n')
+                        if last_newline != -1:
+                            end_pos = start_pos + last_newline + 1
+                            lines_in_chunk = chunk[:last_newline + 1].count('\n')
+                        else:
+                            end_pos = file_size
+                            lines_in_chunk = chunk.count('\n') + (1 if chunk else 0)
+
+                        if self.chunk_info:
+                            prev_start, prev_size, prev_start_line, prev_end_line = self.chunk_info[-1]
+                            self.chunk_info[-1] = (
+                                prev_start,
+                                end_pos - prev_start,
+                                prev_start_line,
+                                prev_end_line + lines_in_chunk
+                            )
+                        else:
+                            end_line = start_line + lines_in_chunk - 1
+                            self.chunk_info.append((start_pos, end_pos - start_pos, start_line, end_line))
+                        break  # Salimos del bucle, ya procesamos todo
+
                     else:
-                        end_pos = file_size
-                        lines_in_chunk = chunk.count('\n') + (1 if chunk else 0)
+                        # Leer bloque normal
+                        chunk = file.read(self.block_size)
+                        last_newline = chunk.rfind('\n')
+                        if last_newline != -1:
+                            end_pos = start_pos + last_newline + 1
+                        else:
+                            end_pos = start_pos + len(chunk)
 
-                    if self.chunk_info:
-                        prev_start, prev_size, prev_start_line, prev_end_line = self.chunk_info[-1]
-                        self.chunk_info[-1] = (
-                            prev_start,
-                            end_pos - prev_start,
-                            prev_start_line,
-                            prev_end_line + lines_in_chunk
-                        )
-                    else:
+                        lines_in_chunk = chunk[:last_newline + 1].count('\n') if last_newline != -1 else 0
                         end_line = start_line + lines_in_chunk - 1
+
                         self.chunk_info.append((start_pos, end_pos - start_pos, start_line, end_line))
-                    break  # Salimos del bucle, ya procesamos todo
+                        line_counter += lines_in_chunk
+                        file.seek(end_pos)
 
-                else:
-                    # Leer bloque normal
-                    chunk = file.read(self.block_size)
-                    last_newline = chunk.rfind('\n')
-                    if last_newline != -1:
-                        end_pos = start_pos + last_newline + 1
-                    else:
-                        end_pos = start_pos + len(chunk)
+                        write_log(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
+            write_log(f'Will launch {len(self.chunk_info)} threads to read full file...')
+        except IOError as io:
+            write_log(f'Unable to read file due to {io}', level='ERROR')
+        except UnicodeDecodeError as ude:
+            write_log(f'Unable to read file due to {ude}', level='ERROR')
+        except UnicodeError as ue:
+            write_log(f'Unable to read file due to {ue}', level='ERROR')
 
-                    lines_in_chunk = chunk[:last_newline + 1].count('\n') if last_newline != -1 else 0
-                    end_line = start_line + lines_in_chunk - 1
 
-                    self.chunk_info.append((start_pos, end_pos - start_pos, start_line, end_line))
-                    line_counter += lines_in_chunk
-                    file.seek(end_pos)
-
-                    write_log(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
-
-        write_log(f'Will launch {len(self.chunk_info)} threads to read full file...')
 
     def add_process_to_execute(self, method):
         """
