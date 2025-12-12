@@ -1118,6 +1118,7 @@ class CreateUML:
         self.setup_endpoints_and_verify_participants()
         # Obtener todos los pasos UML
         uml_objects = self.corda_object.get_uml()
+        data_dir = Configs.get_config_for("FILE_SETUP.CONFIG.data_dir")
 
         if not uml_objects:
             write_log(f'{self.corda_object.data["id_ref"]}: Has not valid UML representation steps...', level='WARN')
@@ -1125,7 +1126,7 @@ class CreateUML:
 
         app_path = os.path.dirname(os.path.abspath(__file__))
 
-        save_path = f"{app_path}/plugins/plantuml_cmd/data/{client_name}/{ticket}"
+        save_path = f"{app_path}/{data_dir}/{client_name}/{ticket}"
 
         if not os.path.exists(save_path):
             os.makedirs(save_path)
