@@ -80,10 +80,10 @@ class LazyTextLoader:
                     # Calcular exceso de líneas
                     lines_in_chunk = self._count_lines_in_range(start, boundary)
                     excess = lines_in_chunk - self.lines_per_chunk if i > 0 else lines_in_chunk
-                    write_log(f"DEBUG Chunk {i}: desde {start} hasta {boundary} exceso de lineas {max(0, excess)}")
+                    write_log(f"Chunk {i}: from {start} until {boundary} line excess {max(0, excess)}")
 
         except Exception as e:
-            write_log(f"{Icons.ERROR} Error analizando archivo {self.filepath}: {str(e)}", level="ERROR")
+            write_log(f"{Icons.ERROR} Error analysing file {self.filepath}: {str(e)}", level="ERROR")
             self.total_lines = 0
             self.chunk_boundaries = [0]
 
@@ -140,7 +140,7 @@ class LazyTextLoader:
             return lines, line_start
 
         except Exception as e:
-            write_log(f"{Icons.ERROR} Error leyendo chunk {chunk_index}: {str(e)}", level="ERROR")
+            write_log(f"{Icons.ERROR} Error reading chunk {chunk_index}: {str(e)}", level="ERROR")
             return [], 0
 
     def _start_loader_thread(self):
