@@ -3579,6 +3579,9 @@ class BlockExtractor:
         except IOError as io:
             write_log(f'Sorry unable to open {self.file_path} due to: {io}')
             return
+        except UnicodeDecodeError as ue:
+            write_log(f'Sorry unable to open {self.file_path} due to: {ue}')
+            return
 
         # Store remaining open blocks
         for block_name, blk in current_blocks.items():
