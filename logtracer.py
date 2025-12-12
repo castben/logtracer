@@ -10,6 +10,8 @@ import sys
 import threading
 from configparser import BasicInterpolation
 from datetime import datetime
+
+import yaml
 from TermTk import TTkUtil, TTkUiLoader, TTk
 import TermTk as ttk
 
@@ -46,6 +48,73 @@ signal.signal(signal.SIGINT, signal_handler)
 
 def get_configs():
     return Configs
+
+class CustomerInfo:
+    """
+    Customer information related to ticket that is being handled.
+    """
+
+    def __init__(self):
+        """
+        Data structure
+        """
+
+        self.attributes = {}
+
+    def set_attribute(self, attribute, value):
+        """
+        Set attribute to setup
+        :param attribute: attribute name
+        :param value: value
+        :return:
+        """
+
+        self.attributes[attribute] = value
+
+    def get_attribute(self, attribute):
+        """
+        return given attribute name, stored value
+        :param attribute: name
+        :return: attribute value
+        """
+
+        if attribute in self.attributes:
+            return self.attributes[attribute]
+
+        write_log(f'Error requested attribute {attribute} do not exist')
+
+        return None
+
+    def set_full_attributes(self, new_attributes):
+        """
+        Set all attributes at once
+        :return:
+        """
+
+        self.attributes = new_attributes
+
+    def save_info(self):
+        """
+        Serialises object to save it into disk
+        :return:
+        """
+
+        with open(f"{self.get_attribute('data_dir_path')}/customer_info.yaml",'w') as cinfo:
+            yaml.safe_dump({'customer_data': self.attributes},cinfo)
+            write_log(f'Data successfully saved in {self.get_attribute("data_dir_path")}/customer_info.yaml')
+
+    def load_info(self):
+        """
+        Loading saved data
+        :return:
+        """
+        data_file = f"{self.get_attribute('data_dir_path')}/customer_info.yaml"
+        if os.path.exists(data_file):
+            write_log(f'Loading information from {data_file}...')
+            with open(data_file, 'r') as cinfo:
+                customer_info.set_full_attributes(yaml.safe_load(cinfo)['customer_data'])
+        else:
+            write_log('Not information found for this ticket')
 
 
 class InteractiveWindow:
@@ -256,9 +325,15 @@ class InteractiveWindow:
         This will check Actual folder where UML diagrams should exist, and will load references that exist
         :return:
         """
+
         app_path = os.path.dirname(os.path.abspath(__file__))
-        app_path = f'{app_path}/plugins/plantuml_cmd/data/{self.customer}/{self.ticket}'
+        app_path = f'{app_path}/{data_dir}/{self.customer}/{self.ticket}'
         pattern = re.compile(r'([A-Za-z0-9-]*)_page_[0-9]*.puml')
+
+        customer_info.set_attribute('ticket', self.ticket)
+        customer_info.set_attribute('customer', self.customer)
+        customer_info.set_attribute('data_dir_path', app_path)
+
         for each_file in glob.glob(f"{app_path}/*.puml"):
             match = pattern.search(each_file)
 
@@ -337,6 +412,9 @@ class InteractiveWindow:
             TTkButton_viewfile.setEnabled(True)
 
             self.TTkWindow_customer_info.setTitle(f'Logs tracer - {filepath}')
+            customer_info.set_attribute('filename', filepath)
+            customer_info.set_attribute('log_path_dir', self.filepath)
+
             write_log('Checking for existing diagrams...')
             self.check_generated_files()
 
@@ -353,6 +431,7 @@ class InteractiveWindow:
             if self.filepath:
                 write_log(f'Setting up last path visited to file picker...{self.filepath}')
                 TTkFileButtonPicker.setPath(self.filepath)
+                customer_info.set_attribute('last_path_used', self.filepath)
 
         def _fill_tickets(customer):
             """
@@ -362,7 +441,10 @@ class InteractiveWindow:
             """
             self.customer = customer
             TTkButton_new_ticket.setEnabled(True)
-            app_path =f"{os.path.dirname(os.path.abspath(__file__))}/plugins/plantuml_cmd/data/{customer}"
+            app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}/{customer}"
+
+            customer_info.set_attribute('customer', self.customer)
+
 
             ticket_list = _check_folders(app_path)
 
@@ -376,7 +458,7 @@ class InteractiveWindow:
             :return:
             """
             if not app_path:
-                app_path =f"{os.path.dirname(os.path.abspath(__file__))}/plugins/plantuml_cmd/data"
+                app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
 
             subdirs = [
                 item for item in os.listdir(app_path)
@@ -387,12 +469,22 @@ class InteractiveWindow:
 
         def _enable_file_select(ticket):
             """
-
+            Enable button for file selection. This is done Only if a ticket has been selected...
             :return:
             """
             if ticket:
                 self.ticket = ticket
                 TTkFileButtonPicker.setEnabled(True)
+
+            customer_info.set_attribute('ticket', self.ticket)
+            customer_info.set_attribute('customer', self.customer)
+            customer_info.set_attribute('data_dir_path', f"{app_path}/{self.customer}/{self.ticket}")
+
+            customer_info.load_info()
+
+            if customer_info.get_attribute('log_path_dir'):
+                self.filepath = customer_info.get_attribute('log_path_dir')
+                _remember_last_path()
 
         def _filesize_str(size_in_bytes):
             """
@@ -1088,7 +1180,7 @@ class InteractiveWindow:
             :return:
             """
 
-            app_path =f"{os.path.dirname(os.path.abspath(__file__))}/plugins/plantuml_cmd/data"
+            app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
 
             self.customer = TTkLineEdit_popup_newcustomer_customer.text().toAscii()
             self.ticket = TTkLineEdit_popup_newcustomer_ticket.text().toAscii()
@@ -1145,6 +1237,7 @@ class InteractiveWindow:
 
                 # return  # Ya se solicitó cierre
 
+            customer_info.save_info()
             write_log("Exiting...", level="INFO")
             shutdown_event.set()
             root.quit()
@@ -1865,6 +1958,10 @@ if __name__ == "__main__":
     load_highlights()
     KnownErrors.configs = Configs
     KnownErrors.initialize()
+    data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
+    customer_info = CustomerInfo()
+    app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
+
     # test()
 
     # file_to_analyse = None
