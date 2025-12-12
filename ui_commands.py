@@ -46,7 +46,7 @@ def process_ui_commands(root_tui):
             widget = root_tui.getWidgetByName(command["component"])
             if not widget:
                 write_log(
-                    f"{Icons.WARNING} UI: Componente '{command['component']}' no encontrado",
+                    f"{Icons.WARNING} UI: Component '{command['component']}' not found",
                     level="WARN"
                 )
                 continue
@@ -58,7 +58,7 @@ def process_ui_commands(root_tui):
 
         except Exception as e:
             write_log(
-                f"{Icons.ERROR} UI: Error actualizando {command['component']}.{command['method']}: {str(e)}",
+                f"{Icons.ERROR} UI: Error updating {command['component']}.{command['method']}: {str(e)}",
                 level="ERROR"
             )
 
@@ -85,7 +85,7 @@ def process_callbacks():
         try:
             callback["function"](*callback["args"], **callback["kwargs"])
         except Exception as e:
-            write_log(f"{Icons.ERROR} Error en callback: {str(e)}", level="ERROR")
+            write_log(f"{Icons.ERROR} Error on callback: {str(e)}", level="ERROR")
 
     # Programar próxima verificación
     if not shutdown_event.is_set():
