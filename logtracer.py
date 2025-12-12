@@ -396,7 +396,7 @@ class InteractiveWindow:
             global tui_logging
             # logfile_name.setWordWrapMode(1)
             # logfile_name.setWrapWidth(6)
-
+            _clear_components()
             self.filename = filepath
             self.filepath = os.path.dirname(filepath)
             filepath = os.path.basename(filepath)
@@ -511,6 +511,17 @@ class InteractiveWindow:
                 TTkList_transaction.removeItem(each_item)
 
             self.clear_tree_party()
+            self.clear_spb_tree()
+            _clear_spb_details_pane()
+            _clear_quickview_pane()
+
+        def _clear_quickview_pane():
+            """
+            Clear quick view pane
+            :return:
+            """
+            schedule_ui_update('TTkTextEdit_quickview','setText','')
+
 
         def _clear_labels():
             """
@@ -520,6 +531,14 @@ class InteractiveWindow:
             schedule_ui_update('TTkLabel_Transactions', 'setText','')
             schedule_ui_update('TTkLabel_Flows','setText','')
             schedule_ui_update('TTkLabel_Parties','setText','')
+
+        def _clear_spb_details_pane():
+            """
+            Clears Special Blocks pane details
+            :return:
+            """
+            schedule_ui_update('TTkTextEdit_specialblocks','setText','')
+            schedule_ui_update('TTkTextEdit_specialblocks','setLineNumberStarting',0)
 
         def _start_analysis():
             """
@@ -1122,7 +1141,8 @@ class InteractiveWindow:
             if not reference_id:
                 return
 
-            self.TTkTree_specialblocks.clear()
+            self.clear_spb_tree()
+            _clear_spb_details_pane()
             reference_id = reference_id[0].toAscii()
             reference_id = Icons.remove_unicode_symbols(reference_id)
             results = file_to_analyse.special_blocks.get_reference(reference_id)
