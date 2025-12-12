@@ -873,6 +873,9 @@
           "DBFlowCheckpointBlob"
         ]
       }
+    },
+    "CONFIG": {
+      "data_dir": "data"
     }
   },
   "BLOCK_COLLECTION": {
