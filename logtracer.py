@@ -1611,7 +1611,6 @@ class InteractiveWindow:
         if shutdown_event.is_set() and log_queue.empty():
             return  # No programar más actualizaciones
 
-
         while not log_queue.empty():
             message = log_queue.get_nowait()
             if w:
