@@ -1221,7 +1221,13 @@ class FileManagement:
         self.min_percent_merge = min_percent_merge  # Porcentaje mínimo para no fusionar el bloque final
         self.special_blocks: BlockExtractor # Collect all blocks that are not collectable by multithread process
         self.log_line_regex = None
+        self.state = None
 
+        if not os.path.exists(self.filename):
+            write_log("Unable to open given filename, it doesn't exist", level="ERROR")
+            self.state = "File not found"
+        else:
+            self.state =True
 
         if not self.rules:
             self.rules = Configs.get_config_for('CORDA_OBJECT_DEFINITIONS.OBJECTS.participant')
@@ -1478,20 +1484,19 @@ class FileManagement:
         return None
 
     def pre_analysis(self):
-        file_size = os.path.getsize(self.filename)
-        fsize = file_size / 1024 / 1024
-        bsize = self.block_size / 1024 / 1024
-        write_log(f'Block size for reading: {bsize:.2f} Mbytes')
-        write_log(f'Pre-analysing file size {fsize:.2f} Mbytes calculating block sizes')
-
-        if self.block_size > file_size:
-            write_log(f'Adjusting blocksize to {fsize:.2f}Mb because blocksize given({bsize:.2f}Mb) is too big')
-            self.block_size = file_size
-
-        line_counter = 1
-        self.chunk_info = []
-
         try:
+            file_size = os.path.getsize(self.filename)
+            fsize = file_size / 1024 / 1024
+            bsize = self.block_size / 1024 / 1024
+            write_log(f'Block size for reading: {bsize:.2f} Mbytes')
+            write_log(f'Pre-analysing file size {fsize:.2f} Mbytes calculating block sizes')
+
+            if self.block_size > file_size:
+                write_log(f'Adjusting blocksize to {fsize:.2f}Mb because blocksize given({bsize:.2f}Mb) is too big')
+                self.block_size = file_size
+
+            line_counter = 1
+            self.chunk_info = []
             with open(self.filename, 'r') as file:
                 while file.tell() < file_size:
                     start_pos = file.tell()
@@ -1541,13 +1546,14 @@ class FileManagement:
 
                         write_log(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
             write_log(f'Will launch {len(self.chunk_info)} threads to read full file...')
+            self.state = True
+
         except IOError as io:
             write_log(f'Unable to read file due to {io}', level='ERROR')
         except UnicodeDecodeError as ude:
             write_log(f'Unable to read file due to {ude}', level='ERROR')
         except UnicodeError as ue:
             write_log(f'Unable to read file due to {ue}', level='ERROR')
-
 
 
     def add_process_to_execute(self, method):
