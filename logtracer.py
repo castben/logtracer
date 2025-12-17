@@ -99,6 +99,9 @@ class CustomerInfo:
         :return:
         """
 
+        if not self.get_attribute('data_dir_path'):
+            return
+
         with open(f"{self.get_attribute('data_dir_path')}/customer_info.yaml",'w') as cinfo:
             yaml.safe_dump({'customer_data': self.attributes},cinfo)
             write_log(f'Data successfully saved in {self.get_attribute("data_dir_path")}/customer_info.yaml')
@@ -459,6 +462,10 @@ class InteractiveWindow:
             """
             if not app_path:
                 app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
+
+            if not os.path.exists(app_path):
+                write_log(f"Creating data directory {app_path}")
+                os.makedirs(app_path)
 
             subdirs = [
                 item for item in os.listdir(app_path)
@@ -1886,6 +1893,9 @@ def test():
 
     # Create file_to_analyse object containing file_to_analyse that will be analysed, starting with a block-size of 15 Mbytes
     file_to_analyse = FileManagement(log_file, block_size_in_mb=15, debug=True)
+    if not file_to_analyse.state:
+        return
+
     # Analyse first 50 (by default) lines from given file_to_analyse to determine which Corda log format is
     # This is done to be able to separate key components from lines like Time stamp, severity level, and log
     # message
@@ -1936,12 +1946,18 @@ def test():
 
     # Stopping timewatch process and get time spent
     time_msg = file_to_analyse.start_stop_watch('Main-search', False)
-    pass
+    threading.Timer(0.5, InteractiveWindow.update_tui_from_queue).start()
+
+    if not file_to_analyse:
+        write_log(f"Sorry unable to analyse given file",level="Error")
+        return
 
     if args.list_transactions:
         tc = 0
         tl = file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS,True)
-
+        if not tl:
+            write_log("Sorry no transactions found")
+            return
         print(f"Transactions found:")
         for each_tx in tl:
             if each_tx.get_type() == 'TRANSACTION':
@@ -1951,24 +1967,34 @@ def test():
         print(f'Transactions found... {tc}\n\n')
 
     if args.list_flows:
-        print('Flows found:')
         fc = 0
-        for each_tx in file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS,True):
+        fl = file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS,True)
+        if not fl:
+            write_log("Sorry no flows found", level="WARN")
+            return
+
+        print('Flows found:')
+        for each_tx in fl:
             if each_tx.get_type() == 'FLOW':
                 fc = fc + 1
                 print(f'{fc:>3} - {each_tx.get_reference_id()}')
         print(f'Flows found... {fc}\n\n')
 
     if args.list_parties:
-        print('Parties found:')
+
         pc = 0
-        for each_tx in file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY,True):
+        pl = file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY,True)
+        if not pl:
+            write_log("Sorry no parties found")
+            return
+
+        print('Parties found:')
+        for each_tx in pl:
             pc = pc + 1
             print(f'{pc:>3} - {each_tx.name}')
 
         print(f'Parties found... {pc}')
 
-    pass
 
 if __name__ == "__main__":
 
@@ -1981,7 +2007,7 @@ if __name__ == "__main__":
     data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
     customer_info = CustomerInfo()
     app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
-
+    w = None
     # test()
 
     # file_to_analyse = None
@@ -2042,6 +2068,8 @@ if __name__ == "__main__":
 
     if args.log_file and args.list_transactions or args.list_flows or args.list_parties:
         test()
+        shutdown_event.set()
+
 
     if not args.log_file:
         w = InteractiveWindow()
