@@ -401,25 +401,40 @@ class InteractiveWindow:
             # logfile_name.setWrapWidth(6)
             _clear_components()
             self.filename = filepath
-            self.filepath = os.path.dirname(filepath)
-            filepath = os.path.basename(filepath)
-            self.filesize = os.path.getsize(self.filename)
-            #write_log(f'Setting up last path visited to file picker...{self.filepath}')
-            TTkFileButtonPicker.setPath(self.filepath)
-            TTkLabel_file_size.setText(ttk.TTkString(_filesize_str(self.filesize)))
-            TTkButton_start_analysis.setEnabled(True)
-            TTkLabel_analysis_status.setText("")
-            TTkLabel_Flows.setText("")
-            TTkLabel_Parties.setText("")
-            TTkLabel_Transactions.setText("")
-            TTkButton_viewfile.setEnabled(True)
+            try:
+                self.filepath = os.path.dirname(filepath)
+                filepath = os.path.basename(filepath)
+                self.filesize = os.path.getsize(self.filename)
+                #write_log(f'Setting up last path visited to file picker...{self.filepath}')
+                TTkFileButtonPicker.setPath(self.filepath)
+                TTkLabel_file_size.setText(ttk.TTkString(_filesize_str(self.filesize)))
+                TTkButton_start_analysis.setEnabled(True)
+                TTkLabel_analysis_status.setText("")
+                TTkLabel_Flows.setText("")
+                TTkLabel_Parties.setText("")
+                TTkLabel_Transactions.setText("")
+                TTkButton_viewfile.setEnabled(True)
 
-            self.TTkWindow_customer_info.setTitle(f'Logs tracer - {filepath}')
-            customer_info.set_attribute('filename', filepath)
-            customer_info.set_attribute('log_path_dir', self.filepath)
+                self.TTkWindow_customer_info.setTitle(f'Logs tracer - {filepath}')
+                customer_info.set_attribute('filename', filepath)
+                customer_info.set_attribute('log_path_dir', self.filepath)
 
-            write_log('Checking for existing diagrams...')
-            self.check_generated_files()
+                write_log('Checking for existing diagrams...')
+                self.check_generated_files()
+            except:
+                write_log(f"Unable to open file {self.filename}")
+                self.filesize = 0
+                self.filepath=""
+                filepath=""
+                TTkLabel_file_size.setText("")
+                TTkButton_start_analysis.setEnabled(False)
+                TTkLabel_analysis_status.setText("")
+                TTkLabel_Flows.setText("")
+                TTkLabel_Parties.setText("")
+                TTkLabel_Transactions.setText("")
+                TTkButton_viewfile.setEnabled(False)
+
+
 
         def _remember_last_path():
             # if not self.filepath:
