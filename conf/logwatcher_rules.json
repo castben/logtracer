@@ -912,6 +912,21 @@
           "\"Detail: Key \\(peer_party_id,.* __tx_id__\\) already exists.\""
         ],
         "ICON": "WARNING"
+      },
+      "SQL": {
+        "START": {
+          "EXPECT": [
+            ".*[flow-worker] SQL -",
+            "^\\s*select\b"
+          ]
+        },
+        "END": {
+          "EXPECT": []
+        },
+        "REFERENCE_ID":[
+          "- ([0-9]{8}-[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{12})"
+        ],
+        "ICON": "CHECK"
       }
     }
   },
