@@ -1629,7 +1629,7 @@ class InteractiveWindow:
         while not log_queue.empty():
             message = log_queue.get_nowait()
             if w:
-                tui_logging.append(message)  # Tu widget de logs en PyTermTk
+                tui_logging.append(message)
             else:
                 print(message)
 
