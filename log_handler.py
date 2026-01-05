@@ -5,8 +5,6 @@ from collections import deque
 from datetime import datetime
 from queue import Queue
 
-import TermTk as ttk
-
 log_queue = Queue()
 
 # --- Sistema de Throttling para evitar Spam ---
@@ -63,6 +61,7 @@ def _should_suppress_message(message: str, level: str) -> tuple[bool, str | None
 
 
 def write_log(message, level="INFO"):
+
     """
     Función dedicada para enviar mensajes a la TUI, con throttling para evitar spam.
     """
@@ -75,8 +74,8 @@ def write_log(message, level="INFO"):
 
     # Si no se suprime, formatear y encolar el mensaje normalmente
     timestamped = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {level} {message}"
-    msg = HighlightCode.highlight(ttk.TTkString(timestamped))
-    log_queue.put(msg)
+
+    log_queue.put(timestamped)
 
     # 2. Pequeña pausa para ceder control (yield) al hilo principal
     # Esto es crucial para evitar acaparamiento de CPU.
@@ -95,6 +94,7 @@ class HighlightCode:
 
     @staticmethod
     def highlight(txt):
+        import TermTk as ttk
         ret = txt
         for each_definition in HighlightCode.color_library:
             # Manejar posibles errores en regex para evitar que rompan el logging
