@@ -1629,7 +1629,8 @@ class InteractiveWindow:
         while not log_queue.empty():
             message = log_queue.get_nowait()
             if w:
-                tui_logging.append(message)
+                msg = HighlightCode.highlight(ttk.TTkString(message))
+                tui_logging.append(msg)
             else:
                 print(message)
 
@@ -1639,7 +1640,7 @@ class InteractiveWindow:
         if not shutdown_event.is_set():
             threading.Timer(0.5, InteractiveWindow.update_tui_from_queue).start()
 
-def main():
+def mainX():
     log_file = None
     Configs.load_config()
 
