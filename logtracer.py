@@ -1891,19 +1891,8 @@ def load_highlights():
     # HighlightCode("specialBlocks", "Diff between previous and next state:",'#44AA00')
     # HighlightCode("specialBlocks", "checkpoint\\..*:",'#44AA00')
 
-def test():
-    # from object_class import LogAnalysis
-    #
-    # testfile = FileManagement(args.log_file)
-    # testfile.pre_analysis()
-    # testfile.discover_file_format()
-    #
-    # with open(args.log_file,'r') as htest:
-    #     tlog = LogAnalysis(testfile, Configs)
-    #     line = 1
-    #     for each_line in htest:
-    #         tlog.parse(each_line.rstrip(),line)
-    #         line = +1
+def main():
+
     log_file = args.log_file
 
     # Create file_to_analyse object containing file_to_analyse that will be analysed, starting with a block-size of 15 Mbytes
@@ -2082,7 +2071,7 @@ if __name__ == "__main__":
     args = parserargs.parse_args()
 
     if args.log_file and args.list_transactions or args.list_flows or args.list_parties:
-        test()
+        main()
         shutdown_event.set()
 
 
