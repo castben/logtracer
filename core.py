@@ -16,6 +16,7 @@ def analyze_corda_log(log_file_path: str) -> dict:
     from object_class import CordaObject
     from object_class import Configs  # o pásalo como parámetro
     from object_class import KnownErrors
+    from error_log_analysis import ErrorAnalisys
     import os
 
     max_number_items_fNtx = 15
@@ -30,6 +31,7 @@ def analyze_corda_log(log_file_path: str) -> dict:
 
     # 1. Configurar archivo
     file_to_analyse = FileManagement(log_file_path, block_size_in_mb=15)
+
     if not file_to_analyse.state:
         raise ValueError("Invalid log file")
 
@@ -40,22 +42,43 @@ def analyze_corda_log(log_file_path: str) -> dict:
     special_blocks.extract()
 
     # 3. Configurar recolectores
+    #
+    # Party collection
     collect_parties = GetParties(Configs)
     collect_parties.set_file(file_to_analyse)
     collect_parties.set_element_type(CordaObject.Type.PARTY)
 
+    #
+    # Transactions and Flows collection
     collect_refIds = GetRefIds(Configs)
     collect_refIds.set_file(file_to_analyse)
     collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
 
+    #
+    # Collection of Errors
+    collect_errors = ErrorAnalisys(file_to_analyse, Configs.config)
+    collect_errors.set_element_type(CordaObject.Type.ERROR_ANALYSIS)
+
     # 4. Ejecutar procesamiento
     file_to_analyse.pre_analysis()
-    file_to_analyse.add_process_to_execute(collect_parties)
-    file_to_analyse.add_process_to_execute(collect_refIds)
+    # file_to_analyse.add_process_to_execute(collect_parties)
+    # file_to_analyse.add_process_to_execute(collect_refIds)
+    file_to_analyse.add_process_to_execute(collect_errors)
     file_to_analyse.parallel_processing()
 
     # 1. Obtener todos los roles detectados en el log
     detected_roles = file_to_analyse.get_party_role()
+
+    if special_blocks.collected_blocks:
+        specialblocks = {
+            "collected_blocktypes": special_blocks.get_collected_block_types(),
+            "defined_blocktypes": special_blocks.get_defined_block_types(),
+            "collected_blocktypes": special_blocks.collected_blocks
+        }
+    else:
+        specialblocks = None
+
+
 
     # Si quieres soportar múltiples roles por party:
     x500_to_roles = {}
@@ -88,5 +111,6 @@ def analyze_corda_log(log_file_path: str) -> dict:
         "parties": parties,
         "flows": flows,
         "transactions": transactions,
+        "special_blocks": specialblocks
         # Puedes añadir "delays", "special_blocks", etc. si los expones
     }

@@ -2,7 +2,7 @@ from object_class import LogAnalysis, CordaObject
 
 
 class ErrorAnalisys:
-    def __init__(self,file, get_configs):
+    def __init__(self, file, get_configs):
         self.Configs = get_configs
 
         self.file = file
