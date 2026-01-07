@@ -33,14 +33,6 @@ class ErrorAnalisys:
         self.type = element_type
 
 
-    def set_file(self, file):
-        """
-        Setting actual file to work with
-        :param file: a FileManager object type
-        :return:
-        """
-        self.file = file
-
     def execute(self, each_line, current_line=None):
         """
         Process that need to be executed in parallel

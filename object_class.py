@@ -1225,7 +1225,8 @@ class FileManagement:
 
         if not os.path.exists(self.filename):
             write_log("Unable to open given filename, it doesn't exist", level="ERROR")
-            self.state = "File not found"
+            # self.state = "File not found"
+            self.state = False
         else:
             self.state =True
 
