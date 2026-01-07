@@ -3633,7 +3633,6 @@ class BlockExtractor:
         self.collected_blocks[block_type][blk.reference].append(blk)
 
 
-
     def get_blocks(self, block_type: str) -> List[BlockItems]:
         return self.collected_blocks.get(block_type, [])
 
@@ -3674,6 +3673,41 @@ class BlockExtractor:
         if not reference_id and block_type and block_type in self.collected_blocks:
             # return a list of references for given block_type
             return self.collected_blocks[block_type]
+
+        return None
+
+    def get_collected_block_types(self, block_type=None, only_list=False):
+        """
+        Return all block types found on analyzed log
+        :return: a dictionary with all collected types including number of items on each case
+        """
+
+        types = None
+        if self.collected_blocks:
+            if only_list:
+                # Return only a list of keys no counts
+                return list(self.collected_blocks.keys())
+
+            types = {}
+            if not block_type:
+                for each_type in self.collected_blocks.keys():
+                    types[each_type] = len(self.collected_blocks[each_type])
+            else:
+                if block_type in self.collected_blocks:
+                    types[block_type] = len(self.collected_blocks[block_type])
+                else:
+                    return None
+
+        return types
+
+    def get_defined_block_types(self):
+        """
+        Return a list of defined block types
+        :return:
+        """
+
+        if self.block_types:
+            return list(self.block_types.keys())
 
         return None
 
