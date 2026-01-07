@@ -71,7 +71,7 @@ def analyze_corda_log(log_file_path: str) -> dict:
 
     if special_blocks.collected_blocks:
         specialblocks = {
-            "collected_blocktypes": special_blocks.get_collected_block_types(),
+            "collected_blocktypes_types": special_blocks.get_collected_block_types(),
             "defined_blocktypes": special_blocks.get_defined_block_types(),
             "collected_blocktypes": special_blocks.collected_blocks
         }
