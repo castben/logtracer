@@ -860,6 +860,9 @@
           ],
           "#00AAFA": [
             "flow-id=[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9-]{12}"
+          ],
+          "#FFFF00": [
+            "com.chainthat.mnp.flows.program.update.QuoteProvidedFlow"
           ]
         }
       }
