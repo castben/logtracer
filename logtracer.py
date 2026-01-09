@@ -1118,11 +1118,14 @@ class InteractiveWindow:
                 write_log(f"Unable to find any {block_type} for id {reference_id}...", level="WARN")
                 return
 
-            if content and idx <= len(content[block_type]) :
+            if content and idx < len(content[block_type]) :
                 self.TTkTextEdit_specialblocks.setLineNumberStarting(content[block_type][idx].line_number-1)
 
                 for each_line in content[block_type][idx].get_content():
                     self.TTkTextEdit_specialblocks.append(HighlightCode.highlight(ttk.TTkString(each_line.rstrip())))
+            else:
+                write_log(f"Invalid index for the content!, reference id being used: {reference_id}", level="ERROR")
+                pass
 
         def _special_block_resize():
             """
@@ -1156,12 +1159,15 @@ class InteractiveWindow:
             self.TTkTextEdit_specialblocks.setText("")
             self.clear_spb_tree()
 
-        def _special_block_details(reference_id):
+        @pyTTkSlot(ttk.TTkList)
+        def _special_block_details(reference_list):
             """
             Special block details
             :return:
             """
             global file_to_analyse
+
+            reference_id = reference_list.selectedLabels()
 
             if not reference_id:
                 return
@@ -1172,7 +1178,8 @@ class InteractiveWindow:
             reference_id = Icons.remove_unicode_symbols(reference_id)
             results = file_to_analyse.special_blocks.get_reference(reference_id)
             self.TTkWindow_specialblocks.setTitle(f'Details for {reference_id}')
-
+            self.specialblocks_selected_reference_id = reference_id
+            self.specialblocks_selected_item = self.TTkTree_specialblocks.selectedItems()
             if results:
                 self.TTkTree_specialblocks.setHeaderLabels(labels=['Type'])
                 self.TTkTree_specialblocks.setColumnWidth(0, 47)
@@ -1183,7 +1190,32 @@ class InteractiveWindow:
                         child = ttk.TTkTreeWidgetItem([f'{idx:0>3}:{each_item.__str__()}'])
                         tree_element.addChild(child)
 
-                self.TTkTree_specialblocks.itemClicked.connect(lambda: _sb_view_details_for(self.TTkTree_specialblocks.selectedItems(),reference_id))
+                # ✅ GUARDAR EL HANDLER ANTERIOR PARA DESCONECTARLO
+                if hasattr(self, '_previous_tree_handler'):
+                    # Desconectar el handler anterior
+                    try:
+                        self.TTkTree_specialblocks.itemClicked.disconnect(self._previous_tree_handler)
+                        # write_log(f"DEBUG: Desconectado handler anterior")
+                    except (TypeError, RuntimeError):
+                        # write_log(f"DEBUG: No se pudo desconectar handler anterior")
+                        pass
+
+                # ✅ CREAR NUEVO HANDLER
+                def create_handler(ref_id):
+                    def handler():
+                        # write_log(f"DEBUG: Handler ejecutado con ref_id: {ref_id}")
+                        _sb_view_details_for(self.TTkTree_specialblocks, ref_id)
+                    return handler
+
+                new_handler = create_handler(reference_id)
+
+                # ✅ CONECTAR NUEVO HANDLER
+                self.TTkTree_specialblocks.itemClicked.connect(new_handler)
+
+                # ✅ GUARDAR PARA DESCONEXIÓN POSTERIOR
+                self._previous_tree_handler = new_handler
+
+                # write_log(f"DEBUG: Conectado nuevo handler. Total conexiones: {len(self.TTkTree_specialblocks.itemClicked._connected_slots)}")
 
             self.TTkWindow_specialblocks.setVisible(True)
 
@@ -1530,7 +1562,7 @@ class InteractiveWindow:
         TTKButton_show_flow.clicked.connect(lambda: _show_hide_window('flow'))
         TTkList_flow.textClicked.connect(lambda: _quick_view_check('flows', TTkList_flow.selectedLabels()))
         TTkButton_flow_quickview.clicked.connect(lambda: _quick_view_check_pages(TTkList_flow.selectedLabels()))
-        TTkButton_flow_details.clicked.connect(lambda: _special_block_details(TTkList_flow.selectedLabels()))
+        TTkButton_flow_details.clicked.connect(lambda: _special_block_details(TTkList_flow))
 
         # Gestores de listas perezosas
         self.flow_list_manager = lazy_loader.LazyListManager(
@@ -1621,6 +1653,7 @@ class InteractiveWindow:
         # parent=self.TTkTree_specialblocks.parentWidget()
         # name = self.TTkTree_specialblocks.name()
         # self.TTkTree_specialblocks = ttk.TTkTree(parent=parent, size=size, pos=pos, name=name).clear()
+
 
     @staticmethod
     def update_tui_from_queue():
