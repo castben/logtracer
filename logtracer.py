@@ -401,6 +401,7 @@ class InteractiveWindow:
             # logfile_name.setWrapWidth(6)
             _clear_components()
             self.filename = filepath
+            self.selected_id_for_special_blocks = None
             try:
                 self.filepath = os.path.dirname(filepath)
                 filepath = os.path.basename(filepath)
@@ -1081,12 +1082,14 @@ class InteractiveWindow:
 
             root.layout().addWidget(logfile_viewer.TTkWindow_logviewer)
 
-        def _sb_view_details_for(selected_index, reference_id):
+        def _sb_view_details_for(specialblocks_list, reference_id):
             """
             Show content of selected block
             :param selected_index: selected index from
             :return:
             """
+
+            selected_index = specialblocks_list.selectedItems()
 
             if not selected_index:
                 return
