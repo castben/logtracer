@@ -475,6 +475,8 @@ class UMLStepSetup:
             if line and len(line)>self.Configs.get_config_for("FILE_SETUP.SCAN_SETUP.IGNORE_LINES.MAX_LINE_SIZE"):
                 # Para líneas gigantes, procesamiento inteligente
                 write_log(f"🔍 Huge line ({len(line)} chars) detected at line number {line_num}", level="WARN")
+                # Should not scan this line for sure doesn't have anything useful to extract!
+                continue
 
             self.check_for_uml_step(line, line_num)
 
