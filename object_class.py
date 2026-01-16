@@ -3469,6 +3469,7 @@ class BlockItems:
         if 0 <= idx < len(self.content):
             return self.content[idx]
 
+
 class BlockExtractor:
     """
     Extracts structured blocks from a log file, driven by regex patterns defined in a config dictionary.
