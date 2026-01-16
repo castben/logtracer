@@ -3469,6 +3469,7 @@ class BlockItems:
         if 0 <= idx < len(self.content):
             return self.content[idx]
 
+
 class BlockExtractor:
     """
     Extracts structured blocks from a log file, driven by regex patterns defined in a config dictionary.
@@ -3658,8 +3659,14 @@ class BlockExtractor:
                 return results
             else:
                 if block_type in self.collected_blocks:
-                    if reference_id in self.collected_blocks[block_type]:
-                       return {block_type: self.collected_blocks[block_type][reference_id]}
+                    if reference_id:
+                        if reference_id in self.collected_blocks[block_type]:
+                            # return {block_type: self.collected_blocks[block_type][reference_id]}
+                            return self.collected_blocks[block_type][reference_id]
+                        else:
+                            return None
+                    else:
+                        return self.collected_blocks[block_type]
 
             return None
 
@@ -3710,6 +3717,19 @@ class BlockExtractor:
             return list(self.block_types.keys())
 
         return None
+
+    def get_all_content(self):
+        """
+        Return all content as text to be able to serialize it
+        :return:
+        """
+
+        return_content = {}
+
+        for each_type in self.get_reference():
+            return_content[each_type] = {}
+            for each_content in self.get_reference(None, each_type):
+                return_content[each_type][each_content] = each_content.get_content()
 
 class Error:
     """
