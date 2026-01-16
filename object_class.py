@@ -3718,6 +3718,19 @@ class BlockExtractor:
 
         return None
 
+    def get_all_content(self):
+        """
+        Return all content as text to be able to serialize it
+        :return:
+        """
+
+        return_content = {}
+
+        for each_type in self.get_reference():
+            return_content[each_type] = {}
+            for each_content in self.get_reference(None, each_type):
+                return_content[each_type][each_content] = each_content.get_content()
+
 class Error:
     """
     A class that represents an error
