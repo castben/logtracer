@@ -1118,10 +1118,10 @@ class InteractiveWindow:
                 write_log(f"Unable to find any {block_type} for id {reference_id}...", level="WARN")
                 return
 
-            if content and idx < len(content[block_type]) :
-                self.TTkTextEdit_specialblocks.setLineNumberStarting(content[block_type][idx].line_number-1)
+            if content and idx < len(content) :
+                self.TTkTextEdit_specialblocks.setLineNumberStarting(content[idx].line_number-1)
 
-                for each_line in content[block_type][idx].get_content():
+                for each_line in content[idx].get_content():
                     self.TTkTextEdit_specialblocks.append(HighlightCode.highlight(ttk.TTkString(each_line.rstrip())))
             else:
                 write_log(f"Invalid index for the content!, reference id being used: {reference_id}", level="ERROR")
