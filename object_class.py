@@ -1663,8 +1663,9 @@ class FileManagement:
                 with self.lock:
                     for each_method in self.get_methods_type():
                         write_log(f"Saving {each_method}...")
-                        for each_result in local_results[each_method]:
-                            FileManagement.add_element(each_method, each_result)
+                        if each_method in local_results:
+                            for each_result in local_results[each_method]:
+                                FileManagement.add_element(each_method, each_result)
 
             return FileManagement.get_all_unique_results()
 
