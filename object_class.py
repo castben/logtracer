@@ -3658,8 +3658,14 @@ class BlockExtractor:
                 return results
             else:
                 if block_type in self.collected_blocks:
-                    if reference_id in self.collected_blocks[block_type]:
-                       return {block_type: self.collected_blocks[block_type][reference_id]}
+                    if reference_id:
+                        if reference_id in self.collected_blocks[block_type]:
+                            # return {block_type: self.collected_blocks[block_type][reference_id]}
+                            return self.collected_blocks[block_type][reference_id]
+                        else:
+                            return None
+                    else:
+                        return self.collected_blocks[block_type]
 
             return None
 
