@@ -577,13 +577,21 @@ class InteractiveWindow:
             schedule_ui_update('TTkLabel_Flows','setText',f"{Icons.CLOCK}...")
             schedule_ui_update('TTkLabel_Parties','setText',f"{Icons.CLOCK}...")
 
+            def _party_role_apply():
+                """
+
+                :return:
+                """
+                write_log("Check roles!!")
+                pass
+
             def _load_party_tree():
                 """Carga el árbol de parties (mantener como está)"""
                 party_headers = {
                     'Party X.500 name': 70,
                     'Role': 15
                 }
-
+                party_roles = ['party', 'notary', 'log_owner', 'notary/log_owner']
                 try:
                     schedule_ui_update('TTkTree_party', 'setHeaderLabels', list(party_headers.keys()))
                     write_log('Setting up parties...','INFO')
@@ -594,8 +602,10 @@ class InteractiveWindow:
                     for each_party in FileManagement.get_all_unique_results('Party'):
                         if each_party.get_corda_role():
                             role = each_party.get_corda_role()
+                            idx = party_roles.index(role)
+                            role = ttk.TTkComboBox(size=(17,1), list=party_roles, index=idx)
                         else:
-                            role = 'party'
+                            role = ttk.TTkComboBox(size=(17,1), list=party_roles, index=0)
 
                         tree_element = ttk.TTkTreeWidgetItem([each_party.name, role])
                         schedule_ui_update('TTkTree_party', 'addTopLevelItem', tree_element)
@@ -611,8 +621,15 @@ class InteractiveWindow:
                     else:
                         schedule_ui_update('TTkLabel_Parties', 'setText', '0')
 
+                    apply_button:ttk.TTkButton = root_window_party.getWidgetByName('TTkButton_apply')
+                    if apply_button:
+                        apply_button.clicked.connect(lambda: _party_role_apply)
+                    else:
+                        write_log(f"NO CONNECTED! {apply_button}")
+
                 except BaseException as be:
                     write_log(f'Unable to process parties due to {be}', level='ERROR')
+
 
             def _analysis_process():
                 """
@@ -916,6 +933,9 @@ class InteractiveWindow:
              Método que lanza el trace en un hilo separado
             """
             # Mostrar mensaje de inicio en UI
+
+
+
             write_log(f"Starting trace analysis for {ref_id}...")
 
             # Crear y lanzar el hilo
@@ -937,6 +957,12 @@ class InteractiveWindow:
             :return:
             """
             global file_to_analyse
+
+            if not file_to_analyse.get_party_role('log_owner'):
+                write_log("Unable to perform a tracing, 'log_owner' role is not being assigned...", level="WARN")
+                write_log("You will need to manually setup it up, otherwise will not be possible to trace any item...", level="WARN")
+                self.tk_popup_window(origen=TTkButton_flow_trace, message="Unable to continue role:\n 'log_owner' hasn't been assigned.")
+                return
 
             if source == 'flow':
                 ref_id = ttk.TTkString.toAscii(TTkList_flow.selectedLabels()[0])
@@ -1357,13 +1383,13 @@ class InteractiveWindow:
             "mv8igm3Z/Pn964+2b1PgSe9cwe7du8/9WZfDzxkLjk8YLc524RqjZTFad2C0EOOyvavTtPdNnttZ6E0XyTI5EfA4th2S4t3Nur8Av1CkDQ=="))
 
         root_window_party = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
-            "eJyVk8tv00AQhx3sxElDgVLSljdCPeQUHice4kBIAWGCKtW0CFEVYw+dVRxvZK9pg1SJYyLtcfl/mV07gRxawJbleeyOv9/M+ofzc9exzHWi2tIR4xEoecH3B+/ZvR4P" +
-            "8yEkQkn3G6QZ44mS1YedB537StoiZ0pvqYZxkGVK1mnPyzQY0vbaKCAjM2nnnQld6gcs2WNJxI8OKCvGtGGbZ0zoovuq7Z3zKiCdHfYdjPvZuway0WfJnT0WCVSeJZe0" +
-            "9xrYIQrtNvrBcZl8Y1kVnadAmS8i7i7L2JcY1ES6W0lAVqRNn/PYZyMlLRK2HUQRSw7NR63iBll7G4x5TrobJGpm17o8jSBVU1n1maCquJHLWlxkSSq6eAMbJyTsFfAh" +
-            "iHRcliQtQmWyHiKLoxSM3mJ9Xa9vY9M03DSvbA4uFz2xAC9q65O3DrjiWXiZnlWjDq8Ur9YE1ya4jht4Va+sFDfgdaK5OcFbWmIqGGQqx9t/YOLdgu6j1yI63NwvNFB7" +
-            "/IGfAskr2ZbLwAJaZY72wWv9FU26O5wYqM2TXNopP9IDtEMe67dLfjYKEuVVpEux0s6DHB9Rycf0PPEq+JRCBaEeSjcXgk7OjHF1HjqgeS6QOrp1hrTp2Zq0SqT2qaSO" +
-            "D8c0bPt5FCnqn2y8QAgH+uzQ4F3j0CmansKGz2ZEa7+JhjxiX8cLUCtzqKUCqn4WFHZlrW+KaCTsTXHrvwAiiEEszm9zDnD+HwF6pshZAJDnshnyJIFQ/9YZnfO88wuZ" +
-            "OGi9"))
+            "eJyVlEtv00AQxx3sxElDCKVNW94V6iGn8DjxEIemKUWYoEo1LUJUxdhLZhXHG9lr2iBV4phIe1w+G1+H2bUTmkNbasvy7Mzu7O8/s/Yv6/cfy9DXqWwKi4+GRIobrtv/" +
+            "SB93mJ8OSMSlsH+QOKEskqL4rPW09UQKk6dUqiVFP/SSRIoyrnkTewNcXhp6aCQ6bH3Qrptdj0YHNArY8RFG+QgX7LKEcpX0UDada06BCGuP/iR6+NW5Q0SlS6P1Axpw" +
+            "kI4hFtToLaE94GpY6XonefCdYRRUHB15PPPY+zSh30Iix8Lejjy0AmW6jIUuHUphoLBdLwho1NObGtlNROm9N2Ip6q6gqKldarM4ILGciKJLOWaFtVSUwiyKUsGGe1A5" +
+            "RWE7hA0Ij0d5StTCZSLKPtAwiInWm80vq/lNqOqC6+LlxYFaVhODQF1ZX5xVAouOAbfwWdLqYDl7NcawMoZVWIPbamYhuwncRZr7Y3igJMackkSm8PAMJjzK6D47DaSD" +
+            "jcNMA5bH7bsxQXk5Wy13zKEVZmifnMalaMLeY8iAZR6nwozZsWqg6bNQvW0cJ0Mvkk5B2OjL7dRL4TmmfIHPS6cAr9CVEaqmtFPO8eRMGZdmriPs5xyppUqnSauOqUiL" +
+            "SGqeS2q55ASbbW4GgcT6icoWEL+vzg423tYDPEWTc9jg9ZRo5R/RgAX0+2gOanEGtZBBlS+CgrYodXUShQSdCWxfCSAgIeHz/duYAVz/T4COTnIFgPqZngyH4XTnndnO" +
+            "y9nO9Ut2rm2q1etb4EU9PMUXAJA0FVWfRRHx1X8lwQ8tbf0FhH2Pcg=="))
 
         root_window_transaction = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
             "eJyNk91PE0EQwK/241pAikL5iDU2JiYkEPz4E2gB9SyBcMoTIevdymy47ta7PQomJDyWZF9M1mcf/Af9E5y9vTZNLGIvl5uPnZnfzE5vSj82y072u9brqiSv+lSred8/" +
@@ -1382,7 +1408,6 @@ class InteractiveWindow:
             "TPBgYQH/c7SI8NnjMeomYuzQc7WTcHUNfGUi+Ad7N8bVW6n8ywFr/pcDNHdRNOGe7h0h7CtYmHDDA0VyZXdkt/6BkiTcz9Ihkptu6VTx0N41Iw3VHGWFd6qxSO03QF/2" +
             "SWaiCgQYK21NNAQoar1JcifOqhJ9NKCWO+1Y7mOq8+6eVkpk3dNBt0+OqTQOsG8nYEWMoXBjfQO1ssVofGJVhgQC56DerrQkEupHAmv0XLt6jFNCljibmxvZTq4Rewsz" +
             "7ZwOuNAybLtodMV2seyNydlkcmMPcf6dSNn2JMelyezrbdJzu/Gihr/jnDKdaM2e4Sqf4/siqrCXbqQamiiAjMb2Hy2RnF77DRwciok="))
-
 
         root_window_popup_add_customer_ticket = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
             "eJyVlN9PE0EQx69py7VFICAKCpoLMYaEWIHoAxh/QMUfnBUSqzwYJMfdhtlw3W3u9gRMSHykyfpgsr74wot/nU/8Cc7eL0At0TaXm5m92f18Z3b3c+nbz7IR/w7VtCyJ" +
@@ -1422,7 +1447,6 @@ class InteractiveWindow:
                                                      title=ttk.TTkString("Log Analyser", ttk.TTkColor.ITALIC),
                                                      border=True,
                                                      layout=ttk.TTkGridLayout())
-
 
         self.TTkWindow_flow = ttk.TTkWindow(parent=self.root,
                                                      pos=(85, 1), size=(50, 32),
