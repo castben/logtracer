@@ -200,6 +200,35 @@
      "col": 0,
      "rowspan": 1,
      "colspan": 1
+    },
+    {
+     "class": "TTkButton",
+     "params": {
+      "Name": "TTkButton_apply",
+      "Position": [
+       71,
+       23
+      ],
+      "Size": [
+       20,
+       3
+      ],
+      "Min Width": 15,
+      "Min Height": 3,
+      "Max Width": 65536,
+      "Max Height": 65536,
+      "Visible": true,
+      "Enabled": true,
+      "ToolTip": "",
+      "Text": "Apply Changes",
+      "Border": true,
+      "Checkable": false,
+      "Checked": false
+     },
+     "row": 0,
+     "col": 0,
+     "rowspan": 1,
+     "colspan": 1
     }
    ]
   }
