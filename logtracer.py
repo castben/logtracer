@@ -1438,6 +1438,15 @@ class InteractiveWindow:
             "iv1grUbcYFGN+Bnr/oe+hBLu40KJPe9/0YVK3cX6brBOrW8lb0RYYiPON+E80K3XsEa2zjr/RIbRnjbWr/CkgHXKe0LPBmvAU1KB/xkSF2UV2Em0UiLx/2NOS1us/gJ9" +
             "B1HW"))
 
+        root_window_popup_message = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
+            "eJy1U1tr1EAUTrrJXuzFWy+r24e+CItgrEVFtIpabzhWSo32QZZluhn2DE0yIZnUrlDwQaEP8yIdn/2L/gRPMhu7WvTNDCHnzMk5+b5vvnxyvu07Vnkd6q5y5ChhWs35" +
+            "/t5bfv2JGOQRi6VWjX2WZlzEWrlr3g1vVauazLkuWtxBSLNMqxb27PA4EB+0qic0pVFW1p3XNMKR7U3KY1PvJyLJk37EsowOsdTcEhmXxfSe7pI2aTLlvOEfWZmukzmm" +
+            "Wps8XtnhgQRN1tWZInvB+BCkJnNYpAeTRcxOio13POO7IdNHqvE0phgFRegLEfo80cpCbls0CHg8LD9nm8VU/RUdiVwaXlVcfyzSgKU4wfW5xKnQVjOG1MqzkA5RhiWf" +
+            "pZG/52HXhkiZNxBxJmmh4WK5ZTLPNBU9+li/RPWbX/S2zlU9NJ9C5aABy9A6RH2eMxExmY4Qn4XrLpmROlPNAfAwSFkpW/m+apZYd1moi8YuTKvZaqfPEYmG2YLkFJli" +
+            "cNZENoPzZAouEBsuIg7bgnnzWDiCxSNYQoaOzw4Qv/Pj+9fPaIANEYoU08771QjleRTyYVy6BFbUwiTHk8qxJmN+tRT9QSxVG4iweDYwzxIaa2KrBu6N49zwmTHjJFoH" +
+            "Va84XZ7c7e/mUoq4DyIsTsYQdEhrTHCN1AqCFhK0/kYQLvXGyuJi0IHlHK5MHAB0TRVnoe5wtadzuIfj1vG+j7o9qPDCwwpi5zeIY6f/idH9rxhN8VqF6NwvI1T/nYFR" +
+            "jithzBsvuP/yAqwpd2ywm3ALbsMdYpcHe0oQenqL5bmaRhfGbFD87Rn6Nvd+As5ufMY="))
+
 
         root=TTk()
 
@@ -1528,6 +1537,8 @@ class InteractiveWindow:
         TTkLineEdit_popup_newcustomer_ticket: ttk.TTkLineEdit = root_window_popup_add_customer_ticket.getWidgetByName('TTkLineEdit_popup_newcustomer_ticket')
         TTkFrame_error_analysis: ttk.TTkFrame = root_error_analysis.getWidgetByName('TTkFrame_error_analysis')
 
+        self.TTkWindow_popup_message: ttk.TTkWindow = root_window_popup_message.getWidgetByName("MainWindow_popup_message")
+        self.TTkWindow_popup_message.setVisible(False)
         # Create tab container and add 2 tabs on it:
         #Tab Container
         self.TTkTabContainer = ttk.TTkTabWidget()
@@ -1650,6 +1661,7 @@ class InteractiveWindow:
         root.layout().addWidget(self.TTkWindow_specialblocks)
         root.layout().addWidget(TTkWindow_popup_new_data)
         root.layout().addWidget(TTkWindow_logging)
+        root.layout().addWidget(self.TTkWindow_popup_message)
         # root.layout().addWidget(TTkWindow_popup_new_data)
         InteractiveWindow.update_tui_from_queue()
 
@@ -1657,6 +1669,49 @@ class InteractiveWindow:
         process_ui_commands(root)
 
         root.mainloop()
+
+    def tk_popup_window(self, origen,  message, title="Information", button="Ok", icon="Information"):
+        """
+        An emergent window to communicate a message to user.
+        :return:
+        """
+
+        buttonName = {
+            'Ok':              ttk.TTkMessageBox.StandardButton.Ok,
+            'Open':            ttk.TTkMessageBox.StandardButton.Open,
+            'Save':            ttk.TTkMessageBox.StandardButton.Save,
+            'Cancel':          ttk.TTkMessageBox.StandardButton.Cancel,
+            'Close':           ttk.TTkMessageBox.StandardButton.Close,
+            'Discard':         ttk.TTkMessageBox.StandardButton.Discard,
+            'Apply':           ttk.TTkMessageBox.StandardButton.Apply,
+            'Reset':           ttk.TTkMessageBox.StandardButton.Reset,
+            'RestoreDefaults': ttk.TTkMessageBox.StandardButton.RestoreDefaults,
+            'Help':            ttk.TTkMessageBox.StandardButton.Help,
+            'SaveAll':         ttk.TTkMessageBox.StandardButton.SaveAll,
+            'Yes':             ttk.TTkMessageBox.StandardButton.Yes,
+            'YesToAll':        ttk.TTkMessageBox.StandardButton.YesToAll,
+            'No':              ttk.TTkMessageBox.StandardButton.No,
+            'NoToAll':         ttk.TTkMessageBox.StandardButton.NoToAll,
+            'Abort':           ttk.TTkMessageBox.StandardButton.Abort,
+            'Retry':           ttk.TTkMessageBox.StandardButton.Retry,
+            'Ignore':          ttk.TTkMessageBox.StandardButton.Ignore,
+            'NoButton':        ttk.TTkMessageBox.StandardButton.NoButton
+        }
+
+        iconVal = {
+            'NoIcon':ttk.TTkMessageBox.Icon.NoIcon,
+            'Question':ttk.TTkMessageBox.Icon.Question,
+            'Information':ttk.TTkMessageBox.Icon.Information,
+            'Warning':ttk.TTkMessageBox.Icon.Warning,
+            'Critical':ttk.TTkMessageBox.Icon.Critical} # .get(icon.currentText(),ttk.TTkMessageBox.Icon.NoIcon)
+
+        messageBox = ttk.TTkMessageBox(
+                title=title,
+                text=message,
+                icon=iconVal[icon],
+                standardButtons=buttonName[button])
+
+        ttk.TTkHelper.overlay(origen, messageBox, 2, 1, True)
 
     def clear_tree_party(self):
         """
