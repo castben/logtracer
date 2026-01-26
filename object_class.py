@@ -3536,8 +3536,6 @@ class BlockExtractor:
                                 if not blk.reference:
                                     blk.reference = self._look_for_reference_id(block_name, line)
 
-
-
                                 # if reference_key and reference_key in match.groupdict():
                                 #     blk.reference = match.group(reference_key)
                                 # # if there're no explicit reference to pick up, let's assign line number as reference.
@@ -3646,6 +3644,7 @@ class BlockExtractor:
         """
         Look for given reference and return what is found
         :param reference_id: to look for
+        :param block_type: block to get reference from; or a list of all blocks types found
         :return: a dictionary specifying which block type reference id was found, None otherwise
         """
 
