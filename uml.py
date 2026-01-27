@@ -1111,6 +1111,8 @@ class CreateUML:
         """
         Genera múltiples archivos UML, uno por página
 
+        :param ticket:
+        :param client_name:
         :param steps_per_page: cantidad de pasos por página
         :param output_prefix: nombre base para los archivos de salida
         :return: lista de nombres de archivo generados
