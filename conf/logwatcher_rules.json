@@ -64,6 +64,21 @@
           ]
         }
       },
+      "FINTEUM": {
+        "EXPECT": "([0-9T:,-]+) \\[[A-Z0-9a-z-]*\\] ([A-Z ]*) (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
       "CUSTOM_CHAINTHAT-0": {
         "EXPECT": "^\\[([A-Z ]+)\\] ([0-9T:,-]+) (.*)",
         "FIELDS": [
