@@ -566,7 +566,8 @@
           "ConnectException"
         ],
         "ignore_messages_with": [
-	       "flow hospital"
+	       "flow hospital",
+          "exceptionDetails=null"
         ],
         "alert_type": "error",
         "report_only_to": []
