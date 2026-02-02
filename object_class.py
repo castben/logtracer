@@ -4032,7 +4032,7 @@ class LogAnalysis:
                         error.category = each_category
                         error.type = each_error
                         error.log_line = line
-                        error.reference_id = line
+                        error.reference_id = current_line
                         error.line_number = current_line
                         error.timestamp = None
                         # if each_category not in found_errors:
