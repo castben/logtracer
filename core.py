@@ -19,6 +19,15 @@ def analyze_corda_log(log_file_path: str) -> dict:
     from error_log_analysis import ErrorAnalisys
     import os
 
+def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None) -> dict:
+    """
+    Analiza un archivo de log de Corda y devuelve un diccionario con:
+    - parties
+    - flows
+    - transactions
+    - estadísticas (tiempo, conteos, etc.)
+    """
+
     max_number_items_fNtx = 15
     tui_logging = None
     Configs.load_config()
@@ -65,10 +74,12 @@ def analyze_corda_log(log_file_path: str) -> dict:
         collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
         file_to_analyse.add_process_to_execute(collect_refIds)
 
-    #
-    # Collection of Errors
-    collect_errors = ErrorAnalisys(file_to_analyse, Configs.config)
-    collect_errors.set_element_type(CordaObject.Type.ERROR_ANALYSIS)
+    if not what_to_collect or what_to_collect == CordaObject.Type.ERROR_ANALYSIS:
+        #
+        # Collection of Errors
+        collect_errors = ErrorAnalisys(file_to_analyse, Configs.config)
+        collect_errors.set_element_type(CordaObject.Type.ERROR_ANALYSIS)
+        file_to_analyse.add_process_to_execute(collect_errors)
 
     # 4. Ejecutar procesamiento
     file_to_analyse.pre_analysis()
@@ -97,14 +108,36 @@ def analyze_corda_log(log_file_path: str) -> dict:
         payload["summary"]["detected_roles"] = detected_roles
         payload["parties"] = parties
 
-    flows = []
-    transactions = []
-    for item in file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS, True) or []:
-        ref_id = item.get_reference_id()
-        if item.get_type() == "FLOW":
-            flows.append(ref_id)
-        elif item.get_type() == "TRANSACTION":
-            transactions.append(ref_id)
+    if collect_refIds:
+        flows = []
+        transactions = []
+        for item in file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS, True) or []:
+            ref_id = item.get_reference_id()
+            if item.get_type() == "FLOW":
+                flows.append(ref_id)
+            elif item.get_type() == "TRANSACTION":
+                transactions.append(ref_id)
+
+        payload["summary"]["total_transactions"] = len(transactions)
+        payload["summary"]["total_flows"]= len(flows)
+
+        payload["flows"] = flows
+        payload["transactions"] = transactions
+
+    if special_blocks and  special_blocks.collected_blocks:
+        payload["specialblocks"] = {
+            "collected_blocktypes_types": special_blocks.get_collected_block_types(),
+            "defined_blocktypes": special_blocks.get_defined_block_types(),
+            "collected_blocktypes": special_blocks.get_all_content()
+        }
+
+    if collect_errors:
+        collect_errors.collected_errors = file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
+        # payload["Error-log"] = collect_errors.get_error_category()
+        payload['Error-Log'] = collect_errors.get_all_content()
+        payload['summary'] = {
+            'Error-log': collect_errors.get_error_summary()
+        }
 
     # 6. Devolver resultado estructurado
     return payload
