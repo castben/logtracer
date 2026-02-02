@@ -22,7 +22,9 @@ def analyze_corda_log(log_file_path: str) -> dict:
     max_number_items_fNtx = 15
     tui_logging = None
     Configs.load_config()
-
+    payload = {
+        "summary":{}
+    }
     KnownErrors.configs = Configs
     KnownErrors.initialize()
     data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
@@ -33,26 +35,35 @@ def analyze_corda_log(log_file_path: str) -> dict:
     file_to_analyse = FileManagement(log_file_path, block_size_in_mb=15)
 
     if not file_to_analyse.state:
-        raise ValueError("Invalid log file")
+        raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
 
     file_to_analyse.discover_file_format()
+    special_blocks = None
+    collect_parties = None
+    collect_refIds = None
+    collect_errors = None
 
-    # 2. Extraer bloques especiales (opcional, si los necesitas en la API)
-    special_blocks = BlockExtractor(file_to_analyse, Configs.config)
-    special_blocks.extract()
+    if not what_to_collect or what_to_collect == CordaObject.Type.SPECIAL_BLOCKS:
+        # 2. Extraer bloques especiales (opcional, si los necesitas en la API)
+        special_blocks = BlockExtractor(file_to_analyse, Configs.config)
+        special_blocks.extract()
 
-    # 3. Configurar recolectores
-    #
-    # Party collection
-    collect_parties = GetParties(Configs)
-    collect_parties.set_file(file_to_analyse)
-    collect_parties.set_element_type(CordaObject.Type.PARTY)
+    if not what_to_collect or what_to_collect == CordaObject.Type.PARTY:
+        # 3. Configurar recolectores
+        #
+        # Party collection
+        collect_parties = GetParties(Configs)
+        collect_parties.set_file(file_to_analyse)
+        collect_parties.set_element_type(CordaObject.Type.PARTY)
+        file_to_analyse.add_process_to_execute(collect_parties)
 
-    #
-    # Transactions and Flows collection
-    collect_refIds = GetRefIds(Configs)
-    collect_refIds.set_file(file_to_analyse)
-    collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
+    if not what_to_collect or what_to_collect == CordaObject.Type.FLOW_AND_TRANSACTIONS:
+        #
+        # Transactions and Flows collection
+        collect_refIds = GetRefIds(Configs)
+        collect_refIds.set_file(file_to_analyse)
+        collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
+        file_to_analyse.add_process_to_execute(collect_refIds)
 
     #
     # Collection of Errors
@@ -66,31 +77,25 @@ def analyze_corda_log(log_file_path: str) -> dict:
     file_to_analyse.add_process_to_execute(collect_errors)
     file_to_analyse.parallel_processing()
 
-    # 1. Obtener todos los roles detectados en el log
-    detected_roles = file_to_analyse.get_party_role()
-
-    if special_blocks.collected_blocks:
-        specialblocks = {
-            "collected_blocktypes_types": special_blocks.get_collected_block_types(),
-            "defined_blocktypes": special_blocks.get_defined_block_types(),
-            "collected_blocktypes": special_blocks.get_all_content()
-        }
-    else:
-        specialblocks = None
-
-
 
     # Si quieres soportar múltiples roles por party:
-    x500_to_roles = {}
-    for role in detected_roles:
-        for x500 in (file_to_analyse.get_party_role(role) or []):
-            x500_to_roles.setdefault(x500, []).append(role)
+    if collect_parties:
+        # 1. Obtener todos los roles detectados en el log
+        detected_roles = file_to_analyse.get_party_role()
 
-    # Luego:
-    parties = [
-        {"name": p.name, "roles": x500_to_roles.get(p.name, [])}
-        for p in file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
-    ]
+        x500_to_roles = {}
+        for role in detected_roles:
+            for x500 in (file_to_analyse.get_party_role(role) or []):
+                x500_to_roles.setdefault(x500, []).append(role)
+
+        # Luego:
+        parties = [
+            {"name": p.type, "roles": x500_to_roles.get(p.type, [])}
+            for p in file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
+        ]
+        payload["summary"]["total_parties"] = len(parties)
+        payload["summary"]["detected_roles"] = detected_roles
+        payload["parties"] = parties
 
     flows = []
     transactions = []
@@ -102,15 +107,4 @@ def analyze_corda_log(log_file_path: str) -> dict:
             transactions.append(ref_id)
 
     # 6. Devolver resultado estructurado
-    return {
-        "summary": {
-            "total_parties": len(parties),
-            "total_flows": len(flows),
-            "total_transactions": len(transactions),
-        },
-        "parties": parties,
-        "flows": flows,
-        "transactions": transactions,
-        "special_blocks": specialblocks
-        # Puedes añadir "delays", "special_blocks", etc. si los expones
-    }
+    return payload
