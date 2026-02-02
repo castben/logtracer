@@ -4013,6 +4013,21 @@ class LogAnalysis:
 
                     match = rgx.findall(line)
                     if match:
+                        ignore_messages = KnownErrors.get(each_category,each_error).ignore_messages_with
+                        if ignore_messages:
+                            ignore_regex = "|".join(ignore_messages)
+                            rgx_ign = RegexLib.use(ignore_regex)
+                            if rgx_ign.search(line):
+                                # need to ignore this line because is an exception
+                                continue
+                        scan_chk = None
+                        try:
+                            scan_line = re.compile(RegexLib.build_regex_with_groupnames(self.file.log_line_regex.pattern,
+                                                                                        self.file.log_line_fields,
+                                                                                        self.file.logfile_format))
+                            scan_chk = scan_line.search(line)
+                        except ValueError as ve:
+                            write_log(f"Error in regex: {ve}")
                         error = Error()
                         error.category = each_category
                         error.name = each_error
