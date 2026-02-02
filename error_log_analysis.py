@@ -4,10 +4,11 @@ from object_class import LogAnalysis, CordaObject
 class ErrorAnalisys:
     def __init__(self, file, get_configs):
         self.Configs = get_configs
-
+        self.collected_errors = None
         self.file = file
         self.type = None
         self.log_analysis = LogAnalysis(file, get_configs)
+        self.category_list = {}
 
     def clear(self):
         """
