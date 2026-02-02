@@ -4034,7 +4034,15 @@ class LogAnalysis:
                         error.log_line = line
                         error.reference_id = current_line
                         error.line_number = current_line
-                        error.timestamp = None
+                        if scan_chk:
+                           error.timestamp = scan_chk.group("timestamp")
+                           error.level = scan_chk.group("error_level").strip()
+                        else:
+                            error.timestamp = None
+                            error.level = None
+
+                        if each_category not in self.category_list:
+                            self.category_list[each_category] = 1
                         # if each_category not in found_errors:
                         #     found_errors[each_category] = {}
                         #
