@@ -3889,6 +3889,7 @@ class Error:
         self.line_number = None
         self.type = None
         self.category = None
+        self.level = None
 
 class KnownErrors:
     """
