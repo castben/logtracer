@@ -1222,6 +1222,7 @@ class FileManagement:
         self.min_percent_merge = min_percent_merge  # Porcentaje mínimo para no fusionar el bloque final
         self.special_blocks: BlockExtractor # Collect all blocks that are not collectable by multithread process
         self.log_line_regex = None
+        self.log_line_fields = None
         self.state = None
 
         if not os.path.exists(self.filename):
@@ -1797,6 +1798,7 @@ class FileManagement:
                             if check_version:
                                 self.logfile_format = each_version
                                 self.log_line_regex = re.compile(try_version["EXPECT"])
+                                self.log_line_fields = try_version['FIELDS']
                                 write_log("Log file format recognized as: %s" % self.logfile_format)
                                 break
         except IOError as io:
@@ -3335,6 +3337,140 @@ class RegexLib:
                     return_regex = regex_replace
 
         return return_regex
+
+############################
+
+    def build_regex_with_groupnames(
+            regex_string: str,
+            regex_groups: list,
+            pattern_name: str = None  # opcional, útil para debugging
+    ) -> str:
+        """
+        Añade nombres a los grupos de captura si ninguno tiene nombre.
+        Si todos ya tienen nombre, valida que la cantidad coincida con regex_groups.
+        Si hay inconsistencia (parcial o en conteo), lanza un error descriptivo.
+        """
+        # --- Paso 1: Analizar la estructura de grupos ---
+        i = 0
+        escaped = False
+        group_count = 0
+        named_group_count = 0
+        named_group_names = []
+
+        while i < len(regex_string):
+            char = regex_string[i]
+
+            if escaped:
+                escaped = False
+                i += 1
+                continue
+
+            if char == '\\':
+                escaped = True
+                i += 1
+                continue
+
+            if char == '(':
+                if i + 1 < len(regex_string) and regex_string[i + 1] == '?':
+                    # Grupo especial
+                    if i + 2 < len(regex_string) and regex_string[i + 2] == 'P':
+                        # (?P<name>...)
+                        end_name = regex_string.find('>', i + 3)
+                        if end_name == -1:
+                            raise ValueError(f"Grupo nombrado mal formado en regex: {regex_string}")
+                        name = regex_string[i + 3:end_name]
+                        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+                            raise ValueError(f"Nombre de grupo inválido: '{name}' en regex: {regex_string}")
+                        named_group_names.append(name)
+                        named_group_count += 1
+                        group_count += 1
+                    # Otros (?...): no son grupos de captura → ignorar
+                else:
+                    # Grupo de captura sin nombre
+                    group_count += 1
+            i += 1
+
+        # --- Paso 2: Validar consistencia ---
+        expected_count = len(regex_groups)
+
+        # Caso A: Algunos grupos nombrados, otros no → error
+        if 0 < named_group_count < group_count:
+            pattern_info = f" (patrón: '{pattern_name}')" if pattern_name else ""
+            raise ValueError(
+                f"Regex inconsistente:{pattern_info}\n"
+                f"  - Total de grupos de captura: {group_count}\n"
+                f"  - Grupos con nombre: {named_group_count} → {named_group_names}\n"
+                f"  - Regex: {regex_string}"
+            )
+
+        # Caso B: Todos los grupos ya tienen nombre
+        if named_group_count == group_count and group_count > 0:
+            if expected_count != group_count:
+                pattern_info = f" (patrón: '{pattern_name}')" if pattern_name else ""
+                raise ValueError(
+                    f"Mismatch en número de campos esperados vs grupos nombrados:{pattern_info}\n"
+                    f"  - FIELDS define {expected_count} nombres: {regex_groups}\n"
+                    f"  - Regex tiene {group_count} grupos nombrados: {named_group_names}\n"
+                    f"  - Regex: {regex_string}"
+                )
+            # Todo OK → devolver tal cual
+            return regex_string
+
+        # Caso C: Ningún grupo tiene nombre (o no hay grupos)
+        if expected_count != group_count:
+            pattern_info = f" (patrón: '{pattern_name}')" if pattern_name else ""
+            raise ValueError(
+                f"Número de grupos de captura no coincide con FIELDS:{pattern_info}\n"
+                f"  - FIELDS define {expected_count} nombres: {regex_groups}\n"
+                f"  - Regex tiene {group_count} grupos de captura\n"
+                f"  - Regex: {regex_string}"
+            )
+
+        # --- Paso 3: Inyectar nombres si es necesario ---
+        if group_count == 0:
+            return regex_string  # nada que hacer
+
+        result = []
+        i = 0
+        escaped = False
+        group_index = 0
+
+        while i < len(regex_string):
+            char = regex_string[i]
+
+            if escaped:
+                result.append(char)
+                escaped = False
+                i += 1
+                continue
+
+            if char == '\\':
+                result.append(char)
+                escaped = True
+                i += 1
+                continue
+
+            if char == '(':
+                if i + 1 < len(regex_string) and regex_string[i + 1] == '?':
+                    result.append(char)
+                    i += 1
+                    continue
+                else:
+                    name = regex_groups[group_index]
+                    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+                        raise ValueError(f"Nombre de grupo inválido: '{name}'")
+                    result.append(f"(?P<{name}>")
+                    group_index += 1
+                    i += 1
+                    continue
+
+            result.append(char)
+            i += 1
+
+        return ''.join(result)
+
+################################
+
 
     class Search:
         # def __init__(self, pattern, string, flags=re.MULTILINE):
