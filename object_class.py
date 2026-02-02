@@ -1181,9 +1181,9 @@ class CordaObject:
         Allowed Types to set
         """
 
-        FLOW_AND_TRANSACTIONS = "Flows&Transactions"
-        UML_STEPS = "UML-Steps"
-        PARTY = "Party"
+        FLOW_AND_TRANSACTIONS = 'Flows&Transactions'
+        UML_STEPS = 'UML-Steps'
+        PARTY = 'Party'
         ERROR_ANALYSIS = 'Error-Log'
 
 class FileManagement:
