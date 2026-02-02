@@ -3907,8 +3907,8 @@ class KnownErrors:
         """
 
         self.category = None
-        self.name = None
-        self.error_strings = None
+        self.type = None
+        self.compiled_rgx = None
         self.alert_type = None
         self.report_only_to = None
 
