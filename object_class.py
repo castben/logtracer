@@ -3997,6 +3997,7 @@ class LogAnalysis:
         self.file = file
         self.config = config
         self.found_errors = {}
+        self.category_list = {}
 
 
     def parse(self, line, current_line):
@@ -4008,7 +4009,8 @@ class LogAnalysis:
         found_errors = []
         for each_category in KnownErrors.get_categories():
             for each_error in KnownErrors.get(category=each_category):
-                for rgx in KnownErrors.get(each_category,each_error).error_strings:
+                for rgx in KnownErrors.get(each_category,each_error).compiled_rgx:
+
                     match = rgx.findall(line)
                     if match:
                         error = Error()
