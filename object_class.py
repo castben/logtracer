@@ -3911,6 +3911,7 @@ class KnownErrors:
         self.compiled_rgx = None
         self.alert_type = None
         self.report_only_to = None
+        self.ignore_messages_with = None
 
     @classmethod
     def get_categories(cls):
