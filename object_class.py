@@ -4030,7 +4030,7 @@ class LogAnalysis:
                             write_log(f"Error in regex: {ve}")
                         error = Error()
                         error.category = each_category
-                        error.name = each_error
+                        error.type = each_error
                         error.log_line = line
                         error.reference_id = line
                         error.line_number = current_line
