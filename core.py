@@ -75,9 +75,8 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None)
     # 4. Ejecutar procesamiento
     file_to_analyse.pre_analysis()
     # file_to_analyse.add_process_to_execute(collect_parties)
-    # file_to_analyse.add_process_to_execute(collect_refIds)
-    file_to_analyse.add_process_to_execute(collect_errors)
-    file_to_analyse.parallel_processing()
+    #
+    file_to_analyse.parallel_processing(maxworkers=1)
 
 
     # Si quieres soportar múltiples roles por party:
