@@ -3868,7 +3868,11 @@ class BlockExtractor:
         for each_type in self.get_reference():
             return_content[each_type] = {}
             for each_content in self.get_reference(None, each_type):
-                return_content[each_type][each_content] = each_content.get_content()
+                return_content[each_type][each_content] = list()
+                for each_detail in self.get_reference(each_content, each_type):
+                    return_content[each_type][each_content].append("".join(each_detail.get_content()))
+
+        return return_content
 
 class Error:
     """
