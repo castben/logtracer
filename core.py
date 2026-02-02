@@ -1,23 +1,14 @@
 # logtracer/core.py
-
-
-def analyze_corda_log(log_file_path: str) -> dict:
-    """
-    Analiza un archivo de log de Corda y devuelve un diccionario con:
-    - parties
-    - flows
-    - transactions
-    - estadísticas (tiempo, conteos, etc.)
-    """
-    from object_class import FileManagement
-    from object_class import BlockExtractor
-    from get_parties import GetParties
-    from get_refIds import GetRefIds
-    from object_class import CordaObject
-    from object_class import Configs  # o pásalo como parámetro
-    from object_class import KnownErrors
-    from error_log_analysis import ErrorAnalisys
-    import os
+from distutils.file_util import write_file
+from object_class import FileManagement
+from object_class import BlockExtractor
+from get_parties import GetParties
+from get_refIds import GetRefIds
+from object_class import CordaObject
+from object_class import Configs  # o pásalo como parámetro
+from object_class import KnownErrors
+from error_log_analysis import ErrorAnalisys
+import os
 
 def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None) -> dict:
     """
