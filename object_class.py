@@ -1674,7 +1674,7 @@ class FileManagement:
                 write_log(f"Error Processing block {start_line}-{end_line}: {str(e)}", level="ERROR")
             return None
 
-    def parallel_processing(self):
+    def parallel_processing(self,maxworkers=5):
         """
         Procesamiento paralelo CORREGIDO para mantener la UI responsive
         """
@@ -1688,7 +1688,7 @@ class FileManagement:
         futures = []
         active_tasks = tasks.copy()
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=maxworkers) as pool:
             # Función para monitorear tareas SIN BLOQUEAR
             def monitor_tasks():
                 nonlocal active_tasks
