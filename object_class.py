@@ -1185,6 +1185,7 @@ class CordaObject:
         UML_STEPS = 'UML-Steps'
         PARTY = 'Party'
         ERROR_ANALYSIS = 'Error-Log'
+        SPECIAL_BLOCKS = 'special_blocks'
 
 class FileManagement:
     """
