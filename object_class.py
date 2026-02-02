@@ -3923,28 +3923,28 @@ class KnownErrors:
         return list(cls.errors.keys())
 
     @classmethod
-    def get(cls, category=None, name=None):
+    def get(cls, category=None, type=None):
         """
         Return given error
         :param category: return all errors known under given category
-        :param name: return all errors with given name
+        :param type: return all errors with given name
         :return: a dictionary
         """
 
         result = {}
 
-        if category and not name and category in KnownErrors.errors:
+        if category and not type and category in KnownErrors.errors:
             return KnownErrors.errors[category]
 
-        if not category and name:
+        if not category and type:
             for each_category in KnownErrors.errors:
                 for each_error in KnownErrors.errors[each_category]:
-                    if each_error.name == name:
-                        result[each_category][each_error.name] = each_error
+                    if each_error.type == type:
+                        result[each_category][each_error.type] = each_error
 
-        if category and name:
-            if category in KnownErrors.errors and name in KnownErrors.errors[category]:
-                return KnownErrors.errors[category][name]
+        if category and type:
+            if category in KnownErrors.errors and type in KnownErrors.errors[category]:
+                return KnownErrors.errors[category][type]
 
         return None
 
