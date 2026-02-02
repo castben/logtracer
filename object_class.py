@@ -3959,14 +3959,15 @@ class KnownErrors:
             for each_error in cls.configs.get_config_for(f'WATCH_FOR.{each_category}'):
                 known_error = KnownErrors()
                 known_error.category = each_category
-                known_error.name = each_error
-                known_error.error_strings = []
+                known_error.type = each_error
+                known_error.compiled_rgx = []
                 for each_regex in cls.configs.get_config_for(f'WATCH_FOR.{each_category}.{each_error}.error_strings'):
                     compiled = re.compile(each_regex)
-                    known_error.error_strings.append(compiled)
+                    known_error.compiled_rgx.append(compiled)
 
                 known_error.alert_type = cls.configs.get_config_for(f'WATCH_FOR.{each_category}.{each_error}.alert_types')
                 known_error.report_only_to = cls.configs.get_config_for(f'WATCH_FOR.{each_category}.{each_error}.report_only_to')
+                known_error.ignore_messages_with = cls.configs.get_config_for(f'WATCH_FOR.{each_category}.{each_error}.ignore_messages_with')
                 known_error.add()
 
 
