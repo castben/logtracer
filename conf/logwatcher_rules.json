@@ -646,7 +646,12 @@
       },
       "AMQMessages": {
         "error_strings": [
-          "AMQ[0-9]+.*"
+          "AMQ(214|224|401|500)\\d{2}"
+        ],
+        "ignore_messages_with": [
+            "AMQ119031",
+            "AMQ222050",
+            "AMQ219003"
         ],
         "report_only_to": [],
         "alert_type": "warning"
