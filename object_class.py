@@ -1224,6 +1224,7 @@ class FileManagement:
         self.log_line_regex = None
         self.log_line_fields = None
         self.state = None
+        self.state_message = None
 
         if not os.path.exists(self.filename):
             write_log("Unable to open given filename, it doesn't exist", level="ERROR")
