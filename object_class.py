@@ -3981,7 +3981,7 @@ class KnownErrors:
         if self.category not in KnownErrors.errors:
             KnownErrors.errors[self.category] = {}
 
-        KnownErrors.errors[self.category][self.name] = self
+        KnownErrors.errors[self.category][self.type] = self
 
 class LogAnalysis:
     """
