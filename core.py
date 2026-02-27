@@ -52,12 +52,12 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None)
     collect_refIds = None
     collect_errors = None
 
-    if not what_to_collect or what_to_collect == CordaObject.Type.SPECIAL_BLOCKS:
+    if not what_to_collect or CordaObject.Type.SPECIAL_BLOCKS in  what_to_collect:
         # 2. Extraer bloques especiales (opcional, si los necesitas en la API)
         special_blocks = BlockExtractor(file_to_analyse, Configs.config)
         special_blocks.extract()
 
-    if not what_to_collect or what_to_collect == CordaObject.Type.PARTY:
+    if not what_to_collect or CordaObject.Type.PARTY in what_to_collect:
         # 3. Configurar recolectores
         #
         # Party collection
@@ -66,7 +66,7 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None)
         collect_parties.set_element_type(CordaObject.Type.PARTY)
         file_to_analyse.add_process_to_execute(collect_parties)
 
-    if not what_to_collect or what_to_collect == CordaObject.Type.FLOW_AND_TRANSACTIONS:
+    if not what_to_collect or CordaObject.Type.FLOW_AND_TRANSACTIONS in what_to_collect:
         #
         # Transactions and Flows collection
         collect_refIds = GetRefIds(Configs)
@@ -74,7 +74,7 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None)
         collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
         file_to_analyse.add_process_to_execute(collect_refIds)
 
-    if not what_to_collect or what_to_collect == CordaObject.Type.ERROR_ANALYSIS:
+    if not what_to_collect or CordaObject.Type.ERROR_ANALYSIS in what_to_collect:
         #
         # Collection of Errors
         collect_errors = ErrorAnalysis(Configs.config)
@@ -96,9 +96,9 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None)
             for x500 in (file_to_analyse.get_party_role(role) or []):
                 x500_to_roles.setdefault(x500, []).append(role)
 
-        # Luego:
+
         parties = [
-            {"name": p.type, "roles": x500_to_roles.get(p.type, [])}
+            {"name": p.name, "roles": x500_to_roles.get(p.name, [])}
             for p in file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
         ]
         payload["summary"]["total_parties"] = len(parties)
