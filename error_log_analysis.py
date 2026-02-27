@@ -1,15 +1,25 @@
 from object_class import LogAnalysis, CordaObject
 
 
-class ErrorAnalisys:
-    def __init__(self, file, get_configs):
+class ErrorAnalysis:
+    def __init__(self, get_configs):
         self.Configs = get_configs
         self.collected_errors = None
-        self.file = file
+        self.file = None
         self.type = None
-        self.log_analysis = LogAnalysis(file, get_configs)
+        self.log_analysis = None
         self.category_list = {}
 
+    def set_file(self, file):
+        """
+        
+        :param file: 
+        :return: 
+        """
+        self.file = file
+        self.log_analysis = LogAnalysis(file, self.Configs)
+        
+        
     def clear(self):
         """
         Delete all collected party information
