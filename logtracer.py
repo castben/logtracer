@@ -15,7 +15,7 @@ import yaml
 from TermTk import TTkUtil, TTkUiLoader, TTk
 import TermTk as ttk
 
-from error_log_analysis import ErrorAnalisys
+from error_log_analysis import ErrorAnalysis
 from get_refIds import GetRefIds
 from object_class import Configs, FileManagement, BlockExtractor, KnownErrors, LogAnalysis
 from object_class import CordaObject
@@ -118,6 +118,17 @@ class CustomerInfo:
                 customer_info.set_full_attributes(yaml.safe_load(cinfo)['customer_data'])
         else:
             write_log('Not information found for this ticket')
+
+
+def _check_manual_role_set(file_to_check):
+    """
+    Check if analised file has a manual role set saved, if so those are being added to be assigned automatically
+    :return:
+    """
+    roles_to_set = customer_info.get_attribute('manually_role_set')
+    if roles_to_set:
+        for each_party in roles_to_set:
+            file_to_check.add_party_role(each_party, roles_to_set[each_party])
 
 
 class InteractiveWindow:
@@ -490,6 +501,78 @@ class InteractiveWindow:
 
             return subdirs
 
+        def _party_role_apply():
+            """
+            :return:
+            """
+            # selection = self.tree_party.getWidgetByName('TTkTree_party').selectedItems()
+            # if not selection:
+            # return
+
+            # Roles que solo pueden asignarse una vez y son mutuamente excluyentes.
+            # Si 'log_owner' está asignado, 'notary/log_owner' no puede y viceversa.
+            # No hay límite para otros roles como 'party' o 'notary'.
+            exclusive_one_time_roles = {'log_owner', 'notary/log_owner'}
+
+            # Para saber si alguno de los roles exclusivos ya ha sido asignado.
+            # Usamos un conjunto para almacenar el nombre del rol asignado (si lo hay).
+            assigned_exclusive_role = None
+
+            role_changes = {}
+            roles_to_save = {}
+            current = 0
+
+            # Primero, pre-validar las asignaciones para detectar conflictos antes de aplicar cambios
+            while True:
+                party_name_item = self.tree_party.topLevelItem(current)
+                if not party_name_item:
+                    break
+
+                party_name = party_name_item.data(0).toAscii()
+                role_to_set = party_name_item.widget(1).currentText()
+
+                # Validar roles exclusivos de una vez
+                if role_to_set in exclusive_one_time_roles:
+                    # Si ya se asignó un rol exclusivo...
+                    if assigned_exclusive_role:
+                        # ...y estamos intentando asignar el mismo rol exclusivo por segunda vez,
+                        # o estamos intentando asignar el *otro* rol exclusivo,
+                        # entonces hay un conflicto.
+                        if assigned_exclusive_role == role_to_set:
+                            write_log(f'The role "{role_to_set}" can only be assigned once. It has already been assigned.', level="WARN")
+                            return
+                        else:
+                            write_log(f'The role "{role_to_set}" is exclusive. The role "{assigned_exclusive_role}" has already been assigned, so you cannot assign "{role_to_set}".', level="WARN")
+                            return
+                    else:
+                        # Si no se ha asignado ningún rol exclusivo todavía, asignamos este.
+                        assigned_exclusive_role = role_to_set
+
+                # Guardamos el cambio, ya que no hay otras restricciones para los demás roles.
+                role_changes[party_name] = role_to_set
+                current += 1
+
+            # Si todo va bien en la validación, entonces aplica los cambios
+            for each_party in role_changes:
+                if each_party in file_to_analyse.unique_results['Party']:
+                    if role_changes[each_party] == 'party' and file_to_analyse.unique_results['Party'][each_party].role == '':
+                        # Por defecto en el analysis, los Parties que no tienen un rol como log_owner o notary estan en blanco
+                        # lo que significa que son simplemente 'party' necesito ver si puedo hacer esto explicitamente, el hecho
+                        # que este en blanco y represente 'party' no me gusta...
+
+                        continue
+                    else:
+                        # Solo asignar los roles que son relevantes para el analysis
+                        if file_to_analyse.unique_results['Party'][each_party].role != role_changes[each_party]:
+                            file_to_analyse.add_party_role(each_party,role_changes[each_party])
+                            #file_to_analyse.unique_results['Party'][each_party].set_role(role_changes[each_party])
+                            write_log(f"Setting role {role_changes[each_party]} to {each_party} ")
+                            roles_to_save[each_party] = role_changes[each_party]
+
+            file_to_analyse.assign_roles()
+            customer_info.set_attribute('manually_role_set', roles_to_save)
+
+
         def _enable_file_select(ticket):
             """
             Enable button for file selection. This is done Only if a ticket has been selected...
@@ -577,13 +660,6 @@ class InteractiveWindow:
             schedule_ui_update('TTkLabel_Flows','setText',f"{Icons.CLOCK}...")
             schedule_ui_update('TTkLabel_Parties','setText',f"{Icons.CLOCK}...")
 
-            def _party_role_apply():
-                """
-
-                :return:
-                """
-                write_log("Check roles!!")
-                pass
 
             def _load_party_tree():
                 """Carga el árbol de parties (mantener como está)"""
@@ -621,12 +697,6 @@ class InteractiveWindow:
                     else:
                         schedule_ui_update('TTkLabel_Parties', 'setText', '0')
 
-                    apply_button:ttk.TTkButton = root_window_party.getWidgetByName('TTkButton_apply')
-                    if apply_button:
-                        apply_button.clicked.connect(lambda: _party_role_apply)
-                    else:
-                        write_log(f"NO CONNECTED! {apply_button}")
-
                 except BaseException as be:
                     write_log(f'Unable to process parties due to {be}', level='ERROR')
 
@@ -648,6 +718,8 @@ class InteractiveWindow:
 
                 # Set roles if it is possible
                 if file_to_analyse.result_has_element(CordaObject.Type.PARTY):
+                    # Check if there're manual role set
+                    _check_manual_role_set(file_to_analyse)
                     write_log('Setting up roles automatically...')
                     file_to_analyse.assign_roles()
 
@@ -848,7 +920,7 @@ class InteractiveWindow:
             collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
 
             # Set Error Log analysis -- TODO: need to review for optimizations
-            # collect_errors = ErrorAnalisys(file_to_analyse, Configs)
+            # collect_errors = ErrorAnalysis(file_to_analyse, Configs)
             # collect_errors.set_file(file_to_analyse)
             # collect_errors.set_element_type(CordaObject.Type.ERROR_ANALYSIS)
 
@@ -933,8 +1005,6 @@ class InteractiveWindow:
              Método que lanza el trace en un hilo separado
             """
             # Mostrar mensaje de inicio en UI
-
-
 
             write_log(f"Starting trace analysis for {ref_id}...")
 
@@ -1575,7 +1645,9 @@ class InteractiveWindow:
         frame_party = root_window_party.getWidgetByName('MainWindow_party')
         TTkFrame_party = root_window_party.getWidgetByName('TTkTree_frame')
         self.tree_party: ttk.TTkTree = root_window_party.getWidgetByName('TTkTree_party')
+        self.ttk_button_apply: ttk.TTkButton = root_window_party.getWidgetByName('TTkButton_apply')
         TTKButton_show_party.clicked.connect(lambda: _show_hide_window('party'))
+        self.ttk_button_apply.clicked.connect(_party_role_apply)
 
         #Main window
         TTkFileButtonPicker.setEnabled(False)
