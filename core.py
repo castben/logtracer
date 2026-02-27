@@ -1,4 +1,5 @@
 # logtracer/core.py
+import threading
 from distutils.file_util import write_file
 from object_class import FileManagement
 from object_class import BlockExtractor
@@ -7,23 +8,30 @@ from get_refIds import GetRefIds
 from object_class import CordaObject
 from object_class import Configs  # o pásalo como parámetro
 from object_class import KnownErrors
-from error_log_analysis import ErrorAnalisys
+from error_log_analysis import ErrorAnalysis
 import os
+
+from uml import CreateUML, UMLStepSetup
+
 
 def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None) -> dict:
     """
     Analiza un archivo de log de Corda y devuelve un diccionario con:
     - parties
     - flows
-    - transactions
+    - transaction
     - estadísticas (tiempo, conteos, etc.)
     """
-
-    max_number_items_fNtx = 15
-    tui_logging = None
+    
+    # Always convert it into a proper list
+    if isinstance(what_to_collect, CordaObject.Type):
+        what_to_collect = [what_to_collect]
+        
     Configs.load_config()
     payload = {
-        "summary":{}
+        "summary":{
+            "log_file": log_file_path
+        }
     }
     KnownErrors.configs = Configs
     KnownErrors.initialize()
@@ -38,6 +46,7 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None)
         raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
 
     file_to_analyse.discover_file_format()
+    payload["summary"]["file-version-used"] = file_to_analyse.logfile_format
     special_blocks = None
     collect_parties = None
     collect_refIds = None
@@ -68,16 +77,14 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None)
     if not what_to_collect or what_to_collect == CordaObject.Type.ERROR_ANALYSIS:
         #
         # Collection of Errors
-        collect_errors = ErrorAnalisys(file_to_analyse, Configs.config)
+        collect_errors = ErrorAnalysis(Configs.config)
+        collect_errors.set_file(file_to_analyse)
         collect_errors.set_element_type(CordaObject.Type.ERROR_ANALYSIS)
         file_to_analyse.add_process_to_execute(collect_errors)
 
     # 4. Ejecutar procesamiento
     file_to_analyse.pre_analysis()
-    # file_to_analyse.add_process_to_execute(collect_parties)
-    #
-    file_to_analyse.parallel_processing(maxworkers=1)
-
+    file_to_analyse.parallel_processing()
 
     # Si quieres soportar múltiples roles por party:
     if collect_parties:
@@ -125,9 +132,114 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None)
         collect_errors.collected_errors = file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
         # payload["Error-log"] = collect_errors.get_error_category()
         payload['Error-Log'] = collect_errors.get_all_content()
-        payload['summary'] = {
-            'Error-log': collect_errors.get_error_summary()
-        }
+        payload['summary']['Error-log'] =  collect_errors.get_error_summary()
+
 
     # 6. Devolver resultado estructurado
     return payload
+
+def get_analysis_for(log_file_path: str, reference_id: str):
+    """
+    Get specific results from a reference_id
+    :param log_file_path: file to analyse
+    :param reference_id: Transaction ID or Flow ID
+    :return:
+    """
+    data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
+
+    app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
+
+    # 1. Configurar archivo
+    file_to_analyse = FileManagement(log_file_path, block_size_in_mb=15)
+
+    if not file_to_analyse.state:
+        raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
+
+    file_to_analyse.discover_file_format()
+
+    def _run_trace_analysis(ref_id, co):
+        """
+        Función que ejecuta el análisis en un hilo separado
+        """
+        try:
+
+            # Proceso de análisis
+            uml_trace = UMLStepSetup(Configs, co)
+            uml_trace.file = file_to_analyse
+            uml_trace.parallel_process(co)
+
+            c_uml = CreateUML(co, file_to_analyse)
+            script_file = c_uml.generate_uml_pages(
+                client_name=self.customer,
+                ticket=self.ticket,
+                output_prefix=ref_id
+            )
+
+            if not script_file:
+                write_log('No useful information was related to this reference id', level='WARN')
+            else:
+                write_log("\n".join(script_file))
+                success = CreateUML.render_uml(file=script_file)
+                if success:
+                    self.add_generated_file(ref_id, script_file)
+
+            write_log('=============================================================================')
+
+        except Exception as e:
+            write_log(f"Error during analysis: {str(e)}", level='ERROR')
+
+    def _start_trace(ref_id, file_to_analyse, co):
+        """
+         Método que lanza el trace en un hilo separado
+        """
+        # Mostrar mensaje de inicio en UI
+
+
+
+        write_log(f"Starting trace analysis for {ref_id}...")
+
+        # Crear y lanzar el hilo
+        analysis_thread = threading.Thread(
+            target=_run_trace_analysis,
+            args=(ref_id, file_to_analyse, co),
+            name=f"AnalysisThread-{ref_id}",
+            daemon=True  # El hilo se cerrará cuando termine la aplicación
+        )
+        analysis_thread.start()
+
+        # Opcional: guardar referencia al hilo para poder monitorearlo
+        # self.active_threads.append(analysis_thread)
+
+    def _trace(source):
+        """
+        Trace
+        :param source: reference id for the object to trace
+        :return:
+        """
+        global file_to_analyse
+
+        if not file_to_analyse.get_party_role('log_owner'):
+            write_log("Unable to perform a tracing, 'log_owner' role is not being assigned...", level="WARN")
+            write_log("You will need to manually setup it up, otherwise will not be possible to trace any item...", level="WARN")
+            self.tk_popup_window(origen=TTkButton_flow_trace, message="Unable to continue role:\n 'log_owner' hasn't been assigned.")
+            return
+
+        if source == 'flow':
+            ref_id = ttk.TTkString.toAscii(TTkList_flow.selectedLabels()[0])
+
+
+        if source == 'txn':
+            ref_id = ttk.TTkString.toAscii(TTkList_transaction.selectedLabels()[0])
+
+
+        if not source:
+            return
+
+        sref_id = Icons.remove_unicode_symbols(ref_id)
+        co = CordaObject.get_object(sref_id)
+
+        if not ref_id or not co:
+            write_log("Reference ID not found unable to trace it, please try another", level='WARN')
+            return
+
+        _start_trace(sref_id, file_to_analyse, co)
