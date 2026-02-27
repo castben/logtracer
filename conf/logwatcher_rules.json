@@ -800,7 +800,10 @@
           "deadlock"
         ],
         "alert_type": "warning",
-        "report_only_to": []
+        "report_only_to": [],
+        "ignore_messages_with": [
+          "No deadlocked threads"
+        ]
       },
       "Rejections": {
         "error_strings": [
