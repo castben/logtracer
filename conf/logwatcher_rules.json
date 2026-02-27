@@ -65,7 +65,7 @@
         }
       },
       "FINTEUM": {
-        "EXPECT": "([0-9T:,-]+) \\[[A-Z0-9a-z-]*\\] ([A-Z ]*) (.*)",
+        "EXPECT": "(^[0-9T:,-]+) \\[[A-Z0-9a-z-]*\\] ([A-Z ]*) (.*)",
         "FIELDS": [
           "timestamp",
           "error_level",
@@ -1549,7 +1549,7 @@
         },
         "message_id": {
           "EXPECT": [
-            "[A-Z0-9-]"
+            "[A-Z0-9-]*"
           ],
           "APPLY_TO": [
             "message_id"
