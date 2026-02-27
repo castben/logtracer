@@ -124,6 +124,21 @@
           ]
         }
       },
+      "CUSTOM_CHAINTHAT-2": {
+        "EXPECT": "^([0-9ZT:.-]+)(?: \\d{2}:\\d{2}:\\d{2}\\.\\d{3})? \\[[A-Za-z0-9- ()]+\\] ([A-Z]+)  \\| (.*)",
+        "FIELDS": [
+          "timestamp",
+          "error_level",
+          "message"
+        ],
+        "IDENTITY": {
+          "EXPECT": "\\[main\\] [a-zA-Z0-9-_.]+ - ([a-zA-Z0-9 :]+) ([a-zA-Z0-9-\\?=. :\\\"\\/\\+_\\(\\*;\\)\\[\\],]+)",
+          "FIELDS": [
+            "attribute",
+            "value"
+          ]
+        }
+      },
       "CUSTOM_nexi01": {
         "EXPECT": "([0-9-T:,]*)\\s\\|\\s([A-Z]*)\\s*[\\| ]*\\|.*\\|(.*)",
         "FIELDS": [
