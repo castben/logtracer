@@ -779,7 +779,8 @@
       "SQLErrors": {
         "error_strings": [
           "Error pinging mysqld",
-	  "SQL Error: [0-9]+"
+	      "SQL Error: [0-9]+",
+          "Failed to validate connection"
         ],
         "report_only_to": [],
         "alert_type": "warning"
