@@ -1,6 +1,6 @@
 # logtracer/core.py
 import threading
-from distutils.file_util import write_file
+from enum import Enum
 from object_class import FileManagement
 from object_class import BlockExtractor
 from get_parties import GetParties
@@ -13,8 +13,7 @@ import os
 
 from uml import CreateUML, UMLStepSetup
 
-
-def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None) -> dict:
+def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None, datainfo=None) -> dict:
     """
     Analiza un archivo de log de Corda y devuelve un diccionario con:
     - parties
