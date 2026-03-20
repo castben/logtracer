@@ -30,8 +30,12 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None,
     payload = {
         "summary":{
             "log_file": log_file_path
-        }
+        },
+        "results": {}
     }
+    if datainfo:
+        payload["summary"]["file_info"] = datainfo.get_all()
+
     KnownErrors.configs = Configs
     KnownErrors.initialize()
     data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
@@ -102,7 +106,7 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None,
         ]
         payload["summary"]["total_parties"] = len(parties)
         payload["summary"]["detected_roles"] = detected_roles
-        payload["parties"] = parties
+        payload["results"]["parties"] = parties
 
     if collect_refIds:
         flows = []
@@ -117,11 +121,11 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None,
         payload["summary"]["total_transactions"] = len(transactions)
         payload["summary"]["total_flows"]= len(flows)
 
-        payload["flows"] = flows
-        payload["transactions"] = transactions
+        payload["results"]["flows"] = flows
+        payload["results"]["transactions"] = transactions
 
     if special_blocks and  special_blocks.collected_blocks:
-        payload["specialblocks"] = {
+        payload["results"]["specialblocks"] = {
             "collected_blocktypes_types": special_blocks.get_collected_block_types(),
             "defined_blocktypes": special_blocks.get_defined_block_types(),
             "collected_blocktypes": special_blocks.get_all_content()
@@ -130,7 +134,7 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None,
     if collect_errors:
         collect_errors.collected_errors = file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
         # payload["Error-log"] = collect_errors.get_error_category()
-        payload['Error-Log'] = collect_errors.get_all_content()
+        payload["results"]['Error-Log'] = collect_errors.get_all_content()
         payload['summary']['Error-log'] =  collect_errors.get_error_summary()
 
 
