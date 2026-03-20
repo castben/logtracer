@@ -246,3 +246,56 @@ def get_analysis_for(log_file_path: str, reference_id: str):
             return
 
         _start_trace(sref_id, file_to_analyse, co)
+
+class DataInfo:
+    class Attribute(Enum):
+        """
+        Allowed Types to set
+        """
+
+        CUSTOMER = 'customer'
+        TICKET = 'ticket'
+
+    def __init__(self):
+        """
+        Data info structure, to hold information about customer or ticket being handled.
+        """
+
+        self.data = {}
+
+    def set(self, key, value):
+        """
+        Set a data attribute
+        :param key: attribute name
+        :param value: attribute value
+        :return: void
+        """
+        if isinstance(key, DataInfo.Attribute):
+            selement_type = key.value
+            key = selement_type
+
+        self.data[key] = value
+
+    def get(self, key):
+        """
+        return an attribute from data info dictionary
+        :param key: attribute name
+        :return: value if attribute exist, None otherwise
+        """
+
+        if isinstance(key, DataInfo.Attribute):
+            selement_type = key.value
+            key = selement_type
+
+        if key in self.data:
+            return self.data[key]
+
+        return None
+
+    def get_all(self):
+        """
+        Get a dictionary with all attributes stored.
+        :return: dictionary
+        """
+
+        return self.data
