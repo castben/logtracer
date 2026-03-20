@@ -88,7 +88,8 @@ class ErrorAnalysis:
         Will interact through all errors found and will classify them by category.
         :return:
         """
-
+        if not self.collected_errors:
+            return None
         for each_error in self.collected_errors:
             if each_error.category not in self.category_list:
                 self.category_list[each_error.category] = {}
