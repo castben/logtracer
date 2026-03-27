@@ -578,11 +578,15 @@
       "Exceptions": {
         "error_strings": [
           "exception",
-          "ConnectException"
+          "ConnectException",
+          "java.lang.IllegalStateException"
         ],
         "ignore_messages_with": [
 	       "flow hospital",
-          "exceptionDetails=null"
+          "exceptionDetails=null",
+          "add_new_flow_exceptions_table",
+          "Table node_flow_exceptions created",
+          "Index node_flow_exceptions_idx created"
         ],
         "alert_type": "error",
         "report_only_to": []
@@ -702,17 +706,6 @@
         "report_only_to": [],
         "alert_type": "warning"
       },
-      "Liquibase Messages": {
-        "error_strings": [
-          "liquibase.*error.*"
-        ],
-        "report_only_to": [],
-        "alert_type": "info",
-        "ignore_messages_with": [
-          "internal.Node.logStartupInfo",
-          "liquibase.info"
-        ]
-      },
       "SoftLock Errors": {
         "error_strings": [
           "soft lock"
@@ -790,7 +783,8 @@
       "SQLErrors": {
         "error_strings": [
           "Error pinging mysqld",
-	  "SQL Error: [0-9]+"
+	      "SQL Error: [0-9]+",
+          "Failed to validate connection"
         ],
         "report_only_to": [],
         "alert_type": "warning"

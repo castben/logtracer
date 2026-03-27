@@ -8,6 +8,7 @@ import re
 import signal
 import sys
 import threading
+import traceback
 from configparser import BasicInterpolation
 from datetime import datetime
 
@@ -321,6 +322,11 @@ class InteractiveWindow:
         """
 
         """
+        self.ttk_button_modify_party = None
+        self.ttk_button_add_party = None
+        self.ttk_button_delete_party = None
+        self.tree_party = None
+        self.ttk_button_apply = None
         self.root = None
         self.filepath = None
         self.TTkWindow_logging = None
@@ -501,6 +507,85 @@ class InteractiveWindow:
 
             return subdirs
 
+        def _add_party():
+            """
+            Add a new party
+            :return:
+            """
+
+            roles = ['party','log_owner','notary','notary/log_owner']
+            self.TTkWindow_party.setDisabled(True)
+            px,py = self.TTkWindow_party.pos()
+
+            self.ttk_window_popup_add_party.raiseWidget(True)
+            self.ttk_window_popup_add_party.setVisible(True)
+            self.ttk_window_popup_add_party.move(px + 4, py +8)
+
+            for already_assigned_role in file_to_analyse.get_party_role():
+                if already_assigned_role in roles:
+                    roles.remove(already_assigned_role)
+
+            if 'log_owner' in file_to_analyse.get_party_role() and 'notary/log_owner' in roles:
+                roles.remove('notary/log_owner')
+
+            self.ttk_combobox_party_role.addItems(roles)
+
+        def _button_add_party_ok():
+            """
+
+            :return:
+            """
+            party_x500_name = self.ttk_lineedit_party_x500_name.text().toAscii().strip()
+            party_role = self.ttk_combobox_party_role.currentText()
+
+            if not party_x500_name:
+                self.tk_popup_window(self.ttk_window_popup_add_party,
+                                     "Invalid or empty name,\nplease try again",
+                                     "Warning!",
+                                     "Ok",
+                                     "Warning")
+                return
+
+            if not party_role:
+                self.tk_popup_window(self.ttk_window_popup_add_party,
+                                     "You need to select a \nproper role, please\nand try again",
+                                     "Warning!",
+                                     "Ok",
+                                     "Warning")
+                return
+
+            pass
+
+
+        pass
+
+        def _add_modify_delete_cancelled(window_name):
+            """
+            Will re-enable party window
+            :return:
+            """
+            self.TTkWindow_party.setDisabled(False)
+
+            if window_name == 'add_party':
+                self.ttk_window_popup_add_party.setVisible(False)
+
+            if window_name == 'modify_party':
+                pass
+
+        def _modify_party():
+            """
+            Modify party
+            :return:
+            """
+            pass
+
+        def _delete_party():
+            """
+            Delete selected party
+            :return:
+            """
+            pass
+
         def _party_role_apply():
             """
             :return:
@@ -540,9 +625,21 @@ class InteractiveWindow:
                         # entonces hay un conflicto.
                         if assigned_exclusive_role == role_to_set:
                             write_log(f'The role "{role_to_set}" can only be assigned once. It has already been assigned.', level="WARN")
+                            self.tk_popup_window(self.TTkWindow_party,
+                                                 f'The role "{role_to_set}" can only be assigned once.\nIt has already been assigned.',
+                                                 'Role assignment',
+                                                 'Ok',
+                                                 'Warning'
+                                                 )
                             return
                         else:
                             write_log(f'The role "{role_to_set}" is exclusive. The role "{assigned_exclusive_role}" has already been assigned, so you cannot assign "{role_to_set}".', level="WARN")
+                            self.tk_popup_window(self.TTkWindow_party,
+                                                 f'The role "{role_to_set}" is exclusive.\nThe role "{assigned_exclusive_role}"\nhas already been assigned,\nso you cannot assign "{role_to_set}".',
+                                                 'Role assignment',
+                                                 'Ok',
+                                                 'Warning'
+                                                 )
                             return
                     else:
                         # Si no se ha asignado ningún rol exclusivo todavía, asignamos este.
@@ -805,81 +902,6 @@ class InteractiveWindow:
                 schedule_callback(load_lazy_lists)
 
                 process_callbacks()
-
-                # # Flow list
-                # if 'FLOW' in results:
-                #     #TTkLabel_Flows.setText(f"{len(results['FLOW'])}")
-                #     write_log('Flows: Checking for Special blocks related...')
-                #     for index, each_flow in enumerate(results['FLOW']):
-                #         sp_blk = file_to_analyse.special_blocks.get_reference(each_flow)
-                #         fcompleted = f'{Icons.CLOCK}...{(index * 100)/ len(results["FLOW"]):.2f}%'
-                #         if sp_blk:
-                #             icn=""
-                #             for each_blk in sp_blk:
-                #                 icn += f" {Icons.get(Configs.get_config_for(f'BLOCK_COLLECTION.COLLECT.{each_blk}.ICON'))}"
-                #             each_flow = ttk.TTkString(f"{each_flow}{icn.lstrip()}")
-                #
-                #         schedule_ui_update('TTkList_flow', 'addItem', each_flow)
-                #         schedule_ui_update('TTkLabel_Flows', 'setText', fcompleted)
-                #
-                #     schedule_ui_update('TTkLabel_Flows','setText',f"{len(results['FLOW'])}")
-                #     # list_flow.addItem(each_flow)
-                # else:
-                #     schedule_ui_update('TTkLabel_Flows','setText','0')
-                #
-                #
-                # # Transaction list
-                # if 'TRANSACTION' in results:
-                #     # TTkLabel_Transactions.setText(f"{len(results['TRANSACTION'])}")
-                #     write_log('Transactions: Checking for Special blocks related...')
-                #     for index, each_tx in enumerate(results['TRANSACTION']):
-                #         fcompleted = f'{Icons.CLOCK}...{(index * 100)/ len(results["TRANSACTION"]):.2f}%'
-                #         sp_blk = file_to_analyse.special_blocks.get_reference(each_tx)
-                #         if sp_blk:
-                #             icn=""
-                #             for each_blk in sp_blk:
-                #                 icn += f"{Icons.get(Configs.get_config_for(f'BLOCK_COLLECTION.COLLECT.{each_blk}.ICON'))}"
-                #             each_tx = ttk.TTkString(f"{each_tx}{icn.lstrip()}")
-                #         schedule_ui_update('TTkList_transaction', 'addItem', each_tx)
-                #         schedule_ui_update('TTkLabel_Transactions', 'setText', fcompleted)
-                #         # list_transactions.addItem(each_tx)
-                #     schedule_ui_update('TTkLabel_Transactions', 'setText',f"{len(results['TRANSACTION'])}")
-                # else:
-                #     schedule_ui_update('TTkLabel_Transactions', 'setText','0')
-                #
-                # party_headers = {
-                #     'Party X.500 name': 70,
-                #     'Role': 15
-                # }
-                # try:
-                #     schedule_ui_update('TTkTree_party', 'setHeaderLabels', party_headers)
-                #     # self.tree_party.setHeaderLabels(party_headers)
-                #     # Set column width
-                #     for pos,header in enumerate(party_headers.keys()):
-                #         schedule_ui_update('TTkTree_party', 'setColumnWidth',pos, party_headers[header] )
-                #         # self.tree_party.setColumnWidth(pos, party_headers[header])
-                #
-                #     for each_party in FileManagement.get_all_unique_results('Party'):
-                #         if each_party.get_corda_role():
-                #             role = each_party.get_corda_role()
-                #         else:
-                #             role = 'party'
-                #         tree_element = ttk.TTkTreeWidgetItem([each_party.name, role])
-                #         schedule_ui_update('TTkTree_party', 'addTopLevelItem',tree_element )
-                #         # self.tree_party.addTopLevelItem(tree_element)
-                #         if each_party.has_alternate_names():
-                #             for each_alternate in each_party.get_alternate_names():
-                #                 child = ttk.TTkTreeWidgetItem([each_alternate, role])
-                #                 tree_element.addChild(child)
-                #
-                #     # Party List
-                #     if file_to_analyse.get_all_unique_results('Party'):
-                #         schedule_ui_update('TTkLabel_Parties','setText',f"{len(file_to_analyse.get_all_unique_results('Party'))}")
-                #     else:
-                #         schedule_ui_update('TTkLabel_Parties','setText','0')
-                #
-                # except BaseException as be:
-                #     write_log(f'Unable to process parties due to {be}', level='ERROR')
 
             # Configs.load_config()
 
@@ -1461,6 +1483,17 @@ class InteractiveWindow:
             "SGqeS2q55ASbbW4GgcT6icoWEL+vzg423tYDPEWTc9jg9ZRo5R/RgAX0+2gOanEGtZBBlS+CgrYodXUShQSdCWxfCSAgIeHz/duYAVz/T4COTnIFgPqZngyH4XTnndnO" +
             "y9nO9Ut2rm2q1etb4EU9PMUXAJA0FVWfRRHx1X8lwQ8tbf0FhH2Pcg=="))
 
+        root_window_add_party = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
+            "eJyFlN9v0zAQx9sl/bV1bGNjv5EiniZNlA4JafAwsXUdjFCYILAJhKossWarqV0lDluRJvGC1El+w/y/nOM0K7CORlXO55z9+d6d/d385RRzye9SbgiT93tIijuO0/lA" +
+            "Hu0zL+4iyqUofUVhRBiVovC4tlWrS2HwmEgVUvACN4qkqEJMg1HuEopCKYo9N3S7UfKJ+cbtwqqTLZg7JtRn51KUj1hEuFryi9ywTXsCCfM9+YaSYdteRaLSItQ6Jj7H" +
+            "0s5BMIxeInKGuRpWWu5FOvkql8ureXCk89pT+kgichogORClJnXB8pXpMBY4pCdFDmQdub5P6FmyaU4/SBRfu30Wg+oKSErtWBQDbYEgXMLruHIJIl4g1kU87KfhwM1l" +
+            "JMoeJoEfIqUt+TxZKVWuAjfwlJjPXG2AaEO6eF/iaUUyYRcQnlHWJ7uK8Jydw3fhP5/owgv6dW+AFwd4CS/jFfWlYefVg/AaXhfFPRb6UIWBKDiEQwrEzK7vW65F0bml" +
+            "dxJVvbl1ELhnUL4lB4Vdp1NLqhiimsdoxF1V+0Vd2GRU00EqRv6EOvyQ72SM74/kBFs6FSd2GVKBHwCbTkE5SeYpCrIMjHgS2VWFn8ieVdacPQuy8+NkC9NBF4A3e6T0" +
+            "WCdP6nWLQp89gx5tsIBBD5prn+tdKONuQM5o0sh2PhZGCFWAFjI8Fqh3CcZRz6UwKUrgS+1Yi3o6pJ0c0j7cSnkN20h5VzTvym28eEesHAXIjZAVoQB53NLgIQuAGT9P" +
+            "afEebI0bUO59+DdhvYMhi5hSCHC8mj7hWRbXRpy6i9oXkIu2ykUKej9L7LYGzf8BCuZ1VicPaS/mlqPuAUhIpelhZrWYD6Mc3sHLt7E1WPeU7bGLjG1xxJmyKbkZ1jB/" +
+            "CxqrMBZL9/jwhCY9XlaC1amWV7A5tIKVlLkmbVNMH9IIhZBhFhCvL23j5h6FLdIeHadKndu9mHO4pkY1adf1uW2zTtbDhUyToTSZoMm4pScm3kLo5kBUGhh5nVRPKRnA" +
+            "fXU1BgyjIc7qTTieS73sWG3/jVT+D1KxkYZvDnDnCgc3QKB/XW4ciym4NSi0NlzrEdx9ce03TtMMiA=="))
+
         root_window_transaction = TTkUiLoader.loadDict(TTkUtil.base64_deflate_2_obj(
             "eJyNk91PE0EQwK/241pAikL5iDU2JiYkEPz4E2gB9SyBcMoTIevdymy47ta7PQomJDyWZF9M1mcf/Af9E5y9vTZNLGIvl5uPnZnfzE5vSj82y072u9brqiSv+lSred8/" +
             "/8hedkSQ9iiXWrkXNE6Y4FqV32y93nqlVVGmTJuQchCRJNFqDmPagkvCOI21qvRJTHpJdqS0T3qYdaGLvmPGQzE4/RKJAQZVD0TCpEl8ote9kveAqtIR+0Yztes9o6rW" +
@@ -1643,11 +1676,24 @@ class InteractiveWindow:
 
         # Party
         frame_party = root_window_party.getWidgetByName('MainWindow_party')
-        TTkFrame_party = root_window_party.getWidgetByName('TTkTree_frame')
         self.tree_party: ttk.TTkTree = root_window_party.getWidgetByName('TTkTree_party')
+        self.ttk_button_add_party: ttk.TTkButton = root_window_party.getWidgetByName('TTkButton_add_party')
+        self.ttk_button_modify_party: ttk.TTkButton = root_window_party.getWidgetByName('TTkButton_modify_party')
+        self.ttk_button_delete_party: ttk.TTkButton = root_window_party.getWidgetByName('TTkButton_delete_party')
         self.ttk_button_apply: ttk.TTkButton = root_window_party.getWidgetByName('TTkButton_apply')
         TTKButton_show_party.clicked.connect(lambda: _show_hide_window('party'))
         self.ttk_button_apply.clicked.connect(_party_role_apply)
+        self.ttk_button_add_party.clicked.connect(_add_party)
+
+        # Add new party window
+        self.ttk_window_popup_add_party = root_window_add_party.getWidgetByName("TTkWindow_add_party")
+        self.ttk_lineedit_party_x500_name = root_window_add_party.getWidgetByName("TTkLineEdit_party_x500_name")
+        self.ttk_combobox_party_role = root_window_add_party.getWidgetByName("TTkComboBox_party_role")
+        self.ttk_button_add_party_ok: ttk.TTkButton = root_window_add_party.getWidgetByName("TTkButton_add_party_ok")
+        self.ttk_button_add_party_cancel: ttk.TTkButton = root_window_add_party.getWidgetByName("TTkButton_add_party_cancel")
+        self.ttk_window_popup_add_party.setVisible(False)
+        self.ttk_button_add_party_cancel.clicked.connect(lambda: _add_modify_delete_cancelled('add_party'))
+        self.ttk_button_add_party_ok.clicked.connect(_button_add_party_ok)
 
         #Main window
         TTkFileButtonPicker.setEnabled(False)
@@ -1734,13 +1780,23 @@ class InteractiveWindow:
         root.layout().addWidget(TTkWindow_popup_new_data)
         root.layout().addWidget(TTkWindow_logging)
         root.layout().addWidget(self.TTkWindow_popup_message)
+        root.layout().addWidget(self.ttk_window_popup_add_party)
         # root.layout().addWidget(TTkWindow_popup_new_data)
         InteractiveWindow.update_tui_from_queue()
 
 
         process_ui_commands(root)
 
-        root.mainloop()
+        #root.mainloop()
+
+        try:
+            # Aquí va tu código de inicialización
+            # root = TTk(...)
+            print("Intentando entrar al mainloop...")
+            root.mainloop()
+        except Exception as e:
+            print("¡Atrapé un error!")
+            traceback.print_exc()
 
     def tk_popup_window(self, origen,  message, title="Information", button="Ok", icon="Information"):
         """
@@ -1775,7 +1831,8 @@ class InteractiveWindow:
             'Question':ttk.TTkMessageBox.Icon.Question,
             'Information':ttk.TTkMessageBox.Icon.Information,
             'Warning':ttk.TTkMessageBox.Icon.Warning,
-            'Critical':ttk.TTkMessageBox.Icon.Critical} # .get(icon.currentText(),ttk.TTkMessageBox.Icon.NoIcon)
+            'Critical':ttk.TTkMessageBox.Icon.Critical
+        } # .get(icon.currentText(),ttk.TTkMessageBox.Icon.NoIcon)
 
         messageBox = ttk.TTkMessageBox(
                 title=title,

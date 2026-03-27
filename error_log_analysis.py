@@ -88,7 +88,8 @@ class ErrorAnalysis:
         Will interact through all errors found and will classify them by category.
         :return:
         """
-
+        if not self.collected_errors:
+            return None
         for each_error in self.collected_errors:
             if each_error.category not in self.category_list:
                 self.category_list[each_error.category] = {}
@@ -122,18 +123,23 @@ class ErrorAnalysis:
         :return:
         """
 
-        return_list = {}
-
+        return_list = {
+            "total_errors": 0,
+            "error_list": {}
+        }
+        total_errors = 0
         if not self.category_list:
             self._classify_errors()
 
         for each_category in self.category_list:
             if each_category not in return_list:
-                return_list[each_category] = {}
+                return_list["error_list"][each_category] = {}
             for each_error_type in self.category_list[each_category]:
-                return_list[each_category][each_error_type] = len(self.category_list[each_category][each_error_type])
+                error_count = len(self.category_list[each_category][each_error_type])
+                return_list["error_list"][each_category][each_error_type] = error_count
+                total_errors += error_count
 
-
+        return_list["total_errors"] = total_errors
         return return_list
 
 
