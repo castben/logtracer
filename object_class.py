@@ -3857,7 +3857,7 @@ class BlockExtractor:
 
         return None
 
-    def get_all_content(self):
+    def get_all_contentX(self):
         """
         Return all content as text to be able to serialize it
         :return:
@@ -3871,6 +3871,22 @@ class BlockExtractor:
                 return_content[each_type][each_content] = list()
                 for each_detail in self.get_reference(each_content, each_type):
                     return_content[each_type][each_content].append("".join(each_detail.get_content()))
+
+        return return_content
+
+    def get_all_content(self):
+        """
+        Return all content as text to be able to serialize it
+        :return:
+        """
+
+        return_content = {}
+
+        for each_type in self.get_reference():
+            return_content[each_type] = {}
+            for each_content in self.get_reference(None, each_type):
+                for each_detail in self.get_reference(each_content, each_type):
+                    return_content[each_type][each_content] = convert_into_dict(each_detail)
 
         return return_content
 
@@ -4085,6 +4101,27 @@ class TimeoutError(Exception):
             signal.alarm(0)
             signal.signal(signal.SIGALRM, old_handler)
 
+def convert_into_dict(obj):
+    """
+    Convert given object into a readable dictionary, for serialization
+    :param obj: class/object to convert
+    :return: a dictionary or object required for serialization
+    """
+    if isinstance(obj, (int, float, str, bool, type(None))):
+        return obj
+    if isinstance(obj, dict):
+        return {k: convert_into_dict(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [convert_into_dict(x) for x in obj]
+
+    # Aquí aplicamos tu filtro para objetos personalizados
+    if hasattr(obj, "__dict__"):
+        return {
+            k: convert_into_dict(v)
+            for k, v in vars(obj).items()
+            if not callable(v) and not k.startswith('_')
+        }
+    return str(obj) # Último recurso
 
 def get_not_null(list_or_tuple, start=0):
     """

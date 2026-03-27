@@ -13,6 +13,24 @@ import os
 
 from uml import CreateUML, UMLStepSetup
 
+
+def deep_to_dict(obj):
+    if isinstance(obj, (int, float, str, bool, type(None))):
+        return obj
+    if isinstance(obj, dict):
+        return {k: deep_to_dict(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [deep_to_dict(x) for x in obj]
+
+    # Aquí aplicamos tu filtro para objetos personalizados
+    if hasattr(obj, "__dict__"):
+        return {
+            k: deep_to_dict(v)
+            for k, v in vars(obj).items()
+            if not callable(v) and not k.startswith('_')
+        }
+    return str(obj) # Último recurso
+
 def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None, datainfo=None) -> dict:
     """
     Analiza un archivo de log de Corda y devuelve un diccionario con:
@@ -106,36 +124,40 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None,
         ]
         payload["summary"]["total_parties"] = len(parties)
         payload["summary"]["detected_roles"] = detected_roles
-        payload["results"]["parties"] = parties
+        payload["results"][CordaObject.Type.PARTY.value] = parties
 
     if collect_refIds:
-        flows = []
-        transactions = []
+        flows = {}
+        transactions = {}
+        # Transform CordaObject into a dictionary for serialization
         for item in file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS, True) or []:
             ref_id = item.get_reference_id()
+            item_dict = deep_to_dict(item)
             if item.get_type() == "FLOW":
-                flows.append(ref_id)
+                flows[f'{ref_id}']=item_dict
             elif item.get_type() == "TRANSACTION":
-                transactions.append(ref_id)
-
+                transactions[f'{ref_id}'] =item_dict
+        # Put all content of flows and transactions into same buket; each corda object has its type and can be
+        # easily identified.
+        fnt = {**flows, **transactions}
         payload["summary"]["total_transactions"] = len(transactions)
         payload["summary"]["total_flows"]= len(flows)
 
-        payload["results"]["flows"] = flows
-        payload["results"]["transactions"] = transactions
+        payload["results"][CordaObject.Type.FLOW_AND_TRANSACTIONS.value] = fnt
 
     if special_blocks and  special_blocks.collected_blocks:
-        payload["results"]["specialblocks"] = {
+        payload["results"][CordaObject.Type.SPECIAL_BLOCKS.value] = {
             "collected_blocktypes_types": special_blocks.get_collected_block_types(),
             "defined_blocktypes": special_blocks.get_defined_block_types(),
             "collected_blocktypes": special_blocks.get_all_content()
         }
+        payload['summary'][CordaObject.Type.SPECIAL_BLOCKS.value] = special_blocks.get_collected_block_types()
 
     if collect_errors:
         collect_errors.collected_errors = file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
         # payload["Error-log"] = collect_errors.get_error_category()
-        payload["results"]['Error-Log'] = collect_errors.get_all_content()
-        payload['summary']['Error-log'] =  collect_errors.get_error_summary()
+        payload["results"][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_all_content()
+        payload['summary'][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_error_summary()
 
 
     # 6. Devolver resultado estructurado
@@ -255,6 +277,16 @@ class DataInfo:
 
         CUSTOMER = 'customer'
         TICKET = 'ticket'
+        CORDA_VERSION = "corda_version"
+        JAVA_VERSION = "java_version"
+        OS = "operating_system"
+        RUNNING_ON_DOCKER = "running_on_docker"
+        RUNNING_ON_K8S = "running_on_k8s"
+        K8S_VERSION = "k8s_version"
+        DOCKER_VERSION = "docker_version"
+        ENVIRONMENT = "environment"
+        DESCRIPTION = "description"
+        ISSUE = "issue"
 
     def __init__(self):
         """
