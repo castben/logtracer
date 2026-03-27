@@ -21,6 +21,7 @@ class YamlDataDriver(DataDriver):
         self.parties_dir = None
         self.blocks_dir = None
         self.errors_dir = None
+        self.summary = None
         self.cache = {}  # Opcional: cache para mejorar rendimiento
 
     def connect(self, **config):
@@ -36,14 +37,18 @@ class YamlDataDriver(DataDriver):
         self.parties_dir = self.data_dir / "parties"
         self.blocks_dir = self.data_dir / "blocks"
         self.errors_dir = self.data_dir / "errors"
+        self.summary = config.get("summary")
 
         # Crear directorios
         for dir_path in [self.entities_dir, self.parties_dir, self.blocks_dir, self.errors_dir]:
-            dir_path.mkdir(parents=True, exist_ok=True)
+            if not os.path.exists(dir_path):
+                dir_path.mkdir(parents=True, exist_ok=True)
 
         # Cargar cache si está habilitada
         if config.get('cache_enabled', False):
             self._load_cache()
+
+        self.save_summary()
 
     def _load_cache(self):
         """Cargar datos en memoria para acceso rápido"""
@@ -97,16 +102,24 @@ class YamlDataDriver(DataDriver):
                     objects.append(self._dict_to_corda_object(data))
         return objects
 
-    def save_corda_object(self, corda_obj: CordaObject):
-        entity_file = self.entities_dir / f"entity_{corda_obj.reference_id}.yaml"
-        data = self._corda_object_to_dict(corda_obj)
+    def save_corda_object(self, corda_obj):
+        """
+        Save corda object data as JSON file
+        :param corda_obj: either a CordaObject class or a dictionary
+        :return:
+        """
 
+        if isinstance(corda_obj, CordaObject ):
+            data = self._corda_object_to_dict(corda_obj)
+        else:
+            data = corda_obj
+        entity_file = self.entities_dir / f"entity_{data['reference_id']}.yaml"
         with open(entity_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
 
         # Actualizar cache
         if hasattr(self, 'cache'):
-            self.cache[f"entity_{corda_obj.reference_id}"] = corda_obj
+            self.cache[f"entity_{data['reference_id']}"] = corda_obj
 
     def save_corda_objects(self, corda_objects: List[CordaObject]):
         for obj in corda_objects:
@@ -130,10 +143,13 @@ class YamlDataDriver(DataDriver):
                 return self._dict_to_party(data)
         return None
 
-    def save_party(self, party: Party):
-        party_file = self.parties_dir / f"{party.name}.yaml"
-        data = self._party_to_dict(party)
+    def save_party(self, party):
 
+        if isinstance(party, Party):
+            data = self._party_to_dict(party)
+        else:
+            data = party
+        party_file = self.parties_dir / f"{data['name']}.yaml"
         with open(party_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
 
@@ -155,10 +171,23 @@ class YamlDataDriver(DataDriver):
                 blocks.append(self._dict_to_block_item(data))
         return blocks
 
-    def save_block_item(self, block_item: BlockItems):
-        block_file = self.blocks_dir / f"block_{block_item.reference}_{block_item.type}.yaml"
-        data = self._block_item_to_dict(block_item)
+    def save_summary(self):
+        """
+        Save summary for received payload
+        :return:
+        """
+        with open(f"{self.data_dir}/summary.yaml", 'w', encoding='utf-8') as f:
+            yaml.dump(self.summary, f, allow_unicode=True, default_flow_style=False)
 
+
+    def save_block_item(self, block_item):
+
+        if isinstance(block_item, BlockItems):
+            data = self._block_item_to_dict(block_item)
+        else:
+            data = block_item
+
+        block_file = self.blocks_dir / f"block_{data['reference']}_{data['type']}.yaml"
         with open(block_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
 
@@ -166,7 +195,7 @@ class YamlDataDriver(DataDriver):
 
     def get_errors_by_category(self, category: str) -> List[Error]:
         errors = []
-        for error_file in self.errors_dir.glob(f"error_*_{category}.yaml"):
+        for error_file in self.errors_dir.glob(f"error_{category}_*.yaml"):
             with open(error_file, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f)
                 errors.append(self._dict_to_error(data))
@@ -174,7 +203,7 @@ class YamlDataDriver(DataDriver):
 
     def get_errors_by_type(self, error_type: str) -> List[Error]:
         errors = []
-        for error_file in self.errors_dir.glob(f"error_{error_type}_*.yaml"):
+        for error_file in self.errors_dir.glob(f"error_*_{error_type}.yaml"):
             with open(error_file, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f)
                 errors.append(self._dict_to_error(data))
@@ -188,10 +217,14 @@ class YamlDataDriver(DataDriver):
                 errors.append(self._dict_to_error(data))
         return errors
 
-    def save_error(self, error: Error):
-        error_file = self.errors_dir / f"error_{error.type}_{error.category}.yaml"
-        data = self._error_to_dict(error)
+    def save_error(self, error):
 
+        if isinstance(error, Error):
+            data = self._error_to_dict(error)
+        else:
+            data = error
+
+        error_file = self.errors_dir / f"error_{data['category']}_{data['type']}_{data['reference_id']}.yaml"
         with open(error_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
 
