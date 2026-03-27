@@ -1086,6 +1086,7 @@ class InteractiveWindow:
             if window_name == 'party':
                 if TTKButton_show_party.text() == 'Show':
                     self.TTkWindow_party.setVisible(True)
+                    self.TTkWindow_party.raiseWidget(True)
                     TTKButton_show_party.setText(ttk.TTkString('Hide'))
                 else:
                     self.TTkWindow_party.setVisible(False)
@@ -1094,6 +1095,7 @@ class InteractiveWindow:
             if window_name == 'flow':
                 if TTKButton_show_flow.text() == 'Show':
                     self.TTkWindow_flow.setVisible(True)
+                    self.TTkWindow_flow.raiseWidget(True)
                     TTKButton_show_flow.setText(ttk.TTkString('Hide'))
                 else:
                     self.TTkWindow_flow.setVisible(False)
@@ -1102,6 +1104,7 @@ class InteractiveWindow:
             if window_name == 'txn':
                 if TTKButton_show_txn.text() == 'Show':
                     self.TTkWindow_transaction.setVisible(True)
+                    self.TTkWindow_transaction.raiseWidget(True)
                     TTKButton_show_txn.setText(ttk.TTkString('Hide'))
                 else:
                     self.TTkWindow_transaction.setVisible(False)
@@ -1177,6 +1180,7 @@ class InteractiveWindow:
             TTkTextEdit_quickview.setText("")
 
             self.TTkWindow_quickview.setVisible(True)
+            self.TTkWindow_quickview.raiseWidget(True)
             basename, ext = os.path.splitext(filename)
             filename = f"{basename}.utxt"
             try:
@@ -1336,6 +1340,7 @@ class InteractiveWindow:
                 # write_log(f"DEBUG: Conectado nuevo handler. Total conexiones: {len(self.TTkTree_specialblocks.itemClicked._connected_slots)}")
 
             self.TTkWindow_specialblocks.setVisible(True)
+            self.TTkWindow_specialblocks.raiseWidget(True)
 
         @pyTTkSlot()
         def _add_new_data(type=None):
