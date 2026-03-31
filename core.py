@@ -1,12 +1,14 @@
 # logtracer/core.py
 import threading
 from enum import Enum
-from object_class import FileManagement
+
+from drivers.yaml_driver import YamlDataDriver
+from object_class import FileManagement, Party
 from object_class import BlockExtractor
 from get_parties import GetParties
 from get_refIds import GetRefIds
 from object_class import CordaObject
-from object_class import Configs  # o pásalo como parámetro
+from object_class import Configs
 from object_class import KnownErrors
 from error_log_analysis import ErrorAnalysis
 import os
@@ -117,7 +119,6 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None,
             for x500 in (file_to_analyse.get_party_role(role) or []):
                 x500_to_roles.setdefault(x500, []).append(role)
 
-
         parties = [
             {"name": p.name, "roles": x500_to_roles.get(p.name, [])}
             for p in file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
@@ -162,6 +163,84 @@ def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None,
 
     # 6. Devolver resultado estructurado
     return payload
+
+def save_analysis(result, object_type=None, driver=None):
+    """
+    Store analysis.
+    :param result: a dictionary that contains all data that must be persisted
+    :param object_type: What to persist from API response, if NONE will save all data collected otherwise
+    will persist only object given
+    :param driver: driver to use to persist data by default will be YAML
+    :return:
+    """
+
+    if not object_type:
+        object_type = [
+            CordaObject.Type.FLOW_AND_TRANSACTIONS,
+            CordaObject.Type.PARTY,
+            CordaObject.Type.ERROR_ANALYSIS,
+            CordaObject.Type.SPECIAL_BLOCKS
+        ]
+
+    if not isinstance(object_type, list):
+        object_type = [object_type]
+
+    if not driver or driver=="YAML":
+        if 'file-info' in result['summary']:
+            customer = result['summary']['file-info']['customer']
+            ticket = result['summary']['file-info']['ticket']
+        else:
+            customer = 'unknown'
+            ticket = 'unknown'
+
+        storage = YamlDataDriver()
+        summary = {
+            "analysis": result["summary"]
+        }
+        storage.connect(data_dir= f"./data/storage/{customer}/{ticket}", summary=summary)
+
+        for each_object in object_type:
+            if each_object == CordaObject.Type.ERROR_ANALYSIS and each_object.value in result["results"]:
+                category = result["results"][each_object.value]
+                for each_item_category in category:
+                    for each_error in category[each_item_category]:
+                        error_list = category[each_item_category][each_error]
+                        for each_item in error_list:
+                            # error = Error()
+                            # error.category = each_item_category
+                            # error.type = each_item["type"]
+                            # error.level = each_item["level"]
+                            # error.line_number = each_item['line_number']
+                            # error.timestamp = each_item['timestamp']
+                            # error.reference_id = each_item['line_number']
+                            # error.log_line = each_item["log_line"]
+                            if 'category' not in each_item:
+                                each_item['category'] = each_item_category
+                            if 'reference_id' not in each_item:
+                                each_item['reference_id'] = each_item['line_number']
+
+                            storage.save_error(each_item)
+
+            if each_object == CordaObject.Type.PARTY and each_object.value in result["results"]:
+                for each_party in result['results'][each_object.value]:
+                    party = Party(each_party['name'])
+                    party.set_corda_role('/'.join(each_party['roles']))
+                    # storage.save_party(each_party)
+                    storage.save_party(party)
+
+            if each_object == CordaObject.Type.FLOW_AND_TRANSACTIONS and each_object.value in result["results"]:
+                object_list = result['results'][each_object.value]
+                for each_item in object_list:
+                    # co = CordaObject()
+                    # co.from_dict(object_list[each_item])
+                    storage.save_corda_object(object_list[each_item])
+
+            if each_object == CordaObject.Type.SPECIAL_BLOCKS and each_object.value in result["results"]:
+                block_type_list = result['results'][CordaObject.Type.SPECIAL_BLOCKS.value]['collected_blocktypes']
+                for each_block_type in block_type_list:
+                    for each_block in block_type_list[each_block_type]:
+                        storage.save_block_item(block_type_list[each_block_type][each_block])
+        storage.disconnect()
 
 def get_analysis_for(log_file_path: str, reference_id: str):
     """
