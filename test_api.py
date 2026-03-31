@@ -1,7 +1,5 @@
 import json
-from core import analyze_corda_log, DataInfo, save_analysis
-
-
+from core import  DataInfo, CoreApi
 
 # Tests:
 # pull a list of:
@@ -22,13 +20,14 @@ if __name__ == "__main__":
     datainfo.set(datainfo.Attribute.ENVIRONMENT, "UAT")
     datainfo.set(datainfo.Attribute.ISSUE, "Testing logs")
     datainfo.set(datainfo.Attribute.DESCRIPTION, "This is just for logs testing API")
+    analysis = CoreApi(datainfo)
+    analysis.set_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/HQLAx/CS-4163/hqlx.log")
 
     #result = analyze_corda_log("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/NCR/CS-4189/2026-03-10-11-prd-api-service.log",
     # result = analyze_corda_log("/home/larry/IdeaProjects/logtracer/c4-logs/tests-logs/insuree.log",
     # result = analyze_corda_log("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/ChainThat/CS-4002/mnp-dev-party005-cordanode-7.log",
-    result = analyze_corda_log("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/HQLAx/CS-4163/hqlx.log",
-                               datainfo=datainfo)
+    analysis.analyze_corda_log()
     #result = analyze_corda_log("client-logs/ChainThat/CS-4002/party005-dev-corda-logs.txt")
     #save_analysis(result, CordaObject.Type.ERROR_ANALYSIS)
-    save_analysis(result)
-    print(json.dumps(result, indent=2))
+    analysis.save_analysis()
+    print(json.dumps(analysis.get_results(), indent=2))

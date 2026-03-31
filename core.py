@@ -15,338 +15,403 @@ import os
 
 from uml import CreateUML, UMLStepSetup
 
+class CoreApi:
 
-def deep_to_dict(obj):
-    if isinstance(obj, (int, float, str, bool, type(None))):
-        return obj
-    if isinstance(obj, dict):
-        return {k: deep_to_dict(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [deep_to_dict(x) for x in obj]
+    def __init__(self, datainfo):
+        self.result = None
+        self.datainfo = datainfo
+        self.log_file_path = None
+        self.what_to_collect = None
+        self.references_id = None
 
-    # Aquí aplicamos tu filtro para objetos personalizados
-    if hasattr(obj, "__dict__"):
-        return {
-            k: deep_to_dict(v)
-            for k, v in vars(obj).items()
-            if not callable(v) and not k.startswith('_')
-        }
-    return str(obj) # Último recurso
+    def deep_to_dict(self, obj):
+        if isinstance(obj, (int, float, str, bool, type(None))):
+            return obj
+        if isinstance(obj, dict):
+            return {k: self.deep_to_dict(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [self.deep_to_dict(x) for x in obj]
 
-def analyze_corda_log(log_file_path: str, what_to_collect:CordaObject.Type=None, datainfo=None) -> dict:
-    """
-    Analiza un archivo de log de Corda y devuelve un diccionario con:
-    - parties
-    - flows
-    - transaction
-    - estadísticas (tiempo, conteos, etc.)
-    """
-    
-    # Always convert it into a proper list
-    if isinstance(what_to_collect, CordaObject.Type):
-        what_to_collect = [what_to_collect]
-        
-    Configs.load_config()
-    payload = {
-        "summary":{
-            "log_file": log_file_path
-        },
-        "results": {}
-    }
-    if datainfo:
-        payload["summary"]["file_info"] = datainfo.get_all()
+        # Aquí aplicamos tu filtro para objetos personalizados
+        if hasattr(obj, "__dict__"):
+            return {
+                k: self.deep_to_dict(v)
+                for k, v in vars(obj).items()
+                if not callable(v) and not k.startswith('_')
+            }
+        return str(obj) # Último recurso
 
-    KnownErrors.configs = Configs
-    KnownErrors.initialize()
-    data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
-
-    app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
-
-    # 1. Configurar archivo
-    file_to_analyse = FileManagement(log_file_path, block_size_in_mb=15)
-
-    if not file_to_analyse.state:
-        raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
-
-    file_to_analyse.discover_file_format()
-    payload["summary"]["file-version-used"] = file_to_analyse.logfile_format
-    special_blocks = None
-    collect_parties = None
-    collect_refIds = None
-    collect_errors = None
-
-    if not what_to_collect or CordaObject.Type.SPECIAL_BLOCKS in  what_to_collect:
-        # 2. Extraer bloques especiales (opcional, si los necesitas en la API)
-        special_blocks = BlockExtractor(file_to_analyse, Configs.config)
-        special_blocks.extract()
-
-    if not what_to_collect or CordaObject.Type.PARTY in what_to_collect:
-        # 3. Configurar recolectores
-        #
-        # Party collection
-        collect_parties = GetParties(Configs)
-        collect_parties.set_file(file_to_analyse)
-        collect_parties.set_element_type(CordaObject.Type.PARTY)
-        file_to_analyse.add_process_to_execute(collect_parties)
-
-    if not what_to_collect or CordaObject.Type.FLOW_AND_TRANSACTIONS in what_to_collect:
-        #
-        # Transactions and Flows collection
-        collect_refIds = GetRefIds(Configs)
-        collect_refIds.set_file(file_to_analyse)
-        collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
-        file_to_analyse.add_process_to_execute(collect_refIds)
-
-    if not what_to_collect or CordaObject.Type.ERROR_ANALYSIS in what_to_collect:
-        #
-        # Collection of Errors
-        collect_errors = ErrorAnalysis(Configs.config)
-        collect_errors.set_file(file_to_analyse)
-        collect_errors.set_element_type(CordaObject.Type.ERROR_ANALYSIS)
-        file_to_analyse.add_process_to_execute(collect_errors)
-
-    # 4. Ejecutar procesamiento
-    file_to_analyse.pre_analysis()
-    file_to_analyse.parallel_processing()
-
-    # Si quieres soportar múltiples roles por party:
-    if collect_parties:
-        # 1. Obtener todos los roles detectados en el log
-        detected_roles = file_to_analyse.get_party_role()
-
-        x500_to_roles = {}
-        for role in detected_roles:
-            for x500 in (file_to_analyse.get_party_role(role) or []):
-                x500_to_roles.setdefault(x500, []).append(role)
-
-        parties = [
-            {"name": p.name, "roles": x500_to_roles.get(p.name, [])}
-            for p in file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
-        ]
-        payload["summary"]["total_parties"] = len(parties)
-        payload["summary"]["detected_roles"] = detected_roles
-        payload["results"][CordaObject.Type.PARTY.value] = parties
-
-    if collect_refIds:
-        flows = {}
-        transactions = {}
-        # Transform CordaObject into a dictionary for serialization
-        for item in file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS, True) or []:
-            ref_id = item.get_reference_id()
-            item_dict = deep_to_dict(item)
-            if item.get_type() == "FLOW":
-                flows[f'{ref_id}']=item_dict
-            elif item.get_type() == "TRANSACTION":
-                transactions[f'{ref_id}'] =item_dict
-        # Put all content of flows and transactions into same buket; each corda object has its type and can be
-        # easily identified.
-        fnt = {**flows, **transactions}
-        payload["summary"]["total_transactions"] = len(transactions)
-        payload["summary"]["total_flows"]= len(flows)
-
-        payload["results"][CordaObject.Type.FLOW_AND_TRANSACTIONS.value] = fnt
-
-    if special_blocks and  special_blocks.collected_blocks:
-        payload["results"][CordaObject.Type.SPECIAL_BLOCKS.value] = {
-            "collected_blocktypes_types": special_blocks.get_collected_block_types(),
-            "defined_blocktypes": special_blocks.get_defined_block_types(),
-            "collected_blocktypes": special_blocks.get_all_content()
-        }
-        payload['summary'][CordaObject.Type.SPECIAL_BLOCKS.value] = special_blocks.get_collected_block_types()
-
-    if collect_errors:
-        collect_errors.collected_errors = file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
-        # payload["Error-log"] = collect_errors.get_error_category()
-        payload["results"][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_all_content()
-        payload['summary'][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_error_summary()
-
-
-    # 6. Devolver resultado estructurado
-    return payload
-
-def save_analysis(result, object_type=None, driver=None):
-    """
-    Store analysis.
-    :param result: a dictionary that contains all data that must be persisted
-    :param object_type: What to persist from API response, if NONE will save all data collected otherwise
-    will persist only object given
-    :param driver: driver to use to persist data by default will be YAML
-    :return:
-    """
-
-    if not object_type:
-        object_type = [
-            CordaObject.Type.FLOW_AND_TRANSACTIONS,
-            CordaObject.Type.PARTY,
-            CordaObject.Type.ERROR_ANALYSIS,
-            CordaObject.Type.SPECIAL_BLOCKS
-        ]
-
-    if not isinstance(object_type, list):
-        object_type = [object_type]
-
-    if not driver or driver=="YAML":
-        if 'file-info' in result['summary']:
-            customer = result['summary']['file-info']['customer']
-            ticket = result['summary']['file-info']['ticket']
-        else:
-            customer = 'unknown'
-            ticket = 'unknown'
-
-        storage = YamlDataDriver()
-        summary = {
-            "analysis": result["summary"]
-        }
-        storage.connect(data_dir= f"./data/storage/{customer}/{ticket}", summary=summary)
-
-        for each_object in object_type:
-            if each_object == CordaObject.Type.ERROR_ANALYSIS and each_object.value in result["results"]:
-                category = result["results"][each_object.value]
-                for each_item_category in category:
-                    for each_error in category[each_item_category]:
-                        error_list = category[each_item_category][each_error]
-                        for each_item in error_list:
-                            # error = Error()
-                            # error.category = each_item_category
-                            # error.type = each_item["type"]
-                            # error.level = each_item["level"]
-                            # error.line_number = each_item['line_number']
-                            # error.timestamp = each_item['timestamp']
-                            # error.reference_id = each_item['line_number']
-                            # error.log_line = each_item["log_line"]
-                            if 'category' not in each_item:
-                                each_item['category'] = each_item_category
-                            if 'reference_id' not in each_item:
-                                each_item['reference_id'] = each_item['line_number']
-
-                            storage.save_error(each_item)
-
-            if each_object == CordaObject.Type.PARTY and each_object.value in result["results"]:
-                for each_party in result['results'][each_object.value]:
-                    party = Party(each_party['name'])
-                    party.set_corda_role('/'.join(each_party['roles']))
-                    # storage.save_party(each_party)
-                    storage.save_party(party)
-
-            if each_object == CordaObject.Type.FLOW_AND_TRANSACTIONS and each_object.value in result["results"]:
-                object_list = result['results'][each_object.value]
-                for each_item in object_list:
-                    # co = CordaObject()
-                    # co.from_dict(object_list[each_item])
-                    storage.save_corda_object(object_list[each_item])
-
-            if each_object == CordaObject.Type.SPECIAL_BLOCKS and each_object.value in result["results"]:
-                block_type_list = result['results'][CordaObject.Type.SPECIAL_BLOCKS.value]['collected_blocktypes']
-                for each_block_type in block_type_list:
-                    for each_block in block_type_list[each_block_type]:
-                        storage.save_block_item(block_type_list[each_block_type][each_block])
-        storage.disconnect()
-
-def get_analysis_for(log_file_path: str, reference_id: str):
-    """
-    Get specific results from a reference_id
-    :param log_file_path: file to analyse
-    :param reference_id: Transaction ID or Flow ID
-    :return:
-    """
-    data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
-
-    app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
-
-    # 1. Configurar archivo
-    file_to_analyse = FileManagement(log_file_path, block_size_in_mb=15)
-
-    if not file_to_analyse.state:
-        raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
-
-    file_to_analyse.discover_file_format()
-
-    def _run_trace_analysis(ref_id, co):
+    def set_log_file(self, logfile):
         """
-        Función que ejecuta el análisis en un hilo separado
-        """
-        try:
 
-            # Proceso de análisis
-            uml_trace = UMLStepSetup(Configs, co)
-            uml_trace.file = file_to_analyse
-            uml_trace.parallel_process(co)
-
-            c_uml = CreateUML(co, file_to_analyse)
-            script_file = c_uml.generate_uml_pages(
-                client_name=self.customer,
-                ticket=self.ticket,
-                output_prefix=ref_id
-            )
-
-            if not script_file:
-                write_log('No useful information was related to this reference id', level='WARN')
-            else:
-                write_log("\n".join(script_file))
-                success = CreateUML.render_uml(file=script_file)
-                if success:
-                    self.add_generated_file(ref_id, script_file)
-
-            write_log('=============================================================================')
-
-        except Exception as e:
-            write_log(f"Error during analysis: {str(e)}", level='ERROR')
-
-    def _start_trace(ref_id, file_to_analyse, co):
-        """
-         Método que lanza el trace en un hilo separado
-        """
-        # Mostrar mensaje de inicio en UI
-
-
-
-        write_log(f"Starting trace analysis for {ref_id}...")
-
-        # Crear y lanzar el hilo
-        analysis_thread = threading.Thread(
-            target=_run_trace_analysis,
-            args=(ref_id, file_to_analyse, co),
-            name=f"AnalysisThread-{ref_id}",
-            daemon=True  # El hilo se cerrará cuando termine la aplicación
-        )
-        analysis_thread.start()
-
-        # Opcional: guardar referencia al hilo para poder monitorearlo
-        # self.active_threads.append(analysis_thread)
-
-    def _trace(source):
-        """
-        Trace
-        :param source: reference id for the object to trace
+        :param logfile:
         :return:
         """
-        global file_to_analyse
+        self.log_file_path = logfile
 
-        if not file_to_analyse.get_party_role('log_owner'):
-            write_log("Unable to perform a tracing, 'log_owner' role is not being assigned...", level="WARN")
-            write_log("You will need to manually setup it up, otherwise will not be possible to trace any item...", level="WARN")
-            self.tk_popup_window(origen=TTkButton_flow_trace, message="Unable to continue role:\n 'log_owner' hasn't been assigned.")
-            return
+    def what_to_collect(self, what_to_collect:CordaObject.Type=None):
+        """
+        Set what objects to collect from analysis
+        :param what_to_collect:
+        :return:
+        """
+        self.what_to_collect = what_to_collect
 
-        if source == 'flow':
-            ref_id = ttk.TTkString.toAscii(TTkList_flow.selectedLabels()[0])
+    def set_references_to_trace(self, references_id):
+        """
+        A list or a single string for a reference to trace
+        :param references_id: a reference to trace, transaction or flow id
+        :return:
+        """
+        self.references_id = references_id
 
 
-        if source == 'txn':
-            ref_id = ttk.TTkString.toAscii(TTkList_transaction.selectedLabels()[0])
+    def get_results(self):
+        """
+        Return actual payload of all results found
+        :return: a dictionary
+        """
+
+        return self.result
+
+    def analyze_corda_log(self) -> dict:
+        """
+        Analiza un archivo de log de Corda y devuelve un diccionario con:
+        - parties
+        - flows
+        - transaction
+        - estadísticas (tiempo, conteos, etc.)
+        """
+
+        # Always convert it into a proper list
+        if isinstance(self.what_to_collect, CordaObject.Type):
+            what_to_collect = [self.what_to_collect]
+
+        Configs.load_config()
+        payload = {
+            "summary":{
+                "log_file": self.log_file_path
+            },
+            "results": {}
+        }
+        if self.datainfo:
+            payload["summary"]["file_info"] = self.datainfo.get_all()
+
+        KnownErrors.configs = Configs
+        KnownErrors.initialize()
+        data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
+
+        app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
+
+        # 1. Configurar archivo
+        file_to_analyse = FileManagement(self.log_file_path, block_size_in_mb=15)
+
+        if not file_to_analyse.state:
+            raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
+
+        file_to_analyse.discover_file_format()
+        payload["summary"]["file-version-used"] = file_to_analyse.logfile_format
+        special_blocks = None
+        collect_parties = None
+        collect_refIds = None
+        collect_errors = None
+
+        if not self.what_to_collect or CordaObject.Type.SPECIAL_BLOCKS in  self.what_to_collect:
+            # 2. Extraer bloques especiales (opcional, si los necesitas en la API)
+            special_blocks = BlockExtractor(file_to_analyse, Configs.config)
+            special_blocks.extract()
+
+        if not self.what_to_collect or CordaObject.Type.PARTY in self.what_to_collect:
+            # 3. Configurar recolectores
+            #
+            # Party collection
+            collect_parties = GetParties(Configs)
+            collect_parties.set_file(file_to_analyse)
+            collect_parties.set_element_type(CordaObject.Type.PARTY)
+            file_to_analyse.add_process_to_execute(collect_parties)
+
+        if not self.what_to_collect or CordaObject.Type.FLOW_AND_TRANSACTIONS in self.what_to_collect:
+            #
+            # Transactions and Flows collection
+            collect_refIds = GetRefIds(Configs)
+            collect_refIds.set_file(file_to_analyse)
+            collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
+            file_to_analyse.add_process_to_execute(collect_refIds)
+
+        if not self.what_to_collect or CordaObject.Type.ERROR_ANALYSIS in self.what_to_collect:
+            #
+            # Collection of Errors
+            collect_errors = ErrorAnalysis(Configs.config)
+            collect_errors.set_file(file_to_analyse)
+            collect_errors.set_element_type(CordaObject.Type.ERROR_ANALYSIS)
+            file_to_analyse.add_process_to_execute(collect_errors)
+
+        # 4. Ejecutar procesamiento
+        file_to_analyse.pre_analysis()
+        file_to_analyse.parallel_processing()
+
+        # Si quieres soportar múltiples roles por party:
+        if collect_parties:
+            # 1. Obtener todos los roles detectados en el log
+            detected_roles = file_to_analyse.get_party_role()
+
+            x500_to_roles = {}
+            for role in detected_roles:
+                for x500 in (file_to_analyse.get_party_role(role) or []):
+                    x500_to_roles.setdefault(x500, []).append(role)
+
+            parties = [
+                {"name": p.name, "roles": x500_to_roles.get(p.name, [])}
+                for p in file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
+            ]
+            payload["summary"]["total_parties"] = len(parties)
+            payload["summary"]["detected_roles"] = detected_roles
+            payload["results"][CordaObject.Type.PARTY.value] = parties
+
+        if collect_refIds:
+            flows = {}
+            transactions = {}
+            # Transform CordaObject into a dictionary for serialization
+            for item in file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS, True) or []:
+                ref_id = item.get_reference_id()
+                item_dict = self.deep_to_dict(item)
+                if item.get_type() == "FLOW":
+                    flows[f'{ref_id}']=item_dict
+                elif item.get_type() == "TRANSACTION":
+                    transactions[f'{ref_id}'] =item_dict
+            # Put all content of flows and transactions into same buket; each corda object has its type and can be
+            # easily identified.
+            fnt = {**flows, **transactions}
+            payload["summary"]["total_transactions"] = len(transactions)
+            payload["summary"]["total_flows"]= len(flows)
+
+            payload["results"][CordaObject.Type.FLOW_AND_TRANSACTIONS.value] = fnt
+
+        if special_blocks and  special_blocks.collected_blocks:
+            payload["results"][CordaObject.Type.SPECIAL_BLOCKS.value] = {
+                "collected_blocktypes_types": special_blocks.get_collected_block_types(),
+                "defined_blocktypes": special_blocks.get_defined_block_types(),
+                "collected_blocktypes": special_blocks.get_all_content()
+            }
+            payload['summary'][CordaObject.Type.SPECIAL_BLOCKS.value] = special_blocks.get_collected_block_types()
+
+        if collect_errors:
+            collect_errors.collected_errors = file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
+            # payload["Error-log"] = collect_errors.get_error_category()
+            payload["results"][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_all_content()
+            payload['summary'][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_error_summary()
 
 
-        if not source:
-            return
+        # 6. Devolver resultado estructurado
+        self.result = payload
+        return payload
 
-        sref_id = Icons.remove_unicode_symbols(ref_id)
-        co = CordaObject.get_object(sref_id)
+    def save_analysis(self, object_type=None, driver=None):
+        """
+        Store analysis.
+        :param result: a dictionary that contains all data that must be persisted
+        :param object_type: What to persist from API response, if NONE will save all data collected otherwise
+        will persist only object given
+        :param driver: driver to use to persist data by default will be YAML
+        :return:
+        """
 
-        if not ref_id or not co:
-            write_log("Reference ID not found unable to trace it, please try another", level='WARN')
-            return
+        if not object_type:
+            object_type = [
+                CordaObject.Type.FLOW_AND_TRANSACTIONS,
+                CordaObject.Type.PARTY,
+                CordaObject.Type.ERROR_ANALYSIS,
+                CordaObject.Type.SPECIAL_BLOCKS
+            ]
 
-        _start_trace(sref_id, file_to_analyse, co)
+        if not isinstance(object_type, list):
+            object_type = [object_type]
+
+        if not driver or driver=="YAML":
+            if 'file-info' in self.result['summary']:
+                customer = self.result['summary']['file-info']['customer']
+                ticket = self.result['summary']['file-info']['ticket']
+            else:
+                customer = 'unknown'
+                ticket = 'unknown'
+
+            storage = YamlDataDriver()
+            summary = {
+                "analysis": self.result["summary"]
+            }
+            storage.connect(data_dir= f"./data/storage/{customer}/{ticket}", summary=summary)
+
+            for each_object in object_type:
+                if each_object == CordaObject.Type.ERROR_ANALYSIS and each_object.value in self.result["results"]:
+                    category = self.result["results"][each_object.value]
+                    for each_item_category in category:
+                        for each_error in category[each_item_category]:
+                            error_list = category[each_item_category][each_error]
+                            for each_item in error_list:
+                                # error = Error()
+                                # error.category = each_item_category
+                                # error.type = each_item["type"]
+                                # error.level = each_item["level"]
+                                # error.line_number = each_item['line_number']
+                                # error.timestamp = each_item['timestamp']
+                                # error.reference_id = each_item['line_number']
+                                # error.log_line = each_item["log_line"]
+                                if 'category' not in each_item:
+                                    each_item['category'] = each_item_category
+                                if 'reference_id' not in each_item:
+                                    each_item['reference_id'] = each_item['line_number']
+
+                                storage.save_error(each_item)
+
+                if each_object == CordaObject.Type.PARTY and each_object.value in self.result["results"]:
+                    for each_party in self.result['results'][each_object.value]:
+                        party = Party(each_party['name'])
+                        party.set_corda_role('/'.join(each_party['roles']))
+                        # storage.save_party(each_party)
+                        storage.save_party(party)
+
+                if each_object == CordaObject.Type.FLOW_AND_TRANSACTIONS and each_object.value in self.result["results"]:
+                    object_list = self.result['results'][each_object.value]
+                    for each_item in object_list:
+                        # co = CordaObject()
+                        # co.from_dict(object_list[each_item])
+                        storage.save_corda_object(object_list[each_item])
+
+                if each_object == CordaObject.Type.SPECIAL_BLOCKS and each_object.value in self.result["results"]:
+                    block_type_list = self.result['results'][CordaObject.Type.SPECIAL_BLOCKS.value]['collected_blocktypes']
+                    for each_block_type in block_type_list:
+                        for each_block in block_type_list[each_block_type]:
+                            storage.save_block_item(block_type_list[each_block_type][each_block])
+            storage.disconnect()
+
+    def get_analysis_for(self, log_file_path: str, reference_id: str):
+        """
+        Get specific results from a reference_id
+        :param log_file_path: file to analyse
+        :param reference_id: Transaction ID or Flow ID
+        :return:
+        """
+        data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
+
+        app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
+
+        # 1. Configurar archivo
+        file_to_analyse = FileManagement(log_file_path, block_size_in_mb=15)
+
+        if not file_to_analyse.state:
+            raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
+
+        file_to_analyse.discover_file_format()
+
+        def _run_trace_analysis(ref_id, co):
+            """
+            Función que ejecuta el análisis en un hilo separado
+            """
+            try:
+
+                # Proceso de análisis
+                uml_trace = UMLStepSetup(Configs, co)
+                uml_trace.file = file_to_analyse
+                uml_trace.parallel_process(co)
+
+                c_uml = CreateUML(co, file_to_analyse)
+                script_file = c_uml.generate_uml_pages(
+                    client_name=self.customer,
+                    ticket=self.ticket,
+                    output_prefix=ref_id
+                )
+
+                if not script_file:
+                    write_log('No useful information was related to this reference id', level='WARN')
+                else:
+                    write_log("\n".join(script_file))
+                    success = CreateUML.render_uml(file=script_file)
+                    if success:
+                        self.add_generated_file(ref_id, script_file)
+
+                write_log('=============================================================================')
+
+            except Exception as e:
+                write_log(f"Error during analysis: {str(e)}", level='ERROR')
+
+        def _start_trace(ref_id, file_to_analyse, co):
+            """
+             Método que lanza el trace en un hilo separado
+            """
+            # Mostrar mensaje de inicio en UI
+
+
+
+            write_log(f"Starting trace analysis for {ref_id}...")
+
+            # Crear y lanzar el hilo
+            analysis_thread = threading.Thread(
+                target=_run_trace_analysis,
+                args=(ref_id, file_to_analyse, co),
+                name=f"AnalysisThread-{ref_id}",
+                daemon=True  # El hilo se cerrará cuando termine la aplicación
+            )
+            analysis_thread.start()
+
+            # Opcional: guardar referencia al hilo para poder monitorearlo
+            # self.active_threads.append(analysis_thread)
+
+        def _trace(source):
+            """
+            Trace
+            :param source: reference id for the object to trace
+            :return:
+            """
+            global file_to_analyse
+
+            if not file_to_analyse.get_party_role('log_owner'):
+                write_log("Unable to perform a tracing, 'log_owner' role is not being assigned...", level="WARN")
+                write_log("You will need to manually setup it up, otherwise will not be possible to trace any item...", level="WARN")
+                self.tk_popup_window(origen=TTkButton_flow_trace, message="Unable to continue role:\n 'log_owner' hasn't been assigned.")
+                return
+
+            if source == 'flow':
+                ref_id = ttk.TTkString.toAscii(TTkList_flow.selectedLabels()[0])
+
+
+            if source == 'txn':
+                ref_id = ttk.TTkString.toAscii(TTkList_transaction.selectedLabels()[0])
+
+
+            if not source:
+                return
+
+            sref_id = Icons.remove_unicode_symbols(ref_id)
+            co = CordaObject.get_object(sref_id)
+
+            if not ref_id or not co:
+                write_log("Reference ID not found unable to trace it, please try another", level='WARN')
+                return
+
+            _start_trace(sref_id, file_to_analyse, co)
+
+    def uml_analysis(self, ref_id, file_to_analyse, co):
+        """
+        Run UML analysis and tracing of a corda object(Transaction or Flow)
+        :return:
+        """
+        # Proceso de análisis
+        uml_trace = UMLStepSetup(Configs, co)
+        uml_trace.file = file_to_analyse
+        uml_trace.parallel_process(co)
+        c_uml = CreateUML(co, file_to_analyse)
+        script_file = c_uml.generate_uml_pages(
+            client_name=self.customer,
+            ticket=self.ticket,
+            output_prefix=ref_id
+        )
+
+        if not script_file:
+           pass
+        else:
+            success = CreateUML.render_uml(file=script_file)
+            if success:
+               pass
 
 class DataInfo:
     class Attribute(Enum):
