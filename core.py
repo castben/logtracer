@@ -23,6 +23,7 @@ class CoreApi:
         self.log_file_path = None
         self.what_to_collect = None
         self.references_id = None
+        self.file_to_analyse = None
 
     def deep_to_dict(self, obj):
         if isinstance(obj, (int, float, str, bool, type(None))):
@@ -66,6 +67,7 @@ class CoreApi:
         self.references_id = references_id
 
 
+
     def get_results(self):
         """
         Return actual payload of all results found
@@ -104,13 +106,13 @@ class CoreApi:
         app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
 
         # 1. Configurar archivo
-        file_to_analyse = FileManagement(self.log_file_path, block_size_in_mb=15)
+        self.file_to_analyse = FileManagement(self.log_file_path, block_size_in_mb=15)
 
-        if not file_to_analyse.state:
-            raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
+        if not self.file_to_analyse.state:
+            raise ValueError(f"Unable to to read given file due to: {self.file_to_analyse.state_message}")
 
-        file_to_analyse.discover_file_format()
-        payload["summary"]["file-version-used"] = file_to_analyse.logfile_format
+        self.file_to_analyse.discover_file_format()
+        payload["summary"]["file-version-used"] = self.file_to_analyse.logfile_format
         special_blocks = None
         collect_parties = None
         collect_refIds = None
@@ -118,7 +120,7 @@ class CoreApi:
 
         if not self.what_to_collect or CordaObject.Type.SPECIAL_BLOCKS in  self.what_to_collect:
             # 2. Extraer bloques especiales (opcional, si los necesitas en la API)
-            special_blocks = BlockExtractor(file_to_analyse, Configs.config)
+            special_blocks = BlockExtractor(self.file_to_analyse, Configs.config)
             special_blocks.extract()
 
         if not self.what_to_collect or CordaObject.Type.PARTY in self.what_to_collect:
@@ -126,43 +128,43 @@ class CoreApi:
             #
             # Party collection
             collect_parties = GetParties(Configs)
-            collect_parties.set_file(file_to_analyse)
+            collect_parties.set_file(self.file_to_analyse)
             collect_parties.set_element_type(CordaObject.Type.PARTY)
-            file_to_analyse.add_process_to_execute(collect_parties)
+            self.file_to_analyse.add_process_to_execute(collect_parties)
 
         if not self.what_to_collect or CordaObject.Type.FLOW_AND_TRANSACTIONS in self.what_to_collect:
             #
             # Transactions and Flows collection
             collect_refIds = GetRefIds(Configs)
-            collect_refIds.set_file(file_to_analyse)
+            collect_refIds.set_file(self.file_to_analyse)
             collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
-            file_to_analyse.add_process_to_execute(collect_refIds)
+            self.file_to_analyse.add_process_to_execute(collect_refIds)
 
         if not self.what_to_collect or CordaObject.Type.ERROR_ANALYSIS in self.what_to_collect:
             #
             # Collection of Errors
             collect_errors = ErrorAnalysis(Configs.config)
-            collect_errors.set_file(file_to_analyse)
+            collect_errors.set_file(self.file_to_analyse)
             collect_errors.set_element_type(CordaObject.Type.ERROR_ANALYSIS)
-            file_to_analyse.add_process_to_execute(collect_errors)
+            self.file_to_analyse.add_process_to_execute(collect_errors)
 
         # 4. Ejecutar procesamiento
-        file_to_analyse.pre_analysis()
-        file_to_analyse.parallel_processing()
+        self.file_to_analyse.pre_analysis()
+        self.file_to_analyse.parallel_processing()
 
         # Si quieres soportar múltiples roles por party:
         if collect_parties:
             # 1. Obtener todos los roles detectados en el log
-            detected_roles = file_to_analyse.get_party_role()
+            detected_roles = self.file_to_analyse.get_party_role()
 
             x500_to_roles = {}
             for role in detected_roles:
-                for x500 in (file_to_analyse.get_party_role(role) or []):
+                for x500 in (self.file_to_analyse.get_party_role(role) or []):
                     x500_to_roles.setdefault(x500, []).append(role)
 
             parties = [
                 {"name": p.name, "roles": x500_to_roles.get(p.name, [])}
-                for p in file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
+                for p in self.file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
             ]
             payload["summary"]["total_parties"] = len(parties)
             payload["summary"]["detected_roles"] = detected_roles
@@ -172,7 +174,7 @@ class CoreApi:
             flows = {}
             transactions = {}
             # Transform CordaObject into a dictionary for serialization
-            for item in file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS, True) or []:
+            for item in self.file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS, True) or []:
                 ref_id = item.get_reference_id()
                 item_dict = self.deep_to_dict(item)
                 if item.get_type() == "FLOW":
@@ -196,7 +198,7 @@ class CoreApi:
             payload['summary'][CordaObject.Type.SPECIAL_BLOCKS.value] = special_blocks.get_collected_block_types()
 
         if collect_errors:
-            collect_errors.collected_errors = file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
+            collect_errors.collected_errors = self.file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
             # payload["Error-log"] = collect_errors.get_error_category()
             payload["results"][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_all_content()
             payload['summary'][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_error_summary()
@@ -390,7 +392,7 @@ class CoreApi:
 
             _start_trace(sref_id, file_to_analyse, co)
 
-    def uml_analysis(self, ref_id, file_to_analyse, co):
+    def uml_analysis(self, ref_id, file_to_analyse:FileManagement, co):
         """
         Run UML analysis and tracing of a corda object(Transaction or Flow)
         :return:
@@ -401,8 +403,8 @@ class CoreApi:
         uml_trace.parallel_process(co)
         c_uml = CreateUML(co, file_to_analyse)
         script_file = c_uml.generate_uml_pages(
-            client_name=self.customer,
-            ticket=self.ticket,
+            client_name=self.datainfo.get(DataInfo.Attribute.CUSTOMER),
+            ticket=self.datainfo.get(DataInfo.Attribute.TICKET),
             output_prefix=ref_id
         )
 
