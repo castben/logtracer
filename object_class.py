@@ -262,6 +262,23 @@ class CordaObject:
         if not self:
             pass
 
+        def data_validation_and_assignation(data):
+            """
+            Validate proper property names and values
+            :param data: data that need to be validated, process will perform validation and assignation
+            :return:
+            """
+            val = re.search(r'([a-zA-Z_-]+)\s*=\s*(.*)', data)
+            if val and len(val.groups())>1:
+                prop = val.group(1)
+                val = val.group(2)
+                undesired_chars = '{}()[]'
+                for each_char in undesired_chars:
+                    val = val.strip().replace(each_char,'')
+
+                self.data[prop] = val
+
+
         if cproperty == 'id_ref':
             self.reference_id = value
 
@@ -289,17 +306,16 @@ class CordaObject:
                 for each_data in value.split(";"):
                     if not each_data:
                         continue
-                    values = each_data.split("=")
-                    if len(values) > 1:
-                        self.data[values[0].strip()] = values[1].strip().replace("}", "")
 
-            for each_data in value.split(","):
-                if not each_data:
-                    continue
-                values = each_data.split("=")
-                if values:
-                    if len(values) > 1:
-                        self.data[values[0].strip()] = values[1].strip().replace("}", "")
+                    data_validation_and_assignation(each_data)
+
+            if ',':
+                for each_data in value.split(","):
+                    if not each_data:
+                        continue
+
+                    data_validation_and_assignation(each_data)
+
 
     def set_timestamp(self, timestamp):
         self.timestamp = timestamp
