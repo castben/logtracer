@@ -24,6 +24,7 @@ class CoreApi:
         self.what_to_collect = None
         self.references_id = None
         self.file_to_analyse = None
+        self.base_data_storage = None
 
     def deep_to_dict(self, obj):
         if isinstance(obj, (int, float, str, bool, type(None))):
@@ -103,7 +104,8 @@ class CoreApi:
         KnownErrors.initialize()
         data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
 
-        app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
+        customer_name = self.datainfo.get(DataInfo.Attribute.CUSTOMER) or "unknown"
+        customer_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
 
         # 1. Configurar archivo
         self.file_to_analyse = FileManagement(self.log_file_path, block_size_in_mb=15)
@@ -211,7 +213,6 @@ class CoreApi:
     def save_analysis(self, object_type=None, driver=None):
         """
         Store analysis.
-        :param result: a dictionary that contains all data that must be persisted
         :param object_type: What to persist from API response, if NONE will save all data collected otherwise
         will persist only object given
         :param driver: driver to use to persist data by default will be YAML
@@ -230,12 +231,8 @@ class CoreApi:
             object_type = [object_type]
 
         if not driver or driver=="YAML":
-            if 'file-info' in self.result['summary']:
-                customer = self.result['summary']['file-info']['customer']
-                ticket = self.result['summary']['file-info']['ticket']
-            else:
-                customer = 'unknown'
-                ticket = 'unknown'
+            customer = self.datainfo.get(DataInfo.Attribute.CUSTOMER) or "unknown"
+            ticket = self.datainfo.get(DataInfo.Attribute.TICKET) or "unknown"
 
             storage = YamlDataDriver()
             summary = {
@@ -285,6 +282,21 @@ class CoreApi:
                         for each_block in block_type_list[each_block_type]:
                             storage.save_block_item(block_type_list[each_block_type][each_block])
             storage.disconnect()
+
+    def load_analysis(self):
+        """
+
+        :param datainfo:
+        :return:
+        """
+        customer = self.datainfo.get(DataInfo.Attribute.CUSTOMER)
+        ticket = self.datainfo.get(DataInfo.Attribute.TICKET)
+        storage = YamlDataDriver()
+        storage.connect(data_dir=f'./data/storage/{customer}/{ticket}')
+
+        storage.load_data()
+
+
 
     def get_analysis_for(self, log_file_path: str, reference_id: str):
         """
@@ -415,6 +427,24 @@ class CoreApi:
             if success:
                pass
 
+    def list_current_logs(self):
+        """
+        Return a list of all actual pre-analysed logs
+        :return:
+        """
+
+        storage = YamlDataDriver()
+        # data_path = './data/storage'
+        storage.connect()
+        if self.datainfo and self.datainfo.get(DataInfo.Attribute.CUSTOMER):
+            customer = self.datainfo.get(DataInfo.Attribute.CUSTOMER)
+            # if customer:
+            #     storage.connect(data_dir=f'./data/storage/{customer}')
+
+            return storage.get_stored_logs(customer)
+
+        return storage.get_stored_logs()
+
 class DataInfo:
     class Attribute(Enum):
         """
@@ -433,6 +463,7 @@ class DataInfo:
         ENVIRONMENT = "environment"
         DESCRIPTION = "description"
         ISSUE = "issue"
+        CUSTOMER_PATH = "customer_path"
 
     def __init__(self):
         """
