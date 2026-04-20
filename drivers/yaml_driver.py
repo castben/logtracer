@@ -1,4 +1,5 @@
 # drivers/yaml_driver.py
+import re
 from collections import OrderedDict
 
 import yaml
@@ -32,23 +33,69 @@ class YamlDataDriver(DataDriver):
             'cache_enabled': True
         }
         """
-        self.data_dir = Path(config.get('data_dir', './data'))
+        if not config.get('data_dir'):
+            only_list = True
+        else:
+            only_list = False
+
+        self.data_dir = Path(config.get('data_dir', './data/storage'))
         self.entities_dir = self.data_dir / "entities"
         self.parties_dir = self.data_dir / "parties"
         self.blocks_dir = self.data_dir / "blocks"
         self.errors_dir = self.data_dir / "errors"
         self.summary = config.get("summary")
 
-        # Crear directorios
-        for dir_path in [self.entities_dir, self.parties_dir, self.blocks_dir, self.errors_dir]:
-            if not os.path.exists(dir_path):
-                dir_path.mkdir(parents=True, exist_ok=True)
+        if not only_list:
+            # Crear directorios
+            for dir_path in [self.entities_dir, self.parties_dir, self.blocks_dir, self.errors_dir]:
+                if not os.path.exists(dir_path):
+                    dir_path.mkdir(parents=True, exist_ok=True)
 
         # Cargar cache si está habilitada
-        if config.get('cache_enabled', False):
-            self._load_cache()
+        # if config.get('cache_enabled', False):
+        #     self._load_cache()
 
-        self.save_summary()
+        if self.summary:
+           self.save_summary()
+
+    def load_data(self):
+        """
+        Load all saved data
+        :return:
+        """
+        content = {
+            'flow&transactions': {},
+            'parties': {},
+            'errors': {},
+            'special-blocks': {}
+        }
+        # Cargar CordaObjects
+        for entity_file in self.entities_dir.glob("*.yaml"):
+            ref_id = entity_file.stem.replace("entity_", "")
+            content['flow&transactions'][f"{ref_id}"] = self.get_corda_object_by_id(ref_id)
+
+        # Cargar Parties
+        for party_file in self.parties_dir.glob("*.yaml"):
+            party_name = party_file.stem
+            content['parties'][f"{party_name}"] = self.get_party_by_name(party_name)
+
+        # Cargar Errores
+
+        for each_category in  self.get_errors_category_list():
+            if each_category not in content['errors']:
+                content['errors'][each_category] = {}
+
+                for each_error_type in self.get_error_type_list(each_category):
+                    if each_error_type not in content['errors'][each_category]:
+                        content['errors'][each_category][each_error_type] = []
+
+                    content['errors'][each_category][each_error_type].append(self.get_errors_by_category_type(each_category,each_error_type))
+
+
+        # Cargar bloques especiales
+        content['special-blocks'] = self.get_block_type_list()
+
+        return content
 
     def _load_cache(self):
         """Cargar datos en memoria para acceso rápido"""
@@ -61,6 +108,60 @@ class YamlDataDriver(DataDriver):
         for party_file in self.parties_dir.glob("*.yaml"):
             party_name = party_file.stem
             self.cache[f"party_{party_name}"] = self.get_party_by_name(party_name)
+
+
+    def get_stored_logs(self, customer=None):
+        storage = Path(self.data_dir)
+        inventory = {"customer": {}}
+
+        def get_tickets(customer_dir):
+            """
+            Get all tickets under customer name
+            :param customer_dir: customer dir object (path) name to look at
+            :return: list of tickets and description
+            """
+            ticket_list = {}
+            # Iteramos sobre los tickets de cada cliente
+            for ticket_dir in customer_dir.iterdir():
+                if ticket_dir.is_dir():
+                    ticket_id = ticket_dir.name
+
+                    # Buscamos el archivo summary.yaml para obtener la descripción
+                    summary_file = ticket_dir / "summary.yaml"
+                    description = "No description available"
+
+                    if summary_file.exists():
+                        try:
+                            with open(summary_file, 'r') as f:
+                                data = yaml.safe_load(f)
+                                # Ajusta 'description' según la clave real en tu YAML
+                                description = data['analysis']['file_info']['description']
+                        except Exception:
+                            description = "Error reading summary"
+
+                    ticket_list[ticket_id] = description
+
+                    # inventory["customer"][customer_name]["tickets"][ticket_id] = description
+            return ticket_list
+
+        # Iteramos sobre los directorios de clientes
+        if not customer:
+            for customer_dir in storage.iterdir():
+                if customer_dir.is_dir():
+                    customer_name = customer_dir.name
+                    # inventory["customer"][customer_name] = {"tickets": {}}
+                    inventory["customer"][customer_name] = {}
+                    inventory["customer"][customer_name]['tickets'] = get_tickets(customer_dir)
+        else:
+            if not os.path.exists(f"{self.data_dir}/{customer}"):
+                return {'Error': f'{customer} does not exist' }
+            customer_dir = Path(f"{self.data_dir}/{customer}")
+            # ticket_list = get_tickets(customer_dir)
+            inventory["customer"][customer] = {}
+            inventory["customer"][customer]['tickets'] = get_tickets(customer_dir)
+
+
+        return inventory
 
     # --- CORDAOBJECT OPERATIONS ---
 
@@ -155,6 +256,24 @@ class YamlDataDriver(DataDriver):
 
     # --- BLOCK ITEMS OPERATIONS ---
 
+    def get_block_type_list(self):
+        """
+        Return all block type list
+        :return:
+        """
+
+        block_type_list = {}
+        for block_file in self.blocks_dir.glob(f"block*.yaml"):
+            block_type = re.search(r'block_[0-9a-zA-Z-]+_([a-zA-Z-_]+)', block_file.stem)
+            if block_type and block_type.group(1) not in block_type_list:
+                block_type_list[block_type.group(1)] = {}
+
+        for each_block_type in block_type_list.keys():
+            for each_block in self.get_block_items_by_type(each_block_type):
+                block_type_list[each_block_type][each_block.reference] = each_block
+
+        return block_type_list
+
     def get_block_items_by_type(self, block_type: str) -> List[BlockItems]:
         blocks = []
         for block_file in self.blocks_dir.glob(f"block_*_{block_type}.yaml"):
@@ -193,12 +312,55 @@ class YamlDataDriver(DataDriver):
 
     # --- ERROR OPERATIONS ---
 
+    def get_errors_category_list(self) -> List[str]:
+        """
+
+        :return:
+        """
+        category_list = []
+        for each_error_file in self.errors_dir.glob(f"error_*.yaml"):
+            category = re.search(r'error_([a-zA-Z]+)_.*', each_error_file.stem)
+            if category and category.group(1) not in category_list:
+                category_list.append(category.group(1))
+
+        return category_list
+
+
+    def get_error_type_list(self, category: str) -> List[str]:
+        """
+        Return all error types unde a category
+        :param category:
+        :return:
+        """
+        type_list = []
+        for error_file in self.errors_dir.glob(f"error_{category}_*.yaml"):
+            error_type = re.search(r'error_[a-zA-Z-]+_([a-zA-Z-]+).*', error_file.stem)
+            if error_type and error_type.group(1) and not type_list in type_list:
+                type_list.append(error_type.group(1))
+
+        return type_list
+
     def get_errors_by_category(self, category: str) -> List[Error]:
         errors = []
         for error_file in self.errors_dir.glob(f"error_{category}_*.yaml"):
             with open(error_file, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f)
                 errors.append(self._dict_to_error(data))
+        return errors
+
+    def get_errors_by_category_type(self, category:str, error_type):
+        """
+
+        :param category:
+        :param error_type:
+        :return:
+        """
+        errors = []
+        for error_file in self.errors_dir.glob(f"error_{category}_{error_type}_*.yaml"):
+            with open(error_file, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f)
+                errors.append(self._dict_to_error(data))
+
         return errors
 
     def get_errors_by_type(self, error_type: str) -> List[Error]:

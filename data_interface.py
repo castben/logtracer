@@ -112,3 +112,28 @@ class DataDriver(ABC):
     def disconnect(self):
         """Cerrar conexión o guardar datos pendientes"""
         pass
+
+    @abstractmethod
+    def get_stored_logs(self):
+        """List all saved logs"""
+        pass
+
+    @abstractmethod
+    def get_block_type_list(self):
+        """Returns a list of all block types saved"""
+        pass
+
+    @abstractmethod
+    def get_errors_category_list(self):
+        """Returns a list of saved categories"""
+        pass
+
+    @abstractmethod
+    def get_errors_by_category(self):
+        """Return a list of available categories stored"""
+        pass
+
+    @abstractmethod
+    def get_errors_by_category_type(self):
+        """Get a specific error by its category and type"""
+        pass
