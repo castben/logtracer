@@ -3,6 +3,8 @@ import hashlib
 import json
 import mmap
 import os,time
+from datetime import datetime
+
 import regex as re
 import threading
 from collections import OrderedDict
@@ -1241,6 +1243,10 @@ class FileManagement:
         self.log_line_fields = None
         self.state = None
         self.state_message = None
+        self.load_timestamp = None
+        self.file_id = None
+        self.time_spent = None
+
 
         if not os.path.exists(self.filename):
             write_log("Unable to open given filename, it doesn't exist", level="ERROR")
@@ -1506,7 +1512,9 @@ class FileManagement:
 
     def pre_analysis(self):
         try:
+            self.file_id = hashlib.sha256()
             file_size = os.path.getsize(self.filename)
+            self.file_size = file_size
             fsize = file_size / 1024 / 1024
             bsize = self.block_size / 1024 / 1024
             write_log(f'Block size for reading: {bsize:.2f} Mbytes')
@@ -1528,6 +1536,7 @@ class FileManagement:
                     # Si estamos cerca del final y el resto es menor al porcentaje mínimo, fusionamos
                     if remaining < (self.block_size * self.min_percent_merge / 100):
                         chunk = file.read(remaining)
+                        self.file_id.update(chunk.encode('utf-8', errors='ignore'))
                         last_newline = chunk.rfind('\n')
                         if last_newline != -1:
                             end_pos = start_pos + last_newline + 1
@@ -1552,6 +1561,7 @@ class FileManagement:
                     else:
                         # Leer bloque normal
                         chunk = file.read(self.block_size)
+                        self.file_id.update(chunk.encode('utf-8', errors='ignore'))
                         last_newline = chunk.rfind('\n')
                         if last_newline != -1:
                             end_pos = start_pos + last_newline + 1
@@ -1566,6 +1576,8 @@ class FileManagement:
                         file.seek(end_pos)
 
                         write_log(f"Processed block: start_pos={start_pos}, lines={start_line}-{end_line}")
+            self.file_id = self.file_id.hexdigest()[:16]
+            write_log(f'File Hash ID: {self.file_id}')
             write_log(f'Will launch {len(self.chunk_info)} threads to read full file...')
             self.state = True
 
@@ -1734,7 +1746,6 @@ class FileManagement:
                     else:
                         schedule_ui_update('TTkLabel_analysis_stat', "setText", '\u2705 Done...')
 
-
                 # Programar próxima verificación
                 if active_tasks and not shutdown_event.is_set():
                     threading.Timer(0.1, monitor_tasks).start()  # ¡Solo 100ms!
@@ -1774,7 +1785,9 @@ class FileManagement:
 
             if self.debug:
                 write_log(f"{Icons.SUCCESS} Analysis complete. "
-                          f"Total: {total_data:.2f} MB en {total_time:.2f}s")
+                          f"Total: {total_data:.2f} MB in {total_time:.2f}s")
+                self.load_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                self.time_spent = f"Total: {total_data:.2f} MB in {total_time:.2f}s"
 
 
 

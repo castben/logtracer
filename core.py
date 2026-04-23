@@ -1,4 +1,5 @@
 # logtracer/core.py
+import hashlib
 import threading
 from enum import Enum
 
@@ -21,6 +22,7 @@ class CoreApi:
         self.result = None
         self.datainfo = datainfo
         self.log_file_path = None
+        self.log_files = []
         self.what_to_collect = None
         self.references_id = None
         self.file_to_analyse = None
@@ -43,12 +45,15 @@ class CoreApi:
             }
         return str(obj) # Último recurso
 
-    def set_log_file(self, logfile):
+    def add_log_file(self, logfile):
         """
 
         :param logfile:
         :return:
         """
+
+        self.log_files.append(logfile)
+
         self.log_file_path = logfile
 
     def what_to_collect(self, what_to_collect:CordaObject.Type=None):
@@ -66,8 +71,6 @@ class CoreApi:
         :return:
         """
         self.references_id = references_id
-
-
 
     def get_results(self):
         """
@@ -91,14 +94,14 @@ class CoreApi:
             what_to_collect = [self.what_to_collect]
 
         Configs.load_config()
+        master_payload = {'log_files': {}}
+        file_index = {}
         payload = {
-            "summary":{
-                "log_file": self.log_file_path
-            },
+            "summary":{},
             "results": {}
         }
-        if self.datainfo:
-            payload["summary"]["file_info"] = self.datainfo.get_all()
+        # if self.datainfo:
+        #     payload["summary"]["file_info"] = self.datainfo.get_all()
 
         KnownErrors.configs = Configs
         KnownErrors.initialize()
@@ -108,107 +111,120 @@ class CoreApi:
         customer_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
 
         # 1. Configurar archivo
-        self.file_to_analyse = FileManagement(self.log_file_path, block_size_in_mb=15)
+        # need to loop in all assigned files
+        for each_file in self.log_files:
+            self.file_to_analyse = FileManagement(each_file, block_size_in_mb=15)
+            if not self.file_to_analyse.state:
+                raise ValueError(f"Unable to to read given file due to: {self.file_to_analyse.state_message}")
+            self.log_file_path = each_file
+            payload['summary']['log_file'] = each_file
+            self.file_to_analyse.discover_file_format()
+            payload["summary"]["file_version_used"] = self.file_to_analyse.logfile_format
+            special_blocks = None
+            collect_parties = None
+            collect_refIds = None
+            collect_errors = None
 
-        if not self.file_to_analyse.state:
-            raise ValueError(f"Unable to to read given file due to: {self.file_to_analyse.state_message}")
+            if not self.what_to_collect or CordaObject.Type.SPECIAL_BLOCKS in  self.what_to_collect:
+                # 2. Extraer bloques especiales (opcional, si los necesitas en la API)
+                special_blocks = BlockExtractor(self.file_to_analyse, Configs.config)
+                special_blocks.extract()
 
-        self.file_to_analyse.discover_file_format()
-        payload["summary"]["file-version-used"] = self.file_to_analyse.logfile_format
-        special_blocks = None
-        collect_parties = None
-        collect_refIds = None
-        collect_errors = None
+            if not self.what_to_collect or CordaObject.Type.PARTY in self.what_to_collect:
+                # 3. Configurar recolectores
+                #
+                # Party collection
+                collect_parties = GetParties(Configs)
+                collect_parties.set_file(self.file_to_analyse)
+                collect_parties.set_element_type(CordaObject.Type.PARTY)
+                self.file_to_analyse.add_process_to_execute(collect_parties)
 
-        if not self.what_to_collect or CordaObject.Type.SPECIAL_BLOCKS in  self.what_to_collect:
-            # 2. Extraer bloques especiales (opcional, si los necesitas en la API)
-            special_blocks = BlockExtractor(self.file_to_analyse, Configs.config)
-            special_blocks.extract()
+            if not self.what_to_collect or CordaObject.Type.FLOW_AND_TRANSACTIONS in self.what_to_collect:
+                #
+                # Transactions and Flows collection
+                collect_refIds = GetRefIds(Configs)
+                collect_refIds.set_file(self.file_to_analyse)
+                collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
+                self.file_to_analyse.add_process_to_execute(collect_refIds)
 
-        if not self.what_to_collect or CordaObject.Type.PARTY in self.what_to_collect:
-            # 3. Configurar recolectores
-            #
-            # Party collection
-            collect_parties = GetParties(Configs)
-            collect_parties.set_file(self.file_to_analyse)
-            collect_parties.set_element_type(CordaObject.Type.PARTY)
-            self.file_to_analyse.add_process_to_execute(collect_parties)
+            if not self.what_to_collect or CordaObject.Type.ERROR_ANALYSIS in self.what_to_collect:
+                #
+                # Collection of Errors
+                collect_errors = ErrorAnalysis(Configs.config)
+                collect_errors.set_file(self.file_to_analyse)
+                collect_errors.set_element_type(CordaObject.Type.ERROR_ANALYSIS)
+                self.file_to_analyse.add_process_to_execute(collect_errors)
 
-        if not self.what_to_collect or CordaObject.Type.FLOW_AND_TRANSACTIONS in self.what_to_collect:
-            #
-            # Transactions and Flows collection
-            collect_refIds = GetRefIds(Configs)
-            collect_refIds.set_file(self.file_to_analyse)
-            collect_refIds.set_element_type(CordaObject.Type.FLOW_AND_TRANSACTIONS)
-            self.file_to_analyse.add_process_to_execute(collect_refIds)
+            # 4. Ejecutar procesamiento
+            self.file_to_analyse.pre_analysis()
+            self.file_to_analyse.parallel_processing()
 
-        if not self.what_to_collect or CordaObject.Type.ERROR_ANALYSIS in self.what_to_collect:
-            #
-            # Collection of Errors
-            collect_errors = ErrorAnalysis(Configs.config)
-            collect_errors.set_file(self.file_to_analyse)
-            collect_errors.set_element_type(CordaObject.Type.ERROR_ANALYSIS)
-            self.file_to_analyse.add_process_to_execute(collect_errors)
+            # Si quieres soportar múltiples roles por party:
+            if collect_parties:
+                # 1. Obtener todos los roles detectados en el log
+                detected_roles = self.file_to_analyse.get_party_role()
 
-        # 4. Ejecutar procesamiento
-        self.file_to_analyse.pre_analysis()
-        self.file_to_analyse.parallel_processing()
+                x500_to_roles = {}
+                for role in detected_roles:
+                    for x500 in (self.file_to_analyse.get_party_role(role) or []):
+                        x500_to_roles.setdefault(x500, []).append(role)
 
-        # Si quieres soportar múltiples roles por party:
-        if collect_parties:
-            # 1. Obtener todos los roles detectados en el log
-            detected_roles = self.file_to_analyse.get_party_role()
+                parties = [
+                    {"name": p.name, "roles": x500_to_roles.get(p.name, [])}
+                    for p in self.file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
+                ]
+                payload["summary"]["total_parties"] = len(parties)
+                payload["summary"]["detected_roles"] = detected_roles
+                payload["results"][CordaObject.Type.PARTY.value] = parties
 
-            x500_to_roles = {}
-            for role in detected_roles:
-                for x500 in (self.file_to_analyse.get_party_role(role) or []):
-                    x500_to_roles.setdefault(x500, []).append(role)
+            if collect_refIds:
+                flows = {}
+                transactions = {}
+                # Transform CordaObject into a dictionary for serialization
+                for item in self.file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS, True) or []:
+                    ref_id = item.get_reference_id()
+                    item_dict = self.deep_to_dict(item)
+                    if item.get_type() == "FLOW":
+                        flows[f'{ref_id}']=item_dict
+                    elif item.get_type() == "TRANSACTION":
+                        transactions[f'{ref_id}'] =item_dict
+                # Put all content of flows and transactions into same bucket; each corda object has its type and can be
+                # easily identified.
+                fnt = {**flows, **transactions}
+                payload["summary"]["total_transactions"] = len(transactions)
+                payload["summary"]["total_flows"]= len(flows)
 
-            parties = [
-                {"name": p.name, "roles": x500_to_roles.get(p.name, [])}
-                for p in self.file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
-            ]
-            payload["summary"]["total_parties"] = len(parties)
-            payload["summary"]["detected_roles"] = detected_roles
-            payload["results"][CordaObject.Type.PARTY.value] = parties
+                payload["results"][CordaObject.Type.FLOW_AND_TRANSACTIONS.value] = fnt
 
-        if collect_refIds:
-            flows = {}
-            transactions = {}
-            # Transform CordaObject into a dictionary for serialization
-            for item in self.file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS, True) or []:
-                ref_id = item.get_reference_id()
-                item_dict = self.deep_to_dict(item)
-                if item.get_type() == "FLOW":
-                    flows[f'{ref_id}']=item_dict
-                elif item.get_type() == "TRANSACTION":
-                    transactions[f'{ref_id}'] =item_dict
-            # Put all content of flows and transactions into same buket; each corda object has its type and can be
-            # easily identified.
-            fnt = {**flows, **transactions}
-            payload["summary"]["total_transactions"] = len(transactions)
-            payload["summary"]["total_flows"]= len(flows)
+            if special_blocks and  special_blocks.collected_blocks:
+                payload["results"][CordaObject.Type.SPECIAL_BLOCKS.value] = {
+                    "collected_blocktypes_types": special_blocks.get_collected_block_types(),
+                    "defined_blocktypes": special_blocks.get_defined_block_types(),
+                    "collected_blocktypes": special_blocks.get_all_content()
+                }
+                payload['summary'][CordaObject.Type.SPECIAL_BLOCKS.value] = special_blocks.get_collected_block_types()
 
-            payload["results"][CordaObject.Type.FLOW_AND_TRANSACTIONS.value] = fnt
-
-        if special_blocks and  special_blocks.collected_blocks:
-            payload["results"][CordaObject.Type.SPECIAL_BLOCKS.value] = {
-                "collected_blocktypes_types": special_blocks.get_collected_block_types(),
-                "defined_blocktypes": special_blocks.get_defined_block_types(),
-                "collected_blocktypes": special_blocks.get_all_content()
+            if collect_errors:
+                collect_errors.collected_errors = self.file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
+                # payload["Error-log"] = collect_errors.get_error_category()
+                payload["results"][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_all_content()
+                payload['summary'][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_error_summary()
+            file_index[self.file_to_analyse.file_id] = self.log_file_path
+            payload['summary']['file_info'] = {
+                'processed_timestamp': self.file_to_analyse.load_timestamp,
+                'file_size': self.file_to_analyse.file_size
             }
-            payload['summary'][CordaObject.Type.SPECIAL_BLOCKS.value] = special_blocks.get_collected_block_types()
 
-        if collect_errors:
-            collect_errors.collected_errors = self.file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
-            # payload["Error-log"] = collect_errors.get_error_category()
-            payload["results"][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_all_content()
-            payload['summary'][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_error_summary()
+            master_payload['log_files'][self.file_to_analyse.file_id] = payload
+            # 6. Devolver resultado estructurado
+        # self.datainfo.set('log_files', file_index)
+        master_payload['ticket_details'] = self.datainfo.get_all()
 
 
-        # 6. Devolver resultado estructurado
-        self.result = payload
-        return payload
+        self.result = master_payload
+
+
+        return master_payload
 
     def save_analysis(self, object_type=None, driver=None):
         """
@@ -235,53 +251,59 @@ class CoreApi:
             ticket = self.datainfo.get(DataInfo.Attribute.TICKET) or "unknown"
 
             storage = YamlDataDriver()
-            summary = {
-                "analysis": self.result["summary"]
-            }
-            storage.connect(data_dir= f"./data/storage/{customer}/{ticket}", summary=summary)
 
-            for each_object in object_type:
-                if each_object == CordaObject.Type.ERROR_ANALYSIS and each_object.value in self.result["results"]:
-                    category = self.result["results"][each_object.value]
-                    for each_item_category in category:
-                        for each_error in category[each_item_category]:
-                            error_list = category[each_item_category][each_error]
-                            for each_item in error_list:
-                                # error = Error()
-                                # error.category = each_item_category
-                                # error.type = each_item["type"]
-                                # error.level = each_item["level"]
-                                # error.line_number = each_item['line_number']
-                                # error.timestamp = each_item['timestamp']
-                                # error.reference_id = each_item['line_number']
-                                # error.log_line = each_item["log_line"]
-                                if 'category' not in each_item:
-                                    each_item['category'] = each_item_category
-                                if 'reference_id' not in each_item:
-                                    each_item['reference_id'] = each_item['line_number']
+            if 'log_files' in self.result:
+                for file_id in  self.result['log_files']:
+                    summary = {
+                        "analysis": self.result['log_files'][file_id]["summary"]
+                    }
+                    storage.connect(data_dir= f"./data/storage/{customer}/{ticket}/{file_id}",
+                                    summary=summary,
+                                    ticket_details=self.result['ticket_details'])
 
-                                storage.save_error(each_item)
+                    for each_object in object_type:
+                        if each_object == CordaObject.Type.ERROR_ANALYSIS and each_object.value in self.result['log_files'][file_id]["results"]:
+                            category = self.result['log_files'][file_id]["results"][each_object.value]
+                            for each_item_category in category:
+                                for each_error in category[each_item_category]:
+                                    error_list = category[each_item_category][each_error]
+                                    for each_item in error_list:
+                                        # error = Error()
+                                        # error.category = each_item_category
+                                        # error.type = each_item["type"]
+                                        # error.level = each_item["level"]
+                                        # error.line_number = each_item['line_number']
+                                        # error.timestamp = each_item['timestamp']
+                                        # error.reference_id = each_item['line_number']
+                                        # error.log_line = each_item["log_line"]
+                                        if 'category' not in each_item:
+                                            each_item['category'] = each_item_category
+                                        if 'reference_id' not in each_item:
+                                            each_item['reference_id'] = each_item['line_number']
 
-                if each_object == CordaObject.Type.PARTY and each_object.value in self.result["results"]:
-                    for each_party in self.result['results'][each_object.value]:
-                        party = Party(each_party['name'])
-                        party.set_corda_role('/'.join(each_party['roles']))
-                        # storage.save_party(each_party)
-                        storage.save_party(party)
+                                        storage.save_error(each_item)
 
-                if each_object == CordaObject.Type.FLOW_AND_TRANSACTIONS and each_object.value in self.result["results"]:
-                    object_list = self.result['results'][each_object.value]
-                    for each_item in object_list:
-                        # co = CordaObject()
-                        # co.from_dict(object_list[each_item])
-                        storage.save_corda_object(object_list[each_item])
+                        if each_object == CordaObject.Type.PARTY and each_object.value in self.result['log_files'][file_id]["results"]:
+                            for each_party in self.result['log_files'][file_id]['results'][each_object.value]:
+                                party = Party(each_party['name'])
+                                party.set_corda_role('/'.join(each_party['roles']))
+                                # storage.save_party(each_party)
+                                storage.save_party(party)
 
-                if each_object == CordaObject.Type.SPECIAL_BLOCKS and each_object.value in self.result["results"]:
-                    block_type_list = self.result['results'][CordaObject.Type.SPECIAL_BLOCKS.value]['collected_blocktypes']
-                    for each_block_type in block_type_list:
-                        for each_block in block_type_list[each_block_type]:
-                            storage.save_block_item(block_type_list[each_block_type][each_block])
-            storage.disconnect()
+                        if each_object == CordaObject.Type.FLOW_AND_TRANSACTIONS and each_object.value in self.result['log_files'][file_id]["results"]:
+                            object_list = self.result['log_files'][file_id]['results'][each_object.value]
+                            for each_item in object_list:
+                                # co = CordaObject()
+                                # co.from_dict(object_list[each_item])
+                                storage.save_corda_object(object_list[each_item])
+
+                        if each_object == CordaObject.Type.SPECIAL_BLOCKS and each_object.value in self.result['log_files'][file_id]["results"]:
+                            block_type_list = self.result['log_files'][file_id]['results'][CordaObject.Type.SPECIAL_BLOCKS.value]['collected_blocktypes']
+                            for each_block_type in block_type_list:
+                                for each_block in block_type_list[each_block_type]:
+                                    storage.save_block_item(block_type_list[each_block_type][each_block])
+
+                    storage.disconnect()
 
     def load_analysis(self):
         """
@@ -296,7 +318,20 @@ class CoreApi:
 
         storage.load_data()
 
+    def get_file_hash(self, chunk_size=65536):
+        """
+        Genera un hash SHA-256 del contenido del archivo.
+        Si el contenido es idéntico, el hash será idéntico.
+        """
+        hasher = hashlib.sha256()
 
+        with open(self.log_file_path, 'rb') as f:
+            # Leemos el archivo en bloques (chunks) para no cargar logs gigas en RAM
+            while chunk := f.read(chunk_size):
+                hasher.update(chunk)
+
+        # 16 caracteres son más que suficientes para evitar colisiones en este contexto
+        return hasher.hexdigest()[:16]
 
     def get_analysis_for(self, log_file_path: str, reference_id: str):
         """
@@ -508,3 +543,7 @@ class DataInfo:
         """
 
         return self.data
+
+class Payload:
+
+    pass
