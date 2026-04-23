@@ -137,3 +137,13 @@ class DataDriver(ABC):
     def get_errors_by_category_type(self):
         """Get a specific error by its category and type"""
         pass
+
+    @abstractmethod
+    def save_details(self):
+        """Save ticket details"""
+        pass
+
+    @abstractmethod
+    def save_summary(self):
+        """save file summary analysis"""
+        pass

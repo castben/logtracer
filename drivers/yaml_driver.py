@@ -23,6 +23,8 @@ class YamlDataDriver(DataDriver):
         self.blocks_dir = None
         self.errors_dir = None
         self.summary = None
+        self.ticket_details = None
+        self.logfile_hash = None
         self.cache = {}  # Opcional: cache para mejorar rendimiento
 
     def connect(self, **config):
@@ -44,6 +46,7 @@ class YamlDataDriver(DataDriver):
         self.blocks_dir = self.data_dir / "blocks"
         self.errors_dir = self.data_dir / "errors"
         self.summary = config.get("summary")
+        self.ticket_details = config.get("ticket_details", None)
 
         if not only_list:
             # Crear directorios
@@ -57,6 +60,8 @@ class YamlDataDriver(DataDriver):
 
         if self.summary:
            self.save_summary()
+        if self.ticket_details:
+            self.save_details()
 
     def load_data(self):
         """
@@ -298,6 +303,13 @@ class YamlDataDriver(DataDriver):
         with open(f"{self.data_dir}/summary.yaml", 'w', encoding='utf-8') as f:
             yaml.dump(self.summary, f, allow_unicode=True, default_flow_style=False)
 
+    def save_details(self):
+        """
+        Save ticket details for received payload
+        :return:
+        """
+        with open(f"{self.data_dir}/../ticket_details.yaml", 'w', encoding='utf-8') as f:
+            yaml.dump(self.ticket_details, f, allow_unicode=True, default_flow_style=False)
 
     def save_block_item(self, block_item):
 
