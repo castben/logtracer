@@ -27,6 +27,17 @@ class YamlDataDriver(DataDriver):
         self.logfile_hash = None
         self.cache = {}  # Opcional: cache para mejorar rendimiento
 
+    def configure_dirs(self, dir_setup):
+        """
+        Configure access to all data
+        :param dir_setup:
+        :return:
+        """
+        self.entities_dir = dir_setup / "entities"
+        self.parties_dir = dir_setup / "parties"
+        self.blocks_dir = dir_setup / "blocks"
+        self.errors_dir = dir_setup / "errors"
+
     def connect(self, **config):
         """
         Configurar directorio de datos
@@ -41,15 +52,24 @@ class YamlDataDriver(DataDriver):
             only_list = False
 
         self.data_dir = Path(config.get('data_dir', './data/storage'))
-        self.entities_dir = self.data_dir / "entities"
-        self.parties_dir = self.data_dir / "parties"
-        self.blocks_dir = self.data_dir / "blocks"
-        self.errors_dir = self.data_dir / "errors"
-        self.summary = config.get("summary")
+        self.summary = config.get("summary", None)
         self.ticket_details = config.get("ticket_details", None)
+
+        if os.path.exists(f'{self.data_dir}/ticket_details.yaml'):
+            # Verify if ticket details exist, if it does, then no dir creation is required
+            with open(f'{self.data_dir}/ticket_details.yaml', 'r') as fh_td:
+                return yaml.safe_load(fh_td)
+
+        if os.path.exists(f'{self.data_dir}/summary.yaml'):
+            self.configure_dirs(self.data_dir)
+            with open(f'{self.data_dir}/summary.yaml', 'r') as fh_sm:
+                self.summary = yaml.safe_load(fh_sm)
+
+            return self
 
         if not only_list:
             # Crear directorios
+            self.configure_dirs(self.data_dir)
             for dir_path in [self.entities_dir, self.parties_dir, self.blocks_dir, self.errors_dir]:
                 if not os.path.exists(dir_path):
                     dir_path.mkdir(parents=True, exist_ok=True)
@@ -60,8 +80,12 @@ class YamlDataDriver(DataDriver):
 
         if self.summary:
            self.save_summary()
-        if self.ticket_details:
+
+        if config.get("ticket_details"):
             self.save_details()
+
+        return None
+
 
     def load_data(self):
         """
@@ -115,7 +139,7 @@ class YamlDataDriver(DataDriver):
             self.cache[f"party_{party_name}"] = self.get_party_by_name(party_name)
 
 
-    def get_stored_logs(self, customer=None):
+    def get_customer_tickets(self, customer=None):
         storage = Path(self.data_dir)
         inventory = {"customer": {}}
 
@@ -132,15 +156,15 @@ class YamlDataDriver(DataDriver):
                     ticket_id = ticket_dir.name
 
                     # Buscamos el archivo summary.yaml para obtener la descripción
-                    summary_file = ticket_dir / "summary.yaml"
+                    ticket_details = ticket_dir / "ticket_details.yaml"
                     description = "No description available"
 
-                    if summary_file.exists():
+                    if ticket_details.exists():
                         try:
-                            with open(summary_file, 'r') as f:
+                            with open(ticket_details, 'r') as f:
                                 data = yaml.safe_load(f)
                                 # Ajusta 'description' según la clave real en tu YAML
-                                description = data['analysis']['file_info']['description']
+                                description = data['description']
                         except Exception:
                             description = "Error reading summary"
 
@@ -167,6 +191,9 @@ class YamlDataDriver(DataDriver):
 
 
         return inventory
+
+    def get_ticket_logs(self):
+        pass
 
     # --- CORDAOBJECT OPERATIONS ---
 

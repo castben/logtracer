@@ -1245,7 +1245,7 @@ class FileManagement:
         self.state_message = None
         self.load_timestamp = None
         self.file_id = None
-        self.time_spent = None
+        self.time_spent = []
 
 
         if not os.path.exists(self.filename):
@@ -1588,7 +1588,6 @@ class FileManagement:
         except UnicodeError as ue:
             write_log(f'Unable to read file due to {ue}', level='ERROR')
 
-
     def add_process_to_execute(self, method):
         """
         This will add a method to be executed.
@@ -1719,7 +1718,7 @@ class FileManagement:
         # Variables para monitoreo
         futures = []
         active_tasks = tasks.copy()
-
+        self.load_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         with concurrent.futures.ThreadPoolExecutor(max_workers=maxworkers) as pool:
             # Función para monitorear tareas SIN BLOQUEAR
             def monitor_tasks():
@@ -1745,6 +1744,7 @@ class FileManagement:
                         schedule_ui_update('TTkLabel_analysis_stat','setText',f"{Icons.CLOCK}...{completed_percent}%")
                     else:
                         schedule_ui_update('TTkLabel_analysis_stat', "setText", '\u2705 Done...')
+
 
                 # Programar próxima verificación
                 if active_tasks and not shutdown_event.is_set():
@@ -1778,18 +1778,17 @@ class FileManagement:
 
                     total_time += float(time_msg.split()[0])
                     total_data += data
-
+                    self.time_spent.append(f'Thread-{thread_index} completed in {time_msg}, Processed {data:.2f} MB')
                     if self.debug:
                         write_log(f"Thread {thread_index} completed in {time_msg}, "
                                   f"Processed {data:.2f} MB")
 
+
+            # self.time_spent = f"Total: {total_data:.2f} MB in {total_time:.2f}s"
+
             if self.debug:
                 write_log(f"{Icons.SUCCESS} Analysis complete. "
                           f"Total: {total_data:.2f} MB in {total_time:.2f}s")
-                self.load_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                self.time_spent = f"Total: {total_data:.2f} MB in {total_time:.2f}s"
-
-
 
     def set_file_format(self, file_format):
         """

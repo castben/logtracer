@@ -100,6 +100,9 @@ class CoreApi:
             "summary":{},
             "results": {}
         }
+
+        file_status = {}
+
         # if self.datainfo:
         #     payload["summary"]["file_info"] = self.datainfo.get_all()
 
@@ -209,15 +212,21 @@ class CoreApi:
                 # payload["Error-log"] = collect_errors.get_error_category()
                 payload["results"][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_all_content()
                 payload['summary'][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_error_summary()
+                file_status['error_analysis'] = 'complete'
+            else:
+                file_status['error_analysis'] = 'pending'
+
             file_index[self.file_to_analyse.file_id] = self.log_file_path
             payload['summary']['file_info'] = {
                 'processed_timestamp': self.file_to_analyse.load_timestamp,
-                'file_size': self.file_to_analyse.file_size
+                'file_size': self.file_to_analyse.file_size,
+                'file_status': file_status,
+                'time_spent': self.file_to_analyse.time_spent
             }
 
             master_payload['log_files'][self.file_to_analyse.file_id] = payload
             # 6. Devolver resultado estructurado
-        # self.datainfo.set('log_files', file_index)
+        self.datainfo.set('log_files', file_index)
         master_payload['ticket_details'] = self.datainfo.get_all()
 
 
@@ -314,9 +323,19 @@ class CoreApi:
         customer = self.datainfo.get(DataInfo.Attribute.CUSTOMER)
         ticket = self.datainfo.get(DataInfo.Attribute.TICKET)
         storage = YamlDataDriver()
-        storage.connect(data_dir=f'./data/storage/{customer}/{ticket}')
+        # connect to get tickets details
+        ticket_details=storage.connect(data_dir=f'./data/storage/{customer}/{ticket}')
 
-        storage.load_data()
+        for each_log in ticket_details['log_files']:
+            summary = storage.connect(data_dir=f'./data/storage/{customer}/{ticket}/{each_log}').summary
+
+
+            content=storage.load_data()
+
+
+            pass
+        storage.disconnect()
+
 
     def get_file_hash(self, chunk_size=65536):
         """
@@ -476,9 +495,9 @@ class CoreApi:
             # if customer:
             #     storage.connect(data_dir=f'./data/storage/{customer}')
 
-            return storage.get_stored_logs(customer)
+            return storage.get_customer_tickets(customer)
 
-        return storage.get_stored_logs()
+        return storage.get_customer_tickets()
 
 class DataInfo:
     class Attribute(Enum):
@@ -499,6 +518,7 @@ class DataInfo:
         DESCRIPTION = "description"
         ISSUE = "issue"
         CUSTOMER_PATH = "customer_path"
+        TICKET_STATUS = "ticket_status"
 
     def __init__(self):
         """

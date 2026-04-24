@@ -55,11 +55,9 @@ def test_load(datainfo):
     customer_data.load_analysis()
 
 
-
-
 if __name__ == "__main__":
     analysis_test = None
-    if True:
+    if False:
         datainfo = DataInfo()
         datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
         datainfo.set(DataInfo.Attribute.TICKET, "TS-0001")
@@ -76,17 +74,19 @@ if __name__ == "__main__":
         analysis.add_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/test-customer/solutioneng.log")
         analysis_test = test_analysis(analysis)
 
-    if True:
+    if False:
         if analysis_test:
             analysis_test.save_analysis()
 
-    if False:
+    if True:
         list_test()
 
-    if False:
+    if True:
         datainfo = DataInfo()
-        datainfo.set(DataInfo.Attribute.CUSTOMER, "ChainThat")
-        datainfo.set(DataInfo.Attribute.TICKET, "CS-4002")
+        datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
+        datainfo.set(DataInfo.Attribute.TICKET, "TS-0001")
 
         test_load(datainfo)
+
+        # '3b9bef7e-57da-4790-b30b-9931cd87395e'
 

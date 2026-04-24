@@ -114,7 +114,7 @@ class DataDriver(ABC):
         pass
 
     @abstractmethod
-    def get_stored_logs(self):
+    def get_customer_tickets(self):
         """List all saved logs"""
         pass
 
