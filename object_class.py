@@ -1264,6 +1264,34 @@ class FileManagement:
         FileManagement.clear()
 
     @classmethod
+    def add_list(cls, elements_dict=None, elements_type=None, list_items=None):
+        """
+        Add a list of elements into unique result list
+        :param elements_dict: A dictionary with all data required; this method will add them automatically
+        :param elements_type: Identify type list to add (Party, Error, etc)
+        :param list_items: list of items of that type
+        :return:
+        """
+        if not elements_dict:
+            if elements_type and list_items:
+                for each_item in list_items:
+                    cls.add_element(elements_type, each_item)
+        if isinstance(elements_dict, dict):
+            for each_type in elements_dict:
+                for each_item in elements_dict[each_type]:
+                    if each_type == CordaObject.Type.ERROR_ANALYSIS.value:
+                       for category in elements_dict[each_type][each_item]:
+                           for each_error_type in elements_dict[each_type][each_item][category]:
+                               if isinstance(each_error_type, list):
+                                   for each_error in each_error_type:
+                                       cls.add_element(each_type,each_error)
+                               else:
+                                    cls.add_element(each_type,each_error_type)
+                    else:
+                        cls.add_element(each_type, elements_dict[each_type][each_item])
+
+
+    @classmethod
     def clear(cls):
         """
         Clear all results
@@ -1394,6 +1422,17 @@ class FileManagement:
             if each_id.has_alternate_names():
                 for each_alternate_name in each_id.get_alternate_names():
                     write_log(f"              `-->  {each_alternate_name}")
+
+
+    def identify_roles(self):
+        """
+        from given list, check which roles are assigned on each party
+        :return:
+        """
+        for each_party in self.get_all_unique_results(CordaObject.Type.PARTY.value):
+            if each_party.get_corda_role():
+                self.add_party_role(each_party.reference_id, each_party.get_corda_role())
+
 
     def identify_party_role(self, line, line_no=None):
         """

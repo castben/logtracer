@@ -93,36 +93,37 @@ class YamlDataDriver(DataDriver):
         :return:
         """
         content = {
-            'flow&transactions': {},
-            'parties': {},
-            'errors': {},
-            'special-blocks': {}
+            CordaObject.Type.FLOW_AND_TRANSACTIONS.value: {},
+            CordaObject.Type.PARTY.value: {},
+            CordaObject.Type.ERROR_ANALYSIS.value: {},
+            CordaObject.Type.SPECIAL_BLOCKS.value: {},
+            CordaObject.Type.UML_STEPS.value:{}
         }
         # Cargar CordaObjects
         for entity_file in self.entities_dir.glob("*.yaml"):
             ref_id = entity_file.stem.replace("entity_", "")
-            content['flow&transactions'][f"{ref_id}"] = self.get_corda_object_by_id(ref_id)
+            content[CordaObject.Type.FLOW_AND_TRANSACTIONS.value][f"{ref_id}"] = self.get_corda_object_by_id(ref_id)
 
         # Cargar Parties
         for party_file in self.parties_dir.glob("*.yaml"):
             party_name = party_file.stem
-            content['parties'][f"{party_name}"] = self.get_party_by_name(party_name)
+            content[CordaObject.Type.PARTY.value][f"{party_name}"] = self.get_party_by_name(party_name)
 
         # Cargar Errores
 
         for each_category in  self.get_errors_category_list():
-            if each_category not in content['errors']:
-                content['errors'][each_category] = {}
+            if each_category not in content[CordaObject.Type.ERROR_ANALYSIS.value]:
+                content[CordaObject.Type.ERROR_ANALYSIS.value][each_category] = {}
 
                 for each_error_type in self.get_error_type_list(each_category):
-                    if each_error_type not in content['errors'][each_category]:
-                        content['errors'][each_category][each_error_type] = []
+                    if each_error_type not in content[CordaObject.Type.ERROR_ANALYSIS.value][each_category]:
+                        content[CordaObject.Type.ERROR_ANALYSIS.value][each_category][each_error_type] = []
 
-                    content['errors'][each_category][each_error_type].append(self.get_errors_by_category_type(each_category,each_error_type))
+                    content[CordaObject.Type.ERROR_ANALYSIS.value][each_category][each_error_type].append(self.get_errors_by_category_type(each_category,each_error_type))
 
 
         # Cargar bloques especiales
-        content['special-blocks'] = self.get_block_type_list()
+        content[CordaObject.Type.SPECIAL_BLOCKS.value] = self.get_block_type_list()
 
         return content
 
@@ -374,7 +375,7 @@ class YamlDataDriver(DataDriver):
         type_list = []
         for error_file in self.errors_dir.glob(f"error_{category}_*.yaml"):
             error_type = re.search(r'error_[a-zA-Z-]+_([a-zA-Z-]+).*', error_file.stem)
-            if error_type and error_type.group(1) and not type_list in type_list:
+            if error_type and error_type.group(1) and not error_type.group(1) in type_list:
                 type_list.append(error_type.group(1))
 
         return type_list

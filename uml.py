@@ -494,9 +494,9 @@ class UMLStepSetup:
             for i in range(0, len(items), chunk_size)
     ]
 
-    def parallel_process(self, corda_object: CordaObject, chunk_size: int = 100, max_threads: int = 4):
+    def parallel_process(self, chunk_size: int = 100, max_threads: int = 4):
         # Dividir el diccionario en bloques
-
+        corda_object = self.cordaobject
         if not corda_object.get_references():
             write_log(f'Sorry {corda_object.reference_id} has no references to generate a UML diagram, please select another reference...', level='WARN')
             return

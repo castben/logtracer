@@ -314,7 +314,7 @@ class CoreApi:
 
                     storage.disconnect()
 
-    def load_analysis(self):
+    def load_ticket_details(self):
         """
 
         :param datainfo:
@@ -326,16 +326,41 @@ class CoreApi:
         # connect to get tickets details
         ticket_details=storage.connect(data_dir=f'./data/storage/{customer}/{ticket}')
 
-        for each_log in ticket_details['log_files']:
-            summary = storage.connect(data_dir=f'./data/storage/{customer}/{ticket}/{each_log}').summary
 
 
-            content=storage.load_data()
+        return ticket_details
+
+    def trace_analysis(self, logfile_id, reference_id):
+        """
+        Generate corresponding UML representation from given logfile and reference_id
+        :param logfile_id: logfile_id to trace
+        :param reference_id: reference to trace
+        :return: UML representation or None otherwise
+        """
+        storage = YamlDataDriver()
+        customer = self.datainfo.get(DataInfo.Attribute.CUSTOMER)
+        ticket = self.datainfo.get(DataInfo.Attribute.TICKET)
+        ticket_details = self.load_ticket_details()
+        saved_data = storage.connect(data_dir=f'./data/storage/{customer}/{ticket}/{logfile_id}')
+        data_analysis = saved_data.load_data()
+
+        file_check = FileManagement(ticket_details['log_files'][logfile_id])
+        file_check.pre_analysis()
+        file_check.discover_file_format()
+
+        # Load all recovered data into FileManagement class
+        FileManagement.add_list(elements_dict=data_analysis)
+
+        # using loaded data from disk, identify which roles are assigned on each party
+        file_check.identify_roles()
 
 
-            pass
-        storage.disconnect()
-
+        uml_trace = UMLStepSetup(Configs,
+                                 data_analysis[CordaObject.Type.FLOW_AND_TRANSACTIONS.value]['11b1776e-f894-4afd-a2c7-a87dc4d983bb'])
+        uml_trace.file=file_check
+        # for each_item in data_analysis['flow&transactions']:
+        uml_trace.parallel_process()
+        pass
 
     def get_file_hash(self, chunk_size=65536):
         """
