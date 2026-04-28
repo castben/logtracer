@@ -978,7 +978,7 @@ class InteractiveWindow:
                 # Proceso de análisis
                 uml_trace = UMLStepSetup(get_configs(), co)
                 uml_trace.file = file_to_analyse
-                uml_trace.parallel_process(co)
+                uml_trace.parallel_process()
 
                 c_uml = CreateUML(co, file_to_analyse)
                 script_file = c_uml.generate_uml_pages(

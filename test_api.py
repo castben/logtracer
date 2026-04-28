@@ -1,5 +1,9 @@
 import json
 from core import  DataInfo, CoreApi
+from drivers.yaml_driver import YamlDataDriver
+from object_class import FileManagement, Configs, CordaObject
+from uml import UMLStepSetup
+
 
 # Tests:
 # pull a list of:
@@ -44,7 +48,7 @@ def list_test(customer=None, ticket=None):
     print(json.dumps(response, indent=2))
 
 
-def test_load(datainfo):
+def test_load(datainfo, logid):
     """
     Load test
     :param datainfo: data info related to customer to load
@@ -52,12 +56,37 @@ def test_load(datainfo):
     """
 
     customer_data = CoreApi(datainfo)
-    customer_data.load_analysis()
+    data = customer_data.load_ticket_details()
+    data_check = YamlDataDriver()
+    data_check.connect(data_dir=f'data/storage/{data["customer"]}/{data["ticket"]}/{logid}')
 
+    data_analysis = data_check.load_data()
 
+    #
+
+    return data_analysis
+
+def trace_reference(datainfo, logid, refid):
+    """
+    Trace test
+    :param datainfo:
+    :param refid:
+    :return:
+    """
+    customer_data = CoreApi(datainfo)
+    customer_data.load_ticket_details()
+    # data_check = YamlDataDriver()
+    # data_check.connect(data_dir=f'data/storage/{data["customer"]}/{data["ticket"]}/{logid}')
+    # data_analysis = data_check.load_data()
+
+    customer_data.trace_analysis(logfile_id=logid, reference_id=refid)
+
+    return customer_data
 if __name__ == "__main__":
     analysis_test = None
+    Configs.load_config()
     if False:
+        # Add test
         datainfo = DataInfo()
         datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
         datainfo.set(DataInfo.Attribute.TICKET, "TS-0001")
@@ -75,18 +104,35 @@ if __name__ == "__main__":
         analysis_test = test_analysis(analysis)
 
     if False:
+
+        # save test
+
         if analysis_test:
             analysis_test.save_analysis()
 
     if True:
+        # List saved data
         list_test()
 
-    if True:
+    if False:
+        # Test:
+        # * Load Data
+
         datainfo = DataInfo()
         datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
         datainfo.set(DataInfo.Attribute.TICKET, "TS-0001")
 
-        test_load(datainfo)
+        load_data=test_load(datainfo,logid='05c4d0b116fa664e')
 
+
+
+        pass
         # '3b9bef7e-57da-4790-b30b-9931cd87395e'
 
+    if True:
+        # * trace for specific reference ID (like a flow) on a specific log file
+
+        datainfo = DataInfo()
+        datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
+        datainfo.set(DataInfo.Attribute.TICKET, "TS-0001")
+        trace_refid = trace_reference(datainfo,logid='05c4d0b116fa664e', refid='11b1776e-f894-4afd-a2c7-a87dc4d983bb')
