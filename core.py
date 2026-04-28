@@ -356,7 +356,7 @@ class CoreApi:
 
 
         uml_trace = UMLStepSetup(Configs,
-                                 data_analysis[CordaObject.Type.FLOW_AND_TRANSACTIONS.value]['11b1776e-f894-4afd-a2c7-a87dc4d983bb'])
+                                 data_analysis[CordaObject.Type.FLOW_AND_TRANSACTIONS.value][reference_id])
         uml_trace.file=file_check
         # for each_item in data_analysis['flow&transactions']:
         uml_trace.parallel_process()
