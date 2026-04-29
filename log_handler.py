@@ -1,10 +1,15 @@
 # log_handler.py
 import hashlib
+import threading
 import time
 from collections import deque
 from datetime import datetime
 from queue import Queue
+from shutdown_event import shutdown_event
 
+_callback_visual = None  # Aquí guardaremos la función de la TUI si existe
+_log_file_path = None
+_log_file_handle = None
 log_queue = Queue()
 
 # --- Sistema de Throttling para evitar Spam ---
@@ -81,6 +86,71 @@ def write_log(message, level="INFO"):
     # Esto es crucial para evitar acaparamiento de CPU.
     # time.sleep(0) cede inmediatamente el control sin esperar tiempo fijo.
     time.sleep(0.05) # Yield al hilo principal
+
+def set_visual_callback(func):
+    """Permite que la TUI se registre para recibir los logs procesados."""
+    global _callback_visual
+    _callback_visual = func
+
+def start_log_consumer(interval=0.5, log_file=None):
+    """
+    Inicia el ciclo persistente que vacía la cola.
+    Este es el scheduler que ahora vive en la librería de logs.
+    """
+    global _log_file_path, _log_file_handle
+
+    if log_file and _log_file_handle is None:
+        try:
+            # Modo 'a' (append) y buffering=1 (línea por línea)
+            _log_file_handle = open(log_file, "a", encoding="utf-8", buffering=1)
+        except Exception as e:
+            print(f"No se pudo abrir el archivo de log: {e}")
+
+    if shutdown_event.is_set():
+        return
+
+    def _consume():
+        while not log_queue.empty():
+            try:
+                message = log_queue.get_nowait()
+
+                # 1. Enviar a la TUI si existe el callback
+                if _callback_visual:
+                    _callback_visual(message)
+                else:
+                    # 2. Si no hay TUI, imprimir en consola
+                    print(f"{message}")
+
+                # 3. Guardar en archivo si se proporcionó una ruta
+                if _log_file_handle:
+                    _log_file_handle.write(message + "\n")
+
+            except Exception as e:
+                # En caso de error de permisos o disco lleno, al menos lo vemos en consola
+                print(f"Error escribiendo log en archivo: {e}")
+                break
+
+        # Se re-programa a sí mismo
+        if not shutdown_event.is_set():
+            # Creamos el timer
+            t = threading.Timer(interval, start_log_consumer, [interval])
+            # ESTA ES LA CLAVE:
+            t.daemon = True
+            t.start()
+
+            # threading.Timer(interval, _consume).start()
+
+    # Arrancar el primer ciclo
+    _consume()
+
+def stop_log_consumer():
+    """Llamar a esto para detener todo y cerrar archivos inmediatamente."""
+    global _log_file_handle
+    shutdown_event.set()
+    if _log_file_handle:
+        _log_file_handle.flush()
+        _log_file_handle.close()
+        _log_file_handle = None
 
 
 class HighlightCode:
