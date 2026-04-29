@@ -23,22 +23,23 @@ from get_parties import GetParties
 from support_icons import Icons
 from ui_commands import schedule_ui_update, process_ui_commands, schedule_callback, process_callbacks
 from uml import UMLEntityEndPoints, UMLStepSetup, CreateUML
+import log_handler
 from log_handler import write_log, HighlightCode
-from log_handler import log_queue
+from log_handler import log_queue, set_visual_callback, start_log_consumer
 from TermTk.TTkCore.signal import pyTTkSlot
-from shutdown_event import shutdown_event
+
 import lazy_loader
 
 
 def signal_handler(sig, frame):
     """Maneja Ctrl+C y otras señales de terminación"""
-    if shutdown_event.is_set():
+    if log_handler.shutdown_event.is_set():
         # Segundo Ctrl+C: cierre inmediato
         write_log("Forcing closure", level="WARN")
         sys.exit(1)
 
     write_log("Request to shutdown, finishing all current tasks...", level="INFO")
-    shutdown_event.set()
+    log_handler.shutdown_event.set()
 
     # Programar cierre forzado en 15 segundos si no termina
     threading.Timer(15.0, lambda: os._exit(1)).start()
@@ -806,81 +807,6 @@ class InteractiveWindow:
 
                 process_callbacks()
 
-                # # Flow list
-                # if 'FLOW' in results:
-                #     #TTkLabel_Flows.setText(f"{len(results['FLOW'])}")
-                #     write_log('Flows: Checking for Special blocks related...')
-                #     for index, each_flow in enumerate(results['FLOW']):
-                #         sp_blk = file_to_analyse.special_blocks.get_reference(each_flow)
-                #         fcompleted = f'{Icons.CLOCK}...{(index * 100)/ len(results["FLOW"]):.2f}%'
-                #         if sp_blk:
-                #             icn=""
-                #             for each_blk in sp_blk:
-                #                 icn += f" {Icons.get(Configs.get_config_for(f'BLOCK_COLLECTION.COLLECT.{each_blk}.ICON'))}"
-                #             each_flow = ttk.TTkString(f"{each_flow}{icn.lstrip()}")
-                #
-                #         schedule_ui_update('TTkList_flow', 'addItem', each_flow)
-                #         schedule_ui_update('TTkLabel_Flows', 'setText', fcompleted)
-                #
-                #     schedule_ui_update('TTkLabel_Flows','setText',f"{len(results['FLOW'])}")
-                #     # list_flow.addItem(each_flow)
-                # else:
-                #     schedule_ui_update('TTkLabel_Flows','setText','0')
-                #
-                #
-                # # Transaction list
-                # if 'TRANSACTION' in results:
-                #     # TTkLabel_Transactions.setText(f"{len(results['TRANSACTION'])}")
-                #     write_log('Transactions: Checking for Special blocks related...')
-                #     for index, each_tx in enumerate(results['TRANSACTION']):
-                #         fcompleted = f'{Icons.CLOCK}...{(index * 100)/ len(results["TRANSACTION"]):.2f}%'
-                #         sp_blk = file_to_analyse.special_blocks.get_reference(each_tx)
-                #         if sp_blk:
-                #             icn=""
-                #             for each_blk in sp_blk:
-                #                 icn += f"{Icons.get(Configs.get_config_for(f'BLOCK_COLLECTION.COLLECT.{each_blk}.ICON'))}"
-                #             each_tx = ttk.TTkString(f"{each_tx}{icn.lstrip()}")
-                #         schedule_ui_update('TTkList_transaction', 'addItem', each_tx)
-                #         schedule_ui_update('TTkLabel_Transactions', 'setText', fcompleted)
-                #         # list_transactions.addItem(each_tx)
-                #     schedule_ui_update('TTkLabel_Transactions', 'setText',f"{len(results['TRANSACTION'])}")
-                # else:
-                #     schedule_ui_update('TTkLabel_Transactions', 'setText','0')
-                #
-                # party_headers = {
-                #     'Party X.500 name': 70,
-                #     'Role': 15
-                # }
-                # try:
-                #     schedule_ui_update('TTkTree_party', 'setHeaderLabels', party_headers)
-                #     # self.tree_party.setHeaderLabels(party_headers)
-                #     # Set column width
-                #     for pos,header in enumerate(party_headers.keys()):
-                #         schedule_ui_update('TTkTree_party', 'setColumnWidth',pos, party_headers[header] )
-                #         # self.tree_party.setColumnWidth(pos, party_headers[header])
-                #
-                #     for each_party in FileManagement.get_all_unique_results('Party'):
-                #         if each_party.get_corda_role():
-                #             role = each_party.get_corda_role()
-                #         else:
-                #             role = 'party'
-                #         tree_element = ttk.TTkTreeWidgetItem([each_party.name, role])
-                #         schedule_ui_update('TTkTree_party', 'addTopLevelItem',tree_element )
-                #         # self.tree_party.addTopLevelItem(tree_element)
-                #         if each_party.has_alternate_names():
-                #             for each_alternate in each_party.get_alternate_names():
-                #                 child = ttk.TTkTreeWidgetItem([each_alternate, role])
-                #                 tree_element.addChild(child)
-                #
-                #     # Party List
-                #     if file_to_analyse.get_all_unique_results('Party'):
-                #         schedule_ui_update('TTkLabel_Parties','setText',f"{len(file_to_analyse.get_all_unique_results('Party'))}")
-                #     else:
-                #         schedule_ui_update('TTkLabel_Parties','setText','0')
-                #
-                # except BaseException as be:
-                #     write_log(f'Unable to process parties due to {be}', level='ERROR')
-
             # Configs.load_config()
 
             # Define default entity object endpoints...
@@ -1405,14 +1331,14 @@ class InteractiveWindow:
             """
 
             """Inicia el cierre ordenado desde la UI"""
-            if shutdown_event.is_set():
+            if log_handler.shutdown_event.is_set():
                 return
 
                 # return  # Ya se solicitó cierre
 
             customer_info.save_info()
             write_log("Exiting...", level="INFO")
-            shutdown_event.set()
+            log_handler.shutdown_event.set()
             root.quit()
 
         # Form definition; all these forms where created using ttkDesigner
@@ -1735,9 +1661,14 @@ class InteractiveWindow:
         root.layout().addWidget(TTkWindow_logging)
         root.layout().addWidget(self.TTkWindow_popup_message)
         # root.layout().addWidget(TTkWindow_popup_new_data)
-        InteractiveWindow.update_tui_from_queue()
 
+        # 1. Registras CÓMO quieres que se vean los logs
+        set_visual_callback(InteractiveWindow.update_tui_from_queue)
 
+        # 2. Inicias el ciclo de consumo
+        start_log_consumer(0.5)
+
+        # InteractiveWindow.update_tui_from_queue()
         process_ui_commands(root)
 
         root.mainloop()
@@ -1807,25 +1738,31 @@ class InteractiveWindow:
 
 
     @staticmethod
-    def update_tui_from_queue():
+    def update_tui_from_queue(message):
 
-        # Si se está cerrando, procesar solo mensajes pendientes
-        if shutdown_event.is_set() and log_queue.empty():
-            return  # No programar más actualizaciones
+        if w:
+            msg = HighlightCode.highlight(ttk.TTkString(message))
+            tui_logging.append(msg)
+        else:
+            print(message)
 
-        while not log_queue.empty():
-            message = log_queue.get_nowait()
-            if w:
-                msg = HighlightCode.highlight(ttk.TTkString(message))
-                tui_logging.append(msg)
-            else:
-                print(message)
-
-            # tui_logging._verticalScrollBar.setValue(tui_logging._verticalScrollBar.maximum())
-
-        # Programar próxima revisión solo si no se está cerrando
-        if not shutdown_event.is_set():
-            threading.Timer(0.5, InteractiveWindow.update_tui_from_queue).start()
+        # # Si se está cerrando, procesar solo mensajes pendientes
+        # if shutdown_event.is_set() and log_queue.empty():
+        #     return  # No programar más actualizaciones
+        #
+        # while not log_queue.empty():
+        #     message = log_queue.get_nowait()
+        #     if w:
+        #         msg = HighlightCode.highlight(ttk.TTkString(message))
+        #         tui_logging.append(msg)
+        #     else:
+        #         print(message)
+        #
+        #     # tui_logging._verticalScrollBar.setValue(tui_logging._verticalScrollBar.maximum())
+        #
+        # # Programar próxima revisión solo si no se está cerrando
+        # if not shutdown_event.is_set():
+        #     threading.Timer(0.5, InteractiveWindow.update_tui_from_queue).start()
 
 def mainX():
     log_file = None
@@ -2259,13 +2196,13 @@ if __name__ == "__main__":
 
     if args.log_file and args.list_transactions or args.list_flows or args.list_parties:
         main()
-        shutdown_event.set()
+        log_handler.shutdown_event.set()
 
 
     if not args.log_file:
         w = InteractiveWindow()
         #
-        if not shutdown_event.is_set():
+        if not log_handler.shutdown_event.is_set():
             w.tk_window()
 
     pass

@@ -1,8 +1,10 @@
 import json
+
 from core import  DataInfo, CoreApi
 from drivers.yaml_driver import YamlDataDriver
+from log_handler import start_log_consumer, stop_log_consumer
 from object_class import FileManagement, Configs, CordaObject
-from uml import UMLStepSetup
+import log_handler
 
 
 # Tests:
@@ -83,6 +85,7 @@ def trace_reference(datainfo, logid, refid):
 
     return customer_data
 if __name__ == "__main__":
+    start_log_consumer(log_file="./api.log")
     analysis_test = None
     Configs.load_config()
     if False:
@@ -136,3 +139,5 @@ if __name__ == "__main__":
         datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
         datainfo.set(DataInfo.Attribute.TICKET, "TS-0001")
         trace_refid = trace_reference(datainfo,logid='05c4d0b116fa664e', refid='11b1776e-f894-4afd-a2c7-a87dc4d983bb')
+
+    stop_log_consumer()
