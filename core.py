@@ -14,7 +14,8 @@ from object_class import KnownErrors
 from error_log_analysis import ErrorAnalysis
 import os
 
-from uml import CreateUML, UMLStepSetup
+from uml import CreateUML, UMLStepSetup, UMLEntityEndPoints
+
 
 class CoreApi:
 
@@ -351,15 +352,19 @@ class CoreApi:
         # Load all recovered data into FileManagement class
         FileManagement.add_list(elements_dict=data_analysis)
 
+        # Define default entity object endpoints...
+        UMLEntityEndPoints.load_default_endpoints()
+
         # using loaded data from disk, identify which roles are assigned on each party
         file_check.identify_roles()
-
 
         uml_trace = UMLStepSetup(Configs,
                                  data_analysis[CordaObject.Type.FLOW_AND_TRANSACTIONS.value][reference_id])
         uml_trace.file=file_check
         # for each_item in data_analysis['flow&transactions']:
         uml_trace.parallel_process()
+        c_uml = CreateUML(uml_trace.cordaobject, file_check)
+        script_file = c_uml.generate_uml_pages(client_name=customer,ticket=ticket,output_prefix=reference_id)
         pass
 
     def get_file_hash(self, chunk_size=65536):

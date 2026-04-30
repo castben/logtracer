@@ -77,11 +77,10 @@ def trace_reference(datainfo, logid, refid):
     """
     customer_data = CoreApi(datainfo)
     customer_data.load_ticket_details()
-    # data_check = YamlDataDriver()
-    # data_check.connect(data_dir=f'data/storage/{data["customer"]}/{data["ticket"]}/{logid}')
-    # data_analysis = data_check.load_data()
 
     customer_data.trace_analysis(logfile_id=logid, reference_id=refid)
+
+
 
     return customer_data
 if __name__ == "__main__":
@@ -102,8 +101,7 @@ if __name__ == "__main__":
         analysis = CoreApi(datainfo)
         # analysis.add_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/ChainThat/CS-4002/02-10-2025/Corda-Start-logs.log")
         # analysis.add_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/ChainThat/CS-4002/02-10-2025/Success-Transaction-logs.log")
-        analysis.add_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/test-customer/observer.log")
-        analysis.add_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/test-customer/solutioneng.log")
+        analysis.add_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/test-customer/devrel.log")
         analysis_test = test_analysis(analysis)
 
     if False:
@@ -138,6 +136,6 @@ if __name__ == "__main__":
         datainfo = DataInfo()
         datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
         datainfo.set(DataInfo.Attribute.TICKET, "TS-0001")
-        trace_refid = trace_reference(datainfo,logid='05c4d0b116fa664e', refid='11b1776e-f894-4afd-a2c7-a87dc4d983bb')
+        trace_refid = trace_reference(datainfo,logid='57e41eac0b897e9a', refid='2c5fae67-cbc6-4a87-b987-70af14fd3ec7')
 
     stop_log_consumer()
