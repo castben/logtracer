@@ -144,9 +144,27 @@ def start_log_consumer(interval=0.5, log_file=None):
     _consume()
 
 def stop_log_consumer():
-    """Llamar a esto para detener todo y cerrar archivos inmediatamente."""
     global _log_file_handle
+
+    # 1. Activamos el evento para que el Timer no se vuelva a programar
     shutdown_event.set()
+
+    # 2. VACIADO FINAL: Procesamos todo lo que quede en la cola AHORA mismo
+    # Esto garantiza que las últimas líneas (como el "Done" o el conteo de archivos) salgan.
+    while not log_queue.empty():
+        try:
+            message = log_queue.get_nowait()
+            if _callback_visual:
+                _callback_visual(message)
+            else:
+                print(f"{message}")
+
+            if _log_file_handle:
+                _log_file_handle.write(message + "\n")
+        except:
+            break
+
+    # 3. Ahora sí, cerramos el archivo de forma segura
     if _log_file_handle:
         _log_file_handle.flush()
         _log_file_handle.close()
