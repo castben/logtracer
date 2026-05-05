@@ -168,11 +168,14 @@ class YamlDataDriver(DataDriver):
                                 data = yaml.safe_load(f)
                                 # Ajusta 'description' según la clave real en tu YAML
                                 description = data['description']
+                                log_files = data['log_files']
                         except Exception:
                             description = "Error reading summary"
 
-                    ticket_list[ticket_id] = description
-
+                    ticket_list[ticket_id] = {
+                        'description': description,
+                        'log_files': log_files
+                    }
                     # inventory["customer"][customer_name]["tickets"][ticket_id] = description
             return ticket_list
 

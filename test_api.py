@@ -87,7 +87,7 @@ if __name__ == "__main__":
     start_log_consumer(log_file="./api.log")
     analysis_test = None
     Configs.load_config()
-    if False:
+    if True:
         # Add test
         datainfo = DataInfo()
         datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         analysis.add_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/test-customer/devrel.log")
         analysis_test = test_analysis(analysis)
 
-    if False:
+    if True:
 
         # save test
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
         # List saved data
         list_test()
 
-    if False:
+    if True:
         # Test:
         # * Load Data
 
@@ -123,14 +123,14 @@ if __name__ == "__main__":
         datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
         datainfo.set(DataInfo.Attribute.TICKET, "TS-0001")
 
-        load_data=test_load(datainfo,logid='05c4d0b116fa664e')
+        load_data=test_load(datainfo, '57e41eac0b897e9a')
 
 
 
         pass
         # '3b9bef7e-57da-4790-b30b-9931cd87395e'
 
-    if True:
+    if False:
         # * trace for specific reference ID (like a flow) on a specific log file
 
         datainfo = DataInfo()
@@ -139,7 +139,7 @@ if __name__ == "__main__":
         trace_refid = trace_reference(datainfo,logid='57e41eac0b897e9a', refid='2c5fae67-cbc6-4a87-b987-70af14fd3ec7')
 
 
-    if True:
+    if False:
         trace_refid.save_analysis()
 
     stop_log_consumer()

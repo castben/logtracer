@@ -135,12 +135,15 @@ class CoreApi:
             what_to_collect = [self.what_to_collect]
 
         Configs.load_config()
-        master_payload = {'log_files': {}}
+        _payload = Payload()
+        _master_payload = Payload()
+
+        # master_payload = {'log_files': {}}
         file_index = {}
-        payload = {
-            "summary":{},
-            "results": {}
-        }
+        # payload = {
+        #     "summary":{},
+        #     "results": {}
+        # }
 
         file_status = {}
 
@@ -161,9 +164,11 @@ class CoreApi:
             if not self.file_to_analyse.state:
                 raise ValueError(f"Unable to to read given file due to: {self.file_to_analyse.state_message}")
             self.log_file_path = each_file
-            payload['summary']['log_file'] = each_file
+            # payload['summary']['log_file'] = each_file
+            # payload["summary"]["file_version_used"] = self.file_to_analyse.logfile_format
+            _payload.add('summary.log_file', each_file)
             self.file_to_analyse.discover_file_format()
-            payload["summary"]["file_version_used"] = self.file_to_analyse.logfile_format
+            _payload.add('summary.file_version_used', self.file_to_analyse.logfile_format)
             special_blocks = None
             collect_parties = None
             collect_refIds = None
@@ -217,9 +222,13 @@ class CoreApi:
                     {"name": p.name, "roles": x500_to_roles.get(p.name, [])}
                     for p in self.file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
                 ]
-                payload["summary"]["total_parties"] = len(parties)
-                payload["summary"]["detected_roles"] = detected_roles
-                payload["results"][CordaObject.Type.PARTY.value] = parties
+                # payload["summary"]["total_parties"] = len(parties)
+                # payload["summary"]["detected_roles"] = detected_roles
+                # payload["results"][CordaObject.Type.PARTY.value] = parties
+
+                _payload.add('summary.total_parties', len(parties))
+                _payload.add('summary.detected_roles', detected_roles)
+                _payload.add(f'results.{CordaObject.Type.PARTY.value}', parties)
 
             if collect_refIds:
                 flows = {}
@@ -235,46 +244,60 @@ class CoreApi:
                 # Put all content of flows and transactions into same bucket; each corda object has its type and can be
                 # easily identified.
                 fnt = {**flows, **transactions}
-                payload["summary"]["total_transactions"] = len(transactions)
-                payload["summary"]["total_flows"]= len(flows)
-
-                payload["results"][CordaObject.Type.FLOW_AND_TRANSACTIONS.value] = fnt
+                # payload["summary"]["total_transactions"] = len(transactions)
+                # payload["summary"]["total_flows"]= len(flows)
+                # payload["results"][CordaObject.Type.FLOW_AND_TRANSACTIONS.value] = fnt
+                _payload.add('summary.total_transactions', len(transactions))
+                _payload.add('summary.total_flows', len(flows))
+                _payload.add(f'results.{CordaObject.Type.FLOW_AND_TRANSACTIONS.value}', fnt)
 
             if special_blocks and  special_blocks.collected_blocks:
-                payload["results"][CordaObject.Type.SPECIAL_BLOCKS.value] = {
-                    "collected_blocktypes_types": special_blocks.get_collected_block_types(),
-                    "defined_blocktypes": special_blocks.get_defined_block_types(),
-                    "collected_blocktypes": special_blocks.get_all_content()
-                }
-                payload['summary'][CordaObject.Type.SPECIAL_BLOCKS.value] = special_blocks.get_collected_block_types()
+                # payload["results"][CordaObject.Type.SPECIAL_BLOCKS.value] = {
+                #     "collected_blocktypes_types": special_blocks.get_collected_block_types(),
+                #     "defined_blocktypes": special_blocks.get_defined_block_types(),
+                #     "collected_blocktypes": special_blocks.get_all_content()
+                # }
+                # payload['summary'][CordaObject.Type.SPECIAL_BLOCKS.value] = special_blocks.get_collected_block_types()
+                _payload.add(f'results.{CordaObject.Type.SPECIAL_BLOCKS.value}.collected_blocktypes_types', special_blocks.get_collected_block_types())
+                _payload.add(f'results.{CordaObject.Type.SPECIAL_BLOCKS.value}.defined_blocktypes', special_blocks.get_defined_block_types())
+                _payload.add(f'results.{CordaObject.Type.SPECIAL_BLOCKS.value}.collected_blocktypes',special_blocks.get_all_content())
+                _payload.add(f'summary.{CordaObject.Type.SPECIAL_BLOCKS.value}', special_blocks.get_collected_block_types())
 
             if collect_errors:
                 collect_errors.collected_errors = self.file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
                 # payload["Error-log"] = collect_errors.get_error_category()
-                payload["results"][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_all_content()
-                payload['summary'][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_error_summary()
+                # payload["results"][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_all_content()
+                # payload['summary'][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_error_summary()
+                _payload.add(f'results.{CordaObject.Type.ERROR_ANALYSIS.value}', collect_errors.get_all_content())
+                _payload.add(f'summary.{CordaObject.Type.ERROR_ANALYSIS.value}', collect_errors.get_error_summary())
                 file_status['error_analysis'] = 'complete'
             else:
                 file_status['error_analysis'] = 'pending'
 
             file_index[self.file_to_analyse.file_id] = self.log_file_path
-            payload['summary']['file_info'] = {
-                'processed_timestamp': self.file_to_analyse.load_timestamp,
-                'file_size': self.file_to_analyse.file_size,
-                'file_status': file_status,
-                'time_spent': self.file_to_analyse.time_spent
-            }
+            # payload['summary']['file_info'] = {
+            #     'processed_timestamp': self.file_to_analyse.load_timestamp,
+            #     'file_size': self.file_to_analyse.file_size,
+            #     'file_status': file_status,
+            #     'time_spent': self.file_to_analyse.time_spent
+            # }
+            _payload.add('summary.file_info.processed_timestamp', self.file_to_analyse.load_timestamp)
+            _payload.add('summary.file_info.file_size', self.file_to_analyse.file_size)
+            _payload.add('summary.file_info.file_status', file_status)
+            _payload.add('summary.file_info.time_spent', self.file_to_analyse.time_spent)
 
-            master_payload['log_files'][self.file_to_analyse.file_id] = payload
+            # master_payload['log_files'][self.file_to_analyse.file_id] = payload
+            _master_payload.add(f'log_files.{self.file_to_analyse.file_id}', _payload.to_dict())
             # 6. Devolver resultado estructurado
         self.datainfo.set('log_files', file_index)
-        master_payload['ticket_details'] = self.datainfo.get_all()
+        # master_payload['ticket_details'] = self.datainfo.get_all()
+        _master_payload.add('ticket_details', self.datainfo.get_all())
 
 
-        self.result = master_payload
+        self.result = _master_payload.to_dict()
 
 
-        return master_payload
+        return self.result
 
     def save_analysis(self, object_type=None, driver=None):
         """
@@ -432,134 +455,133 @@ class CoreApi:
         # 16 caracteres son más que suficientes para evitar colisiones en este contexto
         return hasher.hexdigest()[:16]
 
-    def get_analysis_for(self, log_file_path: str, reference_id: str):
-        """
-        Get specific results from a reference_id
-        :param log_file_path: file to analyse
-        :param reference_id: Transaction ID or Flow ID
-        :return:
-        """
-        data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
-
-        app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
-
-        # 1. Configurar archivo
-        file_to_analyse = FileManagement(log_file_path, block_size_in_mb=15)
-
-        if not file_to_analyse.state:
-            raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
-
-        file_to_analyse.discover_file_format()
-
-        def _run_trace_analysis(ref_id, co):
-            """
-            Función que ejecuta el análisis en un hilo separado
-            """
-            try:
-
-                # Proceso de análisis
-                uml_trace = UMLStepSetup(Configs, co)
-                uml_trace.file = file_to_analyse
-                uml_trace.parallel_process(co)
-
-                c_uml = CreateUML(co, file_to_analyse)
-                script_file = c_uml.generate_uml_pages(
-                    client_name=self.customer,
-                    ticket=self.ticket,
-                    output_prefix=ref_id
-                )
-
-                if not script_file:
-                    write_log('No useful information was related to this reference id', level='WARN')
-                else:
-                    write_log("\n".join(script_file))
-                    success = CreateUML.render_uml(file=script_file)
-                    if success:
-                        self.add_generated_file(ref_id, script_file)
-
-                write_log('=============================================================================')
-
-            except Exception as e:
-                write_log(f"Error during analysis: {str(e)}", level='ERROR')
-
-        def _start_trace(ref_id, file_to_analyse, co):
-            """
-             Método que lanza el trace en un hilo separado
-            """
-            # Mostrar mensaje de inicio en UI
-
-
-
-            write_log(f"Starting trace analysis for {ref_id}...")
-
-            # Crear y lanzar el hilo
-            analysis_thread = threading.Thread(
-                target=_run_trace_analysis,
-                args=(ref_id, file_to_analyse, co),
-                name=f"AnalysisThread-{ref_id}",
-                daemon=True  # El hilo se cerrará cuando termine la aplicación
-            )
-            analysis_thread.start()
-
-            # Opcional: guardar referencia al hilo para poder monitorearlo
-            # self.active_threads.append(analysis_thread)
-
-        def _trace(source):
-            """
-            Trace
-            :param source: reference id for the object to trace
-            :return:
-            """
-            global file_to_analyse
-
-            if not file_to_analyse.get_party_role('log_owner'):
-                write_log("Unable to perform a tracing, 'log_owner' role is not being assigned...", level="WARN")
-                write_log("You will need to manually setup it up, otherwise will not be possible to trace any item...", level="WARN")
-                self.tk_popup_window(origen=TTkButton_flow_trace, message="Unable to continue role:\n 'log_owner' hasn't been assigned.")
-                return
-
-            if source == 'flow':
-                ref_id = ttk.TTkString.toAscii(TTkList_flow.selectedLabels()[0])
-
-
-            if source == 'txn':
-                ref_id = ttk.TTkString.toAscii(TTkList_transaction.selectedLabels()[0])
-
-
-            if not source:
-                return
-
-            sref_id = Icons.remove_unicode_symbols(ref_id)
-            co = CordaObject.get_object(sref_id)
-
-            if not ref_id or not co:
-                write_log("Reference ID not found unable to trace it, please try another", level='WARN')
-                return
-
-            _start_trace(sref_id, file_to_analyse, co)
-
-    def uml_analysis(self, ref_id, file_to_analyse:FileManagement, co):
-        """
-        Run UML analysis and tracing of a corda object(Transaction or Flow)
-        :return:
-        """
-        # Proceso de análisis
-        uml_trace = UMLStepSetup(Configs, co)
-        uml_trace.file = file_to_analyse
-        uml_trace.parallel_process(co)
-        c_uml = CreateUML(co, file_to_analyse)
-        script_file = c_uml.generate_uml_pages(
-            client_name=self.datainfo.get(DataInfo.Attribute.CUSTOMER),
-            ticket=self.datainfo.get(DataInfo.Attribute.TICKET),
-            output_prefix=ref_id
-        )
-
-        if not script_file:
-           pass
-        else:
-            success = CreateUML.render_uml(file=script_file)
-            if success:
-               pass
+    # def get_analysis_for(self, log_file_path: str, reference_id: str):
+    #     """
+    #     Get specific results from a reference_id
+    #     :param log_file_path: file to analyse
+    #     :param reference_id: Transaction ID or Flow ID
+    #     :return:
+    #     """
+    #     data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
+    #
+    #     app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
+    #
+    #     # 1. Configurar archivo
+    #     file_to_analyse = FileManagement(log_file_path, block_size_in_mb=15)
+    #
+    #     if not file_to_analyse.state:
+    #         raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
+    #
+    #     file_to_analyse.discover_file_format()
+    #
+    #     def _run_trace_analysis(ref_id, co):
+    #         """
+    #         Función que ejecuta el análisis en un hilo separado
+    #         """
+    #         try:
+    #
+    #             # Proceso de análisis
+    #             uml_trace = UMLStepSetup(Configs, co)
+    #             uml_trace.file = file_to_analyse
+    #             uml_trace.parallel_process(co)
+    #
+    #             c_uml = CreateUML(co, file_to_analyse)
+    #             script_file = c_uml.generate_uml_pages(
+    #                 client_name=self.customer,
+    #                 ticket=self.ticket,
+    #                 output_prefix=ref_id
+    #             )
+    #
+    #             if not script_file:
+    #                 write_log('No useful information was related to this reference id', level='WARN')
+    #             else:
+    #                 write_log("\n".join(script_file))
+    #                 success = CreateUML.render_uml(file=script_file)
+    #                 if success:
+    #                     self.add_generated_file(ref_id, script_file)
+    #
+    #             write_log('=============================================================================')
+    #
+    #         except Exception as e:
+    #             write_log(f"Error during analysis: {str(e)}", level='ERROR')
+    #
+    #     def _start_trace(ref_id, file_to_analyse, co):
+    #         """
+    #          Método que lanza el trace en un hilo separado
+    #         """
+    #         # Mostrar mensaje de inicio en UI
+    #
+    #
+    #
+    #         write_log(f"Starting trace analysis for {ref_id}...")
+    #
+    #         # Crear y lanzar el hilo
+    #         analysis_thread = threading.Thread(
+    #             target=_run_trace_analysis,
+    #             args=(ref_id, file_to_analyse, co),
+    #             name=f"AnalysisThread-{ref_id}",
+    #             daemon=True  # El hilo se cerrará cuando termine la aplicación
+    #         )
+    #         analysis_thread.start()
+    #
+    #         # Opcional: guardar referencia al hilo para poder monitorearlo
+    #         # self.active_threads.append(analysis_thread)
+    #
+    #     def _trace(source):
+    #         """
+    #         Trace
+    #         :param source: reference id for the object to trace
+    #         :return:
+    #         """
+    #         global file_to_analyse
+    #
+    #         if not file_to_analyse.get_party_role('log_owner'):
+    #             write_log("Unable to perform a tracing, 'log_owner' role is not being assigned...", level="WARN")
+    #             write_log("You will need to manually setup it up, otherwise will not be possible to trace any item...", level="WARN")
+    #             self.tk_popup_window(origen=TTkButton_flow_trace, message="Unable to continue role:\n 'log_owner' hasn't been assigned.")
+    #             return
+    #
+    #         if source == 'flow':
+    #             ref_id = ttk.TTkString.toAscii(TTkList_flow.selectedLabels()[0])
+    #
+    #
+    #         if source == 'txn':
+    #             ref_id = ttk.TTkString.toAscii(TTkList_transaction.selectedLabels()[0])
+    #
+    #
+    #         if not source:
+    #             return
+    #
+    #         sref_id = Icons.remove_unicode_symbols(ref_id)
+    #         co = CordaObject.get_object(sref_id)
+    #
+    #         if not ref_id or not co:
+    #             write_log("Reference ID not found unable to trace it, please try another", level='WARN')
+    #             return
+    #
+    #         _start_trace(sref_id, file_to_analyse, co)
+    # def uml_analysis(self, ref_id, file_to_analyse:FileManagement, co):
+    #     """
+    #     Run UML analysis and tracing of a corda object(Transaction or Flow)
+    #     :return:
+    #     """
+    #     # Proceso de análisis
+    #     uml_trace = UMLStepSetup(Configs, co)
+    #     uml_trace.file = file_to_analyse
+    #     uml_trace.parallel_process(co)
+    #     c_uml = CreateUML(co, file_to_analyse)
+    #     script_file = c_uml.generate_uml_pages(
+    #         client_name=self.datainfo.get(DataInfo.Attribute.CUSTOMER),
+    #         ticket=self.datainfo.get(DataInfo.Attribute.TICKET),
+    #         output_prefix=ref_id
+    #     )
+    #
+    #     if not script_file:
+    #        pass
+    #     else:
+    #         success = CreateUML.render_uml(file=script_file)
+    #         if success:
+    #            pass
 
     def list_current_logs(self):
         """
@@ -570,10 +592,12 @@ class CoreApi:
         storage = YamlDataDriver()
         # data_path = './data/storage'
         storage.connect()
+        _payload = Payload()
         if self.datainfo and self.datainfo.get(DataInfo.Attribute.CUSTOMER):
             customer = self.datainfo.get(DataInfo.Attribute.CUSTOMER)
             # if customer:
             #     storage.connect(data_dir=f'./data/storage/{customer}')
+
 
             return storage.get_customer_tickets(customer)
 
@@ -645,5 +669,37 @@ class DataInfo:
         return self.data
 
 class Payload:
+    def __init__(self, data=None):
+        # Si recibimos data (ej. de la API), la cargamos; si no, empezamos de cero
+        self._data = data if data is not None else {}
 
-    pass
+    def add(self, path: str, value):
+        """Asigna un valor creando la ruta si no existe."""
+        parts = path.split('.')
+        # Navegamos hasta el penúltimo elemento
+        target = self._get_or_create_path('.'.join(parts[:-1]))
+        # El último elemento es la clave final
+        target[parts[-1]] = value
+
+    def get(self, path: str, default=None):
+        """Extrae un valor usando una ruta de puntos. Retorna default si no existe."""
+        current = self._data
+        for part in path.split('.'):
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                return default
+        return current
+
+    def _get_or_create_path(self, path: str):
+        if not path:
+            return self._data
+        current = self._data
+        for part in path.split('.'):
+            if part not in current or not isinstance(current[part], dict):
+                current[part] = {}
+            current = current[part]
+        return current
+
+    def to_dict(self):
+        return self._data
