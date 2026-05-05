@@ -1395,20 +1395,37 @@ class FileManagement:
         if element_type not in FileManagement.unique_results:
             FileManagement.unique_results[element_type] = {}
 
-        if element_type == CordaObject.Type.UML_STEPS.value and  item.reference_id in FileManagement.unique_results[element_type]:
-            # This mean another item.reference_id is already there with same reference in this case line number, this
-            # could be because same line contains a transaction and a flow for example...
-            # let's check container is a list to be able to add it, otherwise I need to convert container into a list, add previous
-            # value, and allow new value to be added..., other wise, if it is already a list, add new value
-            #
-            if not isinstance(FileManagement.unique_results[element_type][item.reference_id], list):
-                previous_value =  FileManagement.unique_results[element_type][item.reference_id]
-                FileManagement.unique_results[element_type][item.reference_id] = []
-                FileManagement.unique_results[element_type][item.reference_id].append(previous_value)
+        if isinstance(item, list):
+            for each_item in item:
+                if element_type == CordaObject.Type.UML_STEPS.value and  each_item.reference_id in FileManagement.unique_results[element_type]:
+                    # This mean another item.reference_id is already there with same reference in this case line number, this
+                    # could be because same line contains a transaction and a flow for example...
+                    # let's check container is a list to be able to add it, otherwise I need to convert container into a list, add previous
+                    # value, and allow new value to be added..., other wise, if it is already a list, add new value
+                    #
+                    if not isinstance(FileManagement.unique_results[element_type][each_item.reference_id], list):
+                        previous_value =  FileManagement.unique_results[element_type][each_item.reference_id]
+                        FileManagement.unique_results[element_type][each_item.reference_id] = []
+                        FileManagement.unique_results[element_type][each_item.reference_id].append(previous_value)
 
-            FileManagement.unique_results[element_type][item.reference_id].append(item)
+                    FileManagement.unique_results[element_type][each_item.reference_id].append(each_item)
+                else:
+                    FileManagement.unique_results[element_type].setdefault(each_item.reference_id, each_item)
         else:
-            FileManagement.unique_results[element_type].setdefault(item.reference_id, item)
+            if element_type == CordaObject.Type.UML_STEPS.value and  item.reference_id in FileManagement.unique_results[element_type]:
+                # This mean another item.reference_id is already there with same reference in this case line number, this
+                # could be because same line contains a transaction and a flow for example...
+                # let's check container is a list to be able to add it, otherwise I need to convert container into a list, add previous
+                # value, and allow new value to be added..., other wise, if it is already a list, add new value
+                #
+                if not isinstance(FileManagement.unique_results[element_type][item.reference_id], list):
+                    previous_value =  FileManagement.unique_results[element_type][item.reference_id]
+                    FileManagement.unique_results[element_type][item.reference_id] = []
+                    FileManagement.unique_results[element_type][item.reference_id].append(previous_value)
+
+                FileManagement.unique_results[element_type][item.reference_id].append(item)
+            else:
+                FileManagement.unique_results[element_type].setdefault(item.reference_id, item)
 
     @staticmethod
     def print_parties():

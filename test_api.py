@@ -80,7 +80,7 @@ def trace_reference(datainfo, logid, refid):
 
     customer_data.trace_analysis(logfile_id=logid, reference_id=refid)
 
-
+    customer_data.save_analysis()
 
     return customer_data
 if __name__ == "__main__":
@@ -137,5 +137,9 @@ if __name__ == "__main__":
         datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
         datainfo.set(DataInfo.Attribute.TICKET, "TS-0001")
         trace_refid = trace_reference(datainfo,logid='57e41eac0b897e9a', refid='2c5fae67-cbc6-4a87-b987-70af14fd3ec7')
+
+
+    if True:
+        trace_refid.save_analysis()
 
     stop_log_consumer()
