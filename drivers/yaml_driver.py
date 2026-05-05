@@ -10,6 +10,8 @@ from data_interface import DataDriver
 from object_class import CordaObject, Party
 from object_class import BlockItems
 from object_class import Error
+from uml import UMLStep
+
 
 class YamlDataDriver(DataDriver):
     """
@@ -430,6 +432,22 @@ class YamlDataDriver(DataDriver):
         with open(error_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
 
+    def save_object(self, object_to_save):
+        """
+        Save serialised UML steps
+        :param object_to_save: instanced object class
+        :return: a representation of instanced objec as a dictionary
+        """
+
+        if isinstance(object_to_save, UMLStep) or \
+            isinstance(object_to_save, Error) or \
+                isinstance(object_to_save, Party):
+            serialised_dict = self.object_to_dict(object_to_save)
+        else:
+            serialised_dict = object_to_save
+
+        return serialised_dict
+
     def disconnect(self):
         # No hay conexión persistente en YAML
         pass
@@ -554,3 +572,26 @@ class YamlDataDriver(DataDriver):
         for key, value in data.items():
             setattr(step, key, value)
         return step
+
+    def object_to_dict(self, obj):
+        """
+        This method converts a instanced class object into a dictionary to be serialised
+        :param obj: any object that need to be serialised
+        :return: a dictionary representing given instanced object class
+        """
+        if isinstance(obj, (int, float, str, bool, type(None))):
+            return obj
+        if isinstance(obj, dict):
+            return {k: self.object_to_dict(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [self.object_to_dict(x) for x in obj]
+
+        # Aquí aplicamos tu filtro para objetos personalizados
+        if hasattr(obj, "__dict__"):
+            return {
+                k: self.object_to_dict(v)
+                for k, v in vars(obj).items()
+                if not callable(v) and not k.startswith('_')
+            }
+        return str(obj) # Último recurso
+

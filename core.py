@@ -29,18 +29,58 @@ class CoreApi:
         self.file_to_analyse = None
         self.base_data_storage = None
 
-    def deep_to_dict(self, obj):
+    def object_to_dict(self, obj):
+        """
+        This method converts an instanced class object into a dictionary to be serialised
+        :param obj: any object that need to be serialised
+        :return: a dictionary representing given instanced object class
+        """
+        # 1. Manejo de Enums (¡Nuevo!)
+        if isinstance(obj, Enum):
+            return obj.value  # O obj.name, según prefieras para el valor
+
+        # 2. Tipos básicos
+        if isinstance(obj, (int, float, str, bool, type(None))):
+            return obj
+
+        # 3. Diccionarios (Mejorado para claves Enum)
+        if isinstance(obj, dict):
+            return {
+                (k.name if isinstance(k, Enum) else str(k)): self.object_to_dict(v)
+                for k, v in obj.items()
+            }
+
+        # 4. Listas y Tuplas
+        if isinstance(obj, (list, tuple)):
+            return [self.object_to_dict(x) for x in obj]
+
+        # 5. Objetos personalizados (clases)
+        if hasattr(obj, "__dict__"):
+            return {
+                (k.name if isinstance(k, Enum) else str(k)): self.object_to_dict(v)
+                for k, v in vars(obj).items()
+                if not callable(v) and not k.startswith('_')
+            }
+
+        return str(obj)
+
+    def object_to_dictx(self, obj):
+        """
+        This method converts an instanced class object into a dictionary to be serialised
+        :param obj: any object that need to be serialised
+        :return: a dictionary representing given instanced object class
+        """
         if isinstance(obj, (int, float, str, bool, type(None))):
             return obj
         if isinstance(obj, dict):
-            return {k: self.deep_to_dict(v) for k, v in obj.items()}
+            return {k: self.object_to_dict(v) for k, v in obj.items()}
         if isinstance(obj, (list, tuple)):
-            return [self.deep_to_dict(x) for x in obj]
+            return [self.object_to_dict(x) for x in obj]
 
         # Aquí aplicamos tu filtro para objetos personalizados
         if hasattr(obj, "__dict__"):
             return {
-                k: self.deep_to_dict(v)
+                k: self.object_to_dict(v)
                 for k, v in vars(obj).items()
                 if not callable(v) and not k.startswith('_')
             }
@@ -187,7 +227,7 @@ class CoreApi:
                 # Transform CordaObject into a dictionary for serialization
                 for item in self.file_to_analyse.get_all_unique_results(CordaObject.Type.FLOW_AND_TRANSACTIONS, True) or []:
                     ref_id = item.get_reference_id()
-                    item_dict = self.deep_to_dict(item)
+                    item_dict = self.object_to_dict(item)
                     if item.get_type() == "FLOW":
                         flows[f'{ref_id}']=item_dict
                     elif item.get_type() == "TRANSACTION":
@@ -250,7 +290,8 @@ class CoreApi:
                 CordaObject.Type.FLOW_AND_TRANSACTIONS,
                 CordaObject.Type.PARTY,
                 CordaObject.Type.ERROR_ANALYSIS,
-                CordaObject.Type.SPECIAL_BLOCKS
+                CordaObject.Type.SPECIAL_BLOCKS,
+                CordaObject.Type.UML_STEPS
             ]
 
         if not isinstance(object_type, list):
@@ -272,20 +313,13 @@ class CoreApi:
                                     ticket_details=self.result['ticket_details'])
 
                     for each_object in object_type:
+                        # Serialise Error analysis
                         if each_object == CordaObject.Type.ERROR_ANALYSIS and each_object.value in self.result['log_files'][file_id]["results"]:
                             category = self.result['log_files'][file_id]["results"][each_object.value]
                             for each_item_category in category:
                                 for each_error in category[each_item_category]:
                                     error_list = category[each_item_category][each_error]
                                     for each_item in error_list:
-                                        # error = Error()
-                                        # error.category = each_item_category
-                                        # error.type = each_item["type"]
-                                        # error.level = each_item["level"]
-                                        # error.line_number = each_item['line_number']
-                                        # error.timestamp = each_item['timestamp']
-                                        # error.reference_id = each_item['line_number']
-                                        # error.log_line = each_item["log_line"]
                                         if 'category' not in each_item:
                                             each_item['category'] = each_item_category
                                         if 'reference_id' not in each_item:
@@ -293,6 +327,7 @@ class CoreApi:
 
                                         storage.save_error(each_item)
 
+                        # Serialise Party data
                         if each_object == CordaObject.Type.PARTY and each_object.value in self.result['log_files'][file_id]["results"]:
                             for each_party in self.result['log_files'][file_id]['results'][each_object.value]:
                                 party = Party(each_party['name'])
@@ -300,6 +335,7 @@ class CoreApi:
                                 # storage.save_party(each_party)
                                 storage.save_party(party)
 
+                        # Serialise Flow and Transaction data
                         if each_object == CordaObject.Type.FLOW_AND_TRANSACTIONS and each_object.value in self.result['log_files'][file_id]["results"]:
                             object_list = self.result['log_files'][file_id]['results'][each_object.value]
                             for each_item in object_list:
@@ -307,11 +343,16 @@ class CoreApi:
                                 # co.from_dict(object_list[each_item])
                                 storage.save_corda_object(object_list[each_item])
 
+                        # Serialise SpecialBlocks
                         if each_object == CordaObject.Type.SPECIAL_BLOCKS and each_object.value in self.result['log_files'][file_id]["results"]:
                             block_type_list = self.result['log_files'][file_id]['results'][CordaObject.Type.SPECIAL_BLOCKS.value]['collected_blocktypes']
                             for each_block_type in block_type_list:
                                 for each_block in block_type_list[each_block_type]:
                                     storage.save_block_item(block_type_list[each_block_type][each_block])
+
+                        # Serialise UMLSteps
+                        if each_object == CordaObject.Type.UML_STEPS and each_object.value in self.result['log_files'][file_id]["results"]:
+                            uml_steps = self.result['log_files'][file_id]['results'][CordaObject.Type.UML_STEPS.value]
 
                     storage.disconnect()
 
@@ -326,8 +367,6 @@ class CoreApi:
         storage = YamlDataDriver()
         # connect to get tickets details
         ticket_details=storage.connect(data_dir=f'./data/storage/{customer}/{ticket}')
-
-
 
         return ticket_details
 
@@ -363,9 +402,20 @@ class CoreApi:
         uml_trace.file=file_check
         # for each_item in data_analysis['flow&transactions']:
         uml_trace.parallel_process()
+
+        # Add results into unique_results on file management.
+
         c_uml = CreateUML(uml_trace.cordaobject, file_check)
-        script_file = c_uml.generate_uml_pages(client_name=customer,ticket=ticket,output_prefix=reference_id)
+
+        FileManagement.add_list(elements_dict={CordaObject.Type.UML_STEPS.value:c_uml.corda_object.uml_steps})
+
+        results = self.object_to_dict(FileManagement.unique_results)
+
+
+        # self.save_analysis()
         pass
+
+
 
     def get_file_hash(self, chunk_size=65536):
         """
