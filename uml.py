@@ -349,7 +349,7 @@ class UMLStepSetup:
         Pre-load all required regex to speed up searches.
         :return:
         """
-
+        write_log('Processing UML step line...')
         umlsteps_list = []
         otype = self.cordaobject.get_type()
         orefid = self.cordaobject.get_reference_id()
@@ -379,6 +379,7 @@ class UMLStepSetup:
             regex_expect = list_of_expects_to_try[expect_to_use]
 
             each_expect = RegexLib.build_regex(regex_expect)
+            write_log(f'UML Step -- {current_line_no} processed...', level='DEBUG')
             umlstep = UMLStep()
             umlstep.set(UMLStep.Attribute.ID, orefid)
             umlstep.set(UMLStep.Attribute.TYPE, otype)
@@ -397,6 +398,7 @@ class UMLStepSetup:
                 umlstep.set(UMLStep.Attribute.TIMESTAMP, self.cordaobject.timestamp)
 
             umlsteps_list.append(umlstep)
+
 
         if umlsteps_list:
             self.cordaobject.add_uml_step(current_line_no, umlsteps_list)
@@ -1107,7 +1109,7 @@ class CreateUML:
         self.uml('uml_start', instruction=CreateUML.verified_participants)
         # Opcional: otros elementos comunes (ej: estilo, temas, etc.)
 
-    def generate_uml_pages(self, client_name,ticket, steps_per_page=25, output_prefix="uml_page"):
+    def generate_uml_pages(self, client_name,ticket, steps_per_page=25, output_prefix="uml_page", storage_dir=None):
         """
         Genera múltiples archivos UML, uno por página
 
@@ -1115,6 +1117,7 @@ class CreateUML:
         :param client_name:
         :param steps_per_page: cantidad de pasos por página
         :param output_prefix: nombre base para los archivos de salida
+        :param storage_dir: place where pages will be generated and stored
         :return: lista de nombres de archivo generados
         """
 
@@ -1122,7 +1125,7 @@ class CreateUML:
         self.setup_endpoints_and_verify_participants()
         # Obtener todos los pasos UML
         uml_objects = self.corda_object.get_uml()
-        data_dir = Configs.get_config_for("FILE_SETUP.CONFIG.data_dir")
+        data_dir = storage_dir or Configs.get_config_for("FILE_SETUP.CONFIG.data_dir")
 
         if not uml_objects:
             write_log(f'{self.corda_object.data["id_ref"]}: Has not valid UML representation steps...', level='WARN')

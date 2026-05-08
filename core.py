@@ -1,9 +1,9 @@
 # logtracer/core.py
 import hashlib
-import threading
 from enum import Enum
 
 from drivers.yaml_driver import YamlDataDriver
+from log_handler import write_log
 from object_class import FileManagement, Party
 from object_class import BlockExtractor
 from get_parties import GetParties
@@ -28,8 +28,22 @@ class CoreApi:
         self.references_id = None
         self.file_to_analyse = None
         self.base_data_storage = None
+        self.ticket_details = self.load_ticket_details()
+        self.file_id = None
+        self.storage = None
 
-    def object_to_dict(self, obj):
+
+    def set_results(self,results):
+        """
+        Set results payload to be used
+        :param results: a dictionary with all primitive values (fully json serializable)
+        :return:
+        """
+
+        self.result = results
+
+    @classmethod
+    def object_to_dict(cls, obj):
         """
         This method converts an instanced class object into a dictionary to be serialised
         :param obj: any object that need to be serialised
@@ -46,45 +60,23 @@ class CoreApi:
         # 3. Diccionarios (Mejorado para claves Enum)
         if isinstance(obj, dict):
             return {
-                (k.name if isinstance(k, Enum) else str(k)): self.object_to_dict(v)
+                (k.name if isinstance(k, Enum) else str(k)): cls.object_to_dict(v)
                 for k, v in obj.items()
             }
 
         # 4. Listas y Tuplas
         if isinstance(obj, (list, tuple)):
-            return [self.object_to_dict(x) for x in obj]
+            return [cls.object_to_dict(x) for x in obj]
 
         # 5. Objetos personalizados (clases)
         if hasattr(obj, "__dict__"):
             return {
-                (k.name if isinstance(k, Enum) else str(k)): self.object_to_dict(v)
+                (k.name if isinstance(k, Enum) else str(k)): cls.object_to_dict(v)
                 for k, v in vars(obj).items()
                 if not callable(v) and not k.startswith('_')
             }
 
         return str(obj)
-
-    def object_to_dictx(self, obj):
-        """
-        This method converts an instanced class object into a dictionary to be serialised
-        :param obj: any object that need to be serialised
-        :return: a dictionary representing given instanced object class
-        """
-        if isinstance(obj, (int, float, str, bool, type(None))):
-            return obj
-        if isinstance(obj, dict):
-            return {k: self.object_to_dict(v) for k, v in obj.items()}
-        if isinstance(obj, (list, tuple)):
-            return [self.object_to_dict(x) for x in obj]
-
-        # Aquí aplicamos tu filtro para objetos personalizados
-        if hasattr(obj, "__dict__"):
-            return {
-                k: self.object_to_dict(v)
-                for k, v in vars(obj).items()
-                if not callable(v) and not k.startswith('_')
-            }
-        return str(obj) # Último recurso
 
     def add_log_file(self, logfile):
         """
@@ -145,17 +137,12 @@ class CoreApi:
         #     "results": {}
         # }
 
-        file_status = {}
-
         # if self.datainfo:
         #     payload["summary"]["file_info"] = self.datainfo.get_all()
 
         KnownErrors.configs = Configs
         KnownErrors.initialize()
         data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
-
-        customer_name = self.datainfo.get(DataInfo.Attribute.CUSTOMER) or "unknown"
-        customer_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
 
         # 1. Configurar archivo
         # need to loop in all assigned files
@@ -164,8 +151,6 @@ class CoreApi:
             if not self.file_to_analyse.state:
                 raise ValueError(f"Unable to to read given file due to: {self.file_to_analyse.state_message}")
             self.log_file_path = each_file
-            # payload['summary']['log_file'] = each_file
-            # payload["summary"]["file_version_used"] = self.file_to_analyse.logfile_format
             _payload.add('summary.log_file', each_file)
             self.file_to_analyse.discover_file_format()
             _payload.add('summary.file_version_used', self.file_to_analyse.logfile_format)
@@ -218,13 +203,9 @@ class CoreApi:
                     for x500 in (self.file_to_analyse.get_party_role(role) or []):
                         x500_to_roles.setdefault(x500, []).append(role)
 
-                parties = [
-                    {"name": p.name, "roles": x500_to_roles.get(p.name, [])}
-                    for p in self.file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True) or []
-                ]
-                # payload["summary"]["total_parties"] = len(parties)
-                # payload["summary"]["detected_roles"] = detected_roles
-                # payload["results"][CordaObject.Type.PARTY.value] = parties
+                parties = {}
+                for each_party in self.file_to_analyse.get_all_unique_results(CordaObject.Type.PARTY, True):
+                    parties[each_party.name] = self.object_to_dict(each_party)
 
                 _payload.add('summary.total_parties', len(parties))
                 _payload.add('summary.detected_roles', detected_roles)
@@ -244,20 +225,12 @@ class CoreApi:
                 # Put all content of flows and transactions into same bucket; each corda object has its type and can be
                 # easily identified.
                 fnt = {**flows, **transactions}
-                # payload["summary"]["total_transactions"] = len(transactions)
-                # payload["summary"]["total_flows"]= len(flows)
-                # payload["results"][CordaObject.Type.FLOW_AND_TRANSACTIONS.value] = fnt
+
                 _payload.add('summary.total_transactions', len(transactions))
                 _payload.add('summary.total_flows', len(flows))
                 _payload.add(f'results.{CordaObject.Type.FLOW_AND_TRANSACTIONS.value}', fnt)
 
             if special_blocks and  special_blocks.collected_blocks:
-                # payload["results"][CordaObject.Type.SPECIAL_BLOCKS.value] = {
-                #     "collected_blocktypes_types": special_blocks.get_collected_block_types(),
-                #     "defined_blocktypes": special_blocks.get_defined_block_types(),
-                #     "collected_blocktypes": special_blocks.get_all_content()
-                # }
-                # payload['summary'][CordaObject.Type.SPECIAL_BLOCKS.value] = special_blocks.get_collected_block_types()
                 _payload.add(f'results.{CordaObject.Type.SPECIAL_BLOCKS.value}.collected_blocktypes_types', special_blocks.get_collected_block_types())
                 _payload.add(f'results.{CordaObject.Type.SPECIAL_BLOCKS.value}.defined_blocktypes', special_blocks.get_defined_block_types())
                 _payload.add(f'results.{CordaObject.Type.SPECIAL_BLOCKS.value}.collected_blocktypes',special_blocks.get_all_content())
@@ -265,23 +238,13 @@ class CoreApi:
 
             if collect_errors:
                 collect_errors.collected_errors = self.file_to_analyse.get_all_unique_results(CordaObject.Type.ERROR_ANALYSIS)
-                # payload["Error-log"] = collect_errors.get_error_category()
-                # payload["results"][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_all_content()
-                # payload['summary'][CordaObject.Type.ERROR_ANALYSIS.value] = collect_errors.get_error_summary()
                 _payload.add(f'results.{CordaObject.Type.ERROR_ANALYSIS.value}', collect_errors.get_all_content())
                 _payload.add(f'summary.{CordaObject.Type.ERROR_ANALYSIS.value}', collect_errors.get_error_summary())
-                file_status['error_analysis'] = 'complete'
+                file_status = f'error_analysis:complete:{self.file_to_analyse.load_timestamp}'
             else:
-                file_status['error_analysis'] = 'pending'
+                file_status = f'error_analysis:pending:None'
 
             file_index[self.file_to_analyse.file_id] = self.log_file_path
-            # payload['summary']['file_info'] = {
-            #     'processed_timestamp': self.file_to_analyse.load_timestamp,
-            #     'file_size': self.file_to_analyse.file_size,
-            #     'file_status': file_status,
-            #     'time_spent': self.file_to_analyse.time_spent
-            # }
-            _payload.add('summary.file_info.processed_timestamp', self.file_to_analyse.load_timestamp)
             _payload.add('summary.file_info.file_size', self.file_to_analyse.file_size)
             _payload.add('summary.file_info.file_status', file_status)
             _payload.add('summary.file_info.time_spent', self.file_to_analyse.time_spent)
@@ -293,10 +256,7 @@ class CoreApi:
         # master_payload['ticket_details'] = self.datainfo.get_all()
         _master_payload.add('ticket_details', self.datainfo.get_all())
 
-
         self.result = _master_payload.to_dict()
-
-
         return self.result
 
     def save_analysis(self, object_type=None, driver=None):
@@ -321,19 +281,27 @@ class CoreApi:
             object_type = [object_type]
 
         if not driver or driver=="YAML":
-            customer = self.datainfo.get(DataInfo.Attribute.CUSTOMER) or "unknown"
-            ticket = self.datainfo.get(DataInfo.Attribute.TICKET) or "unknown"
+            # customer = self.datainfo.get(DataInfo.Attribute.CUSTOMER) or "unknown"
+            # ticket = self.datainfo.get(DataInfo.Attribute.TICKET) or "unknown"
 
             storage = YamlDataDriver()
-
+            if not self.result:
+                write_log("Sorry, there're no content to be saved, aborting...", level='ERROR')
+                return
+            if 'log_files' not in self.result:
+                r_results = self.get_payload()
+                self.result = r_results
             if 'log_files' in self.result:
                 for file_id in  self.result['log_files']:
                     summary = {
                         "analysis": self.result['log_files'][file_id]["summary"]
                     }
-                    storage.connect(data_dir= f"./data/storage/{customer}/{ticket}/{file_id}",
+                    storage.connect(data_dir= f"./data/storage/",
                                     summary=summary,
-                                    ticket_details=self.result['ticket_details'])
+                                    ticket_details=self.result['ticket_details'],datainfo=self.datainfo, file_id=file_id)
+
+                    # TODO: Need to check why save->load->save is creating a different structure after is being saved, provoking errors when data is read back and try to save it again because
+                    #  loaded data doesn't have same structure.
 
                     for each_object in object_type:
                         # Serialise Error analysis
@@ -343,27 +311,23 @@ class CoreApi:
                                 for each_error in category[each_item_category]:
                                     error_list = category[each_item_category][each_error]
                                     for each_item in error_list:
-                                        if 'category' not in each_item:
-                                            each_item['category'] = each_item_category
-                                        if 'reference_id' not in each_item:
-                                            each_item['reference_id'] = each_item['line_number']
+                                        # if 'category' not in each_item:
+                                        #     each_item['category'] = each_item_category
+                                        # if 'reference_id' not in each_item:
+                                        #     each_item['reference_id'] = each_item['line_number']
 
                                         storage.save_error(each_item)
 
                         # Serialise Party data
                         if each_object == CordaObject.Type.PARTY and each_object.value in self.result['log_files'][file_id]["results"]:
                             for each_party in self.result['log_files'][file_id]['results'][each_object.value]:
-                                party = Party(each_party['name'])
-                                party.set_corda_role('/'.join(each_party['roles']))
-                                # storage.save_party(each_party)
+                                party = self.result['log_files'][file_id]['results'][each_object.value][each_party]
                                 storage.save_party(party)
 
                         # Serialise Flow and Transaction data
                         if each_object == CordaObject.Type.FLOW_AND_TRANSACTIONS and each_object.value in self.result['log_files'][file_id]["results"]:
                             object_list = self.result['log_files'][file_id]['results'][each_object.value]
                             for each_item in object_list:
-                                # co = CordaObject()
-                                # co.from_dict(object_list[each_item])
                                 storage.save_corda_object(object_list[each_item])
 
                         # Serialise SpecialBlocks
@@ -373,9 +337,11 @@ class CoreApi:
                                 for each_block in block_type_list[each_block_type]:
                                     storage.save_block_item(block_type_list[each_block_type][each_block])
 
-                        # Serialise UMLSteps
-                        if each_object == CordaObject.Type.UML_STEPS and each_object.value in self.result['log_files'][file_id]["results"]:
-                            uml_steps = self.result['log_files'][file_id]['results'][CordaObject.Type.UML_STEPS.value]
+                        # # Serialise UMLSteps
+                        # if each_object == CordaObject.Type.UML_STEPS and each_object.value in self.result['log_files'][file_id]["results"]:
+                        #     uml_steps = self.result['log_files'][file_id]['results'][CordaObject.Type.UML_STEPS.value]
+                        #     for each_uml_step in uml_steps:
+                        #         storage.save_uml_step(each_uml_step)
 
                     storage.disconnect()
 
@@ -389,9 +355,34 @@ class CoreApi:
         ticket = self.datainfo.get(DataInfo.Attribute.TICKET)
         storage = YamlDataDriver()
         # connect to get tickets details
-        ticket_details=storage.connect(data_dir=f'./data/storage/{customer}/{ticket}')
+        if customer and ticket:
+            storage_connected = storage.connect(data_dir=f'./data/storage', datainfo=self.datainfo)
+        else:
+            storage_connected = storage.connect()
 
-        return ticket_details
+        return storage_connected.get_ticket_details()
+
+    def load_log_summary(self, file_id):
+        """
+        Load corresponding summary for given file
+        :param file_id: To get summary from
+        :return: A dictionary describing summary of given file
+        """
+        customer = self.datainfo.get(DataInfo.Attribute.CUSTOMER)
+        ticket = self.datainfo.get(DataInfo.Attribute.TICKET)
+        storage = YamlDataDriver()
+        if customer and ticket and file_id:
+            storage_connected = storage.connect(data_dir=f'./data/storage', datainfo=self.datainfo, file_id=file_id)
+        else:
+            return None
+
+
+
+        return storage_connected.get_ticket_details()
+
+
+
+
 
     def trace_analysis(self, logfile_id, reference_id):
         """
@@ -401,13 +392,18 @@ class CoreApi:
         :return: UML representation or None otherwise
         """
         storage = YamlDataDriver()
-        customer = self.datainfo.get(DataInfo.Attribute.CUSTOMER)
-        ticket = self.datainfo.get(DataInfo.Attribute.TICKET)
-        ticket_details = self.load_ticket_details()
-        saved_data = storage.connect(data_dir=f'./data/storage/{customer}/{ticket}/{logfile_id}')
-        data_analysis = saved_data.load_data()
+        _payload = Payload()
 
+        ticket_details = self.load_ticket_details()
+        # saved_data = storage.connect(data_dir=f'./data/storage/{customer}/{ticket}/{logfile_id}')
+        self.storage = storage.connect(data_dir=f'./data/storage/', datainfo=self.datainfo, file_id=logfile_id)
+        data_analysis = self.storage.load_data()
+
+        if not ticket_details:
+            write_log(f"Unable to open file id: {logfile_id} it doesn't exist", level='ERROR')
+            return
         file_check = FileManagement(ticket_details['log_files'][logfile_id])
+        self.file_id = logfile_id
         file_check.pre_analysis()
         file_check.discover_file_format()
 
@@ -431,157 +427,108 @@ class CoreApi:
         c_uml = CreateUML(uml_trace.cordaobject, file_check)
 
         FileManagement.add_list(elements_dict={CordaObject.Type.UML_STEPS.value:c_uml.corda_object.uml_steps})
-
-        results = self.object_to_dict(FileManagement.unique_results)
-
-
-        # self.save_analysis()
+        self.set_results(self.object_to_dict(self.object_to_dict(FileManagement.unique_results)))
         pass
 
+    def load_data(self, file_id):
+        """
+        Load data from specific log
+        :param file_id: Log file id representing analysed log
+        :return:
+        """
 
+        data_check = YamlDataDriver()
+        data_check.connect(data_dir=f'data/storage/', datainfo=self.datainfo, file_id=file_id)
+        self.file_id = file_id
+        self.storage = data_check
+        self.result = data_check.load_data()
+
+        return self
+
+    def get_payload(self):
+        """
+
+        :return:
+        """
+        _payload = Payload()
+
+        if self.result:
+            results = {
+                'results': self.object_to_dict(self.result)
+            }
+            _payload.add(f'log_files.{self.file_id}', results)
+            _payload.add(f'log_files.{self.file_id}.summary', self.storage.summary)
+            _payload.add(f'ticket_details', self.ticket_details)
+
+        return _payload.to_dict()
 
     def get_file_hash(self, chunk_size=65536):
+            """
+            Genera un hash SHA-256 del contenido del archivo.
+            Si el contenido es idéntico, el hash será idéntico.
+            """
+            hasher = hashlib.sha256()
+
+            with open(self.log_file_path, 'rb') as f:
+                # Leemos el archivo en bloques (chunks) para no cargar logs gigas en RAM
+                while chunk := f.read(chunk_size):
+                    hasher.update(chunk)
+
+            # 16 caracteres son más que suficientes para evitar colisiones en este contexto
+            return hasher.hexdigest()[:16]
+
+    @classmethod
+    def dict_to_object(cls, data, clss, type_hints=None):
         """
-        Genera un hash SHA-256 del contenido del archivo.
-        Si el contenido es idéntico, el hash será idéntico.
+        Convierte un diccionario serializado de vuelta a una instancia de la clase dada.
+
+        :param data: el diccionario (o valor) serializado
+        :param cls: la clase a la que se debe convertir
+        :param type_hints: dict opcional que mapea nombre_atributo -> clase,
+                           para reconstruir atributos anidados que sean objetos custom o Enums
+        :return: una instancia de cls con los datos restaurados
         """
-        hasher = hashlib.sha256()
+        # 1. Si es None o tipo básico, devolver tal cual
+        if data is None or isinstance(data, (int, float, bool)):
+            return data
 
-        with open(self.log_file_path, 'rb') as f:
-            # Leemos el archivo en bloques (chunks) para no cargar logs gigas en RAM
-            while chunk := f.read(chunk_size):
-                hasher.update(chunk)
+        # 2. Si la clase esperada es un Enum
+        if isinstance(clss, type) and issubclass(clss, Enum):
+            # Intenta por valor primero, luego por nombre
+            try:
+                return clss(data)
+            except ValueError:
+                return clss[data]
 
-        # 16 caracteres son más que suficientes para evitar colisiones en este contexto
-        return hasher.hexdigest()[:16]
+        # 3. Si es string y la clase es str, devolver tal cual
+        if isinstance(data, str) and clss is str:
+            return data
 
-    # def get_analysis_for(self, log_file_path: str, reference_id: str):
-    #     """
-    #     Get specific results from a reference_id
-    #     :param log_file_path: file to analyse
-    #     :param reference_id: Transaction ID or Flow ID
-    #     :return:
-    #     """
-    #     data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
-    #
-    #     app_path =f"{os.path.dirname(os.path.abspath(__file__))}/{data_dir}"
-    #
-    #     # 1. Configurar archivo
-    #     file_to_analyse = FileManagement(log_file_path, block_size_in_mb=15)
-    #
-    #     if not file_to_analyse.state:
-    #         raise ValueError(f"Unable to to read given file due to: {file_to_analyse.state_message}")
-    #
-    #     file_to_analyse.discover_file_format()
-    #
-    #     def _run_trace_analysis(ref_id, co):
-    #         """
-    #         Función que ejecuta el análisis en un hilo separado
-    #         """
-    #         try:
-    #
-    #             # Proceso de análisis
-    #             uml_trace = UMLStepSetup(Configs, co)
-    #             uml_trace.file = file_to_analyse
-    #             uml_trace.parallel_process(co)
-    #
-    #             c_uml = CreateUML(co, file_to_analyse)
-    #             script_file = c_uml.generate_uml_pages(
-    #                 client_name=self.customer,
-    #                 ticket=self.ticket,
-    #                 output_prefix=ref_id
-    #             )
-    #
-    #             if not script_file:
-    #                 write_log('No useful information was related to this reference id', level='WARN')
-    #             else:
-    #                 write_log("\n".join(script_file))
-    #                 success = CreateUML.render_uml(file=script_file)
-    #                 if success:
-    #                     self.add_generated_file(ref_id, script_file)
-    #
-    #             write_log('=============================================================================')
-    #
-    #         except Exception as e:
-    #             write_log(f"Error during analysis: {str(e)}", level='ERROR')
-    #
-    #     def _start_trace(ref_id, file_to_analyse, co):
-    #         """
-    #          Método que lanza el trace en un hilo separado
-    #         """
-    #         # Mostrar mensaje de inicio en UI
-    #
-    #
-    #
-    #         write_log(f"Starting trace analysis for {ref_id}...")
-    #
-    #         # Crear y lanzar el hilo
-    #         analysis_thread = threading.Thread(
-    #             target=_run_trace_analysis,
-    #             args=(ref_id, file_to_analyse, co),
-    #             name=f"AnalysisThread-{ref_id}",
-    #             daemon=True  # El hilo se cerrará cuando termine la aplicación
-    #         )
-    #         analysis_thread.start()
-    #
-    #         # Opcional: guardar referencia al hilo para poder monitorearlo
-    #         # self.active_threads.append(analysis_thread)
-    #
-    #     def _trace(source):
-    #         """
-    #         Trace
-    #         :param source: reference id for the object to trace
-    #         :return:
-    #         """
-    #         global file_to_analyse
-    #
-    #         if not file_to_analyse.get_party_role('log_owner'):
-    #             write_log("Unable to perform a tracing, 'log_owner' role is not being assigned...", level="WARN")
-    #             write_log("You will need to manually setup it up, otherwise will not be possible to trace any item...", level="WARN")
-    #             self.tk_popup_window(origen=TTkButton_flow_trace, message="Unable to continue role:\n 'log_owner' hasn't been assigned.")
-    #             return
-    #
-    #         if source == 'flow':
-    #             ref_id = ttk.TTkString.toAscii(TTkList_flow.selectedLabels()[0])
-    #
-    #
-    #         if source == 'txn':
-    #             ref_id = ttk.TTkString.toAscii(TTkList_transaction.selectedLabels()[0])
-    #
-    #
-    #         if not source:
-    #             return
-    #
-    #         sref_id = Icons.remove_unicode_symbols(ref_id)
-    #         co = CordaObject.get_object(sref_id)
-    #
-    #         if not ref_id or not co:
-    #             write_log("Reference ID not found unable to trace it, please try another", level='WARN')
-    #             return
-    #
-    #         _start_trace(sref_id, file_to_analyse, co)
-    # def uml_analysis(self, ref_id, file_to_analyse:FileManagement, co):
-    #     """
-    #     Run UML analysis and tracing of a corda object(Transaction or Flow)
-    #     :return:
-    #     """
-    #     # Proceso de análisis
-    #     uml_trace = UMLStepSetup(Configs, co)
-    #     uml_trace.file = file_to_analyse
-    #     uml_trace.parallel_process(co)
-    #     c_uml = CreateUML(co, file_to_analyse)
-    #     script_file = c_uml.generate_uml_pages(
-    #         client_name=self.datainfo.get(DataInfo.Attribute.CUSTOMER),
-    #         ticket=self.datainfo.get(DataInfo.Attribute.TICKET),
-    #         output_prefix=ref_id
-    #     )
-    #
-    #     if not script_file:
-    #        pass
-    #     else:
-    #         success = CreateUML.render_uml(file=script_file)
-    #         if success:
-    #            pass
+        # 4. Si es lista
+        if isinstance(data, list):
+            return [cls.dict_to_object(item, clss, type_hints) for item in data]
+
+        # 5. Si es un objeto personalizado (dict que representa una clase)
+        if isinstance(data, dict):
+            # Crear instancia sin llamar __init__
+            instance = clss.__new__(clss)
+            type_hints = type_hints or {}
+
+            for key, value in data.items():
+                if key in type_hints:
+                    # Si conocemos el tipo esperado, lo reconstruimos recursivamente
+                    attr_value = cls.dict_to_object(value, type_hints[key])
+                else:
+                    attr_value = value
+                setattr(instance, key, attr_value)
+
+                # Hook opcional de post-deserialización
+                if hasattr(instance, '__post_deserialize__'):
+                    instance.__post_deserialize__()
+
+            return instance
+
+        return data
 
     def list_current_logs(self):
         """

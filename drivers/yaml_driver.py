@@ -4,9 +4,10 @@ from collections import OrderedDict
 
 import yaml
 import os
-from pathlib import Path
+from pathlib import Path, PosixPath
 from typing import Optional, List, Dict
 from data_interface import DataDriver
+from log_handler import write_log
 from object_class import CordaObject, Party
 from object_class import BlockItems
 from object_class import Error
@@ -27,6 +28,9 @@ class YamlDataDriver(DataDriver):
         self.summary = None
         self.ticket_details = None
         self.logfile_hash = None
+        self.datainfo = None
+        self.file_id = None
+        self.read_only = False
         self.cache = {}  # Opcional: cache para mejorar rendimiento
 
     def configure_dirs(self, dir_setup):
@@ -35,6 +39,10 @@ class YamlDataDriver(DataDriver):
         :param dir_setup:
         :return:
         """
+
+        if not isinstance(dir_setup, PosixPath):
+            dir_setup = PosixPath(dir_setup)
+
         self.entities_dir = dir_setup / "entities"
         self.parties_dir = dir_setup / "parties"
         self.blocks_dir = dir_setup / "blocks"
@@ -53,32 +61,35 @@ class YamlDataDriver(DataDriver):
         else:
             only_list = False
 
+        self.datainfo = config.get('datainfo')
+        self.file_id = config.get('file_id')
         self.data_dir = Path(config.get('data_dir', './data/storage'))
         self.summary = config.get("summary", None)
         self.ticket_details = config.get("ticket_details", None)
 
+        if self.datainfo:
+            self.data_dir = f'./data/storage/{self.datainfo.get("customer")}/{self.datainfo.get("ticket")}'
+
         if os.path.exists(f'{self.data_dir}/ticket_details.yaml'):
             # Verify if ticket details exist, if it does, then no dir creation is required
             with open(f'{self.data_dir}/ticket_details.yaml', 'r') as fh_td:
-                return yaml.safe_load(fh_td)
+                self.ticket_details = yaml.safe_load(fh_td)
 
-        if os.path.exists(f'{self.data_dir}/summary.yaml'):
+        if self.file_id and os.path.exists(f'{self.data_dir}/{self.file_id}/summary.yaml'):
             self.configure_dirs(self.data_dir)
             with open(f'{self.data_dir}/summary.yaml', 'r') as fh_sm:
                 self.summary = yaml.safe_load(fh_sm)
 
-            return self
-
         if not only_list:
             # Crear directorios
             self.configure_dirs(self.data_dir)
-            for dir_path in [self.entities_dir, self.parties_dir, self.blocks_dir, self.errors_dir]:
-                if not os.path.exists(dir_path):
-                    dir_path.mkdir(parents=True, exist_ok=True)
+            if self.file_id:
+                for dir_path in [self.entities_dir, self.parties_dir, self.blocks_dir, self.errors_dir, self.uml_steps_dir]:
+                    if not os.path.exists(dir_path):
+                        dir_path.mkdir(parents=True, exist_ok=True)
 
-        # Cargar cache si está habilitada
-        # if config.get('cache_enabled', False):
-        #     self._load_cache()
+        if self.read_only:
+            return self
 
         if self.summary:
            self.save_summary()
@@ -86,7 +97,7 @@ class YamlDataDriver(DataDriver):
         if config.get("ticket_details"):
             self.save_details()
 
-        return None
+        return self
 
 
     def load_data(self):
@@ -99,7 +110,6 @@ class YamlDataDriver(DataDriver):
             CordaObject.Type.PARTY.value: {},
             CordaObject.Type.ERROR_ANALYSIS.value: {},
             CordaObject.Type.SPECIAL_BLOCKS.value: {},
-            CordaObject.Type.UML_STEPS.value:{}
         }
         # Cargar CordaObjects
         for entity_file in self.entities_dir.glob("*.yaml"):
@@ -161,7 +171,7 @@ class YamlDataDriver(DataDriver):
                     # Buscamos el archivo summary.yaml para obtener la descripción
                     ticket_details = ticket_dir / "ticket_details.yaml"
                     description = "No description available"
-
+                    log_files = None
                     if ticket_details.exists():
                         try:
                             with open(ticket_details, 'r') as f:
@@ -171,6 +181,10 @@ class YamlDataDriver(DataDriver):
                                 log_files = data['log_files']
                         except Exception:
                             description = "Error reading summary"
+
+                    if not log_files:
+                        write_log("Unable to collect summary information for given file id/ticket combination", level='ERROR')
+                        return None
 
                     ticket_list[ticket_id] = {
                         'description': description,
@@ -200,6 +214,22 @@ class YamlDataDriver(DataDriver):
 
     def get_ticket_logs(self):
         pass
+
+    def get_ticket_details(self):
+        """
+
+        :return:
+        """
+
+        return self.ticket_details
+
+    def get_summary(self):
+        """
+        Return summary
+        :return: returns a dictionary with all summary information about log file
+        """
+
+        return self.summary
 
     # --- CORDAOBJECT OPERATIONS ---
 
@@ -355,6 +385,30 @@ class YamlDataDriver(DataDriver):
         with open(block_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
 
+    def save_uml_step(self, uml_step):
+        """
+        Save uml steps
+        :param uml_step: uml_step in dictionary format
+        :return:
+        """
+
+        if isinstance(uml_step, UMLStep):
+            data = self.object_to_dict(uml_step)
+        else:
+            data = uml_step
+
+        if isinstance(data, list):
+            for index, each_step in enumerate(data):
+                uml_step_file = self.uml_steps_dir / f'umlstep_{each_step["reference"]}_{index}.yaml'
+                with open(uml_step_file, 'w', encoding='utf-8') as f:
+                    yaml.dump(each_step, f, allow_unicode=True, default_flow_style=False)
+        else:
+            uml_step_file = self.uml_steps_dir / f'umlstep_{data["reference"]}.yaml'
+            with open(uml_step_file, 'w', encoding='utf-8') as f:
+                yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+
+        pass
+
     # --- ERROR OPERATIONS ---
 
     def get_errors_category_list(self) -> List[str]:
@@ -405,6 +459,7 @@ class YamlDataDriver(DataDriver):
             with open(error_file, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f)
                 errors.append(self._dict_to_error(data))
+                # errors.append(data)
 
         return errors
 
