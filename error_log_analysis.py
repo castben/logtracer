@@ -1,3 +1,5 @@
+from enum import Enum
+
 from object_class import LogAnalysis, CordaObject
 
 
@@ -9,6 +11,43 @@ class ErrorAnalysis:
         self.type = None
         self.log_analysis = None
         self.category_list = {}
+
+
+    @classmethod
+    def object_to_dict(cls, obj):
+        """
+        This method converts an instanced class object into a dictionary to be serialised
+        :param obj: any object that need to be serialised
+        :return: a dictionary representing given instanced object class
+        """
+        # 1. Manejo de Enums (¡Nuevo!)
+        if isinstance(obj, Enum):
+            return obj.value  # O obj.name, según prefieras para el valor
+
+        # 2. Tipos básicos
+        if isinstance(obj, (int, float, str, bool, type(None))):
+            return obj
+
+        # 3. Diccionarios (Mejorado para claves Enum)
+        if isinstance(obj, dict):
+            return {
+                (k.name if isinstance(k, Enum) else str(k)): cls.object_to_dict(v)
+                for k, v in obj.items()
+            }
+
+        # 4. Listas y Tuplas
+        if isinstance(obj, (list, tuple)):
+            return [cls.object_to_dict(x) for x in obj]
+
+        # 5. Objetos personalizados (clases)
+        if hasattr(obj, "__dict__"):
+            return {
+                (k.name if isinstance(k, Enum) else str(k)): cls.object_to_dict(v)
+                for k, v in vars(obj).items()
+                if not callable(v) and not k.startswith('_')
+            }
+
+        return str(obj)
 
     def set_file(self, file):
         """
@@ -72,13 +111,14 @@ class ErrorAnalysis:
                 if error_type not in return_content[each_category]:
                     return_content[each_category][error_type] = []
                 for each_error in self.category_list[each_category][error_type]:
-                    error = {
-                        "line_number": each_error.line_number,
-                        "log_line": each_error.log_line,
-                        "timestamp": each_error.timestamp,
-                        "level": each_error.level,
-                        "type": each_error.type
-                    }
+                    # error = {
+                    #     "line_number": each_error.line_number,
+                    #     "log_line": each_error.log_line,
+                    #     "timestamp": each_error.timestamp,
+                    #     "level": each_error.level,
+                    #     "type": each_error.type
+                    # }
+                    error = ErrorAnalysis.object_to_dict(each_error)
                     return_content[each_category][error_type].append(error)
 
         return return_content

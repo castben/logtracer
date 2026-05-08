@@ -23,15 +23,10 @@ def test_analysis(analysis):
     :return:
     """
 
-    #result = analyze_corda_log("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/NCR/CS-4189/2026-03-10-11-prd-api-service.log",
-    # result = analyze_corda_log("/home/larry/IdeaProjects/logtracer/c4-logs/tests-logs/insuree.log",
-    # result = analyze_corda_log("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/ChainThat/CS-4002/mnp-dev-party005-cordanode-7.log",
     analysis.analyze_corda_log()
-    #result = analyze_corda_log("client-logs/ChainThat/CS-4002/party005-dev-corda-logs.txt")
-    #save_analysis(result, CordaObject.Type.ERROR_ANALYSIS)
+
     return analysis
-    # analysis.save_analysis()
-    #print(json.dumps(analysis.get_results(), indent=2))
+
 
 def list_test(customer=None, ticket=None):
     """
@@ -58,15 +53,11 @@ def test_load(datainfo, logid):
     """
 
     customer_data = CoreApi(datainfo)
-    data = customer_data.load_ticket_details()
-    data_check = YamlDataDriver()
-    data_check.connect(data_dir=f'data/storage/{data["customer"]}/{data["ticket"]}/{logid}')
+    loaded_data=customer_data.load_data(logid)
 
-    data_analysis = data_check.load_data()
+    payload = loaded_data.get_payload()
 
-    #
-
-    return data_analysis
+    return payload
 
 def trace_reference(datainfo, logid, refid):
     """
@@ -80,14 +71,14 @@ def trace_reference(datainfo, logid, refid):
 
     customer_data.trace_analysis(logfile_id=logid, reference_id=refid)
 
-    customer_data.save_analysis()
-
     return customer_data
+
 if __name__ == "__main__":
     start_log_consumer(log_file="./api.log")
     analysis_test = None
     Configs.load_config()
-    if True:
+    action = ['create', 'xsave', 'list', 'xload', 'xtrace', 'xsave-trace']
+    if 'create' in action:
         # Add test
         datainfo = DataInfo()
         datainfo.set(DataInfo.Attribute.CUSTOMER, "test-customer")
@@ -102,20 +93,18 @@ if __name__ == "__main__":
         # analysis.add_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/ChainThat/CS-4002/02-10-2025/Corda-Start-logs.log")
         # analysis.add_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/ChainThat/CS-4002/02-10-2025/Success-Transaction-logs.log")
         analysis.add_log_file("/home/larry/IdeaProjects/logtracer/c4-logs/client-logs/test-customer/devrel.log")
-        analysis_test = test_analysis(analysis)
 
-    if True:
-
+    if 'save' in action:
         # save test
 
         if analysis_test:
             analysis_test.save_analysis()
 
-    if True:
+    if 'list' in action:
         # List saved data
         list_test()
 
-    if True:
+    if 'load' in action:
         # Test:
         # * Load Data
 
@@ -125,12 +114,10 @@ if __name__ == "__main__":
 
         load_data=test_load(datainfo, '57e41eac0b897e9a')
 
-
-
         pass
         # '3b9bef7e-57da-4790-b30b-9931cd87395e'
 
-    if False:
+    if 'trace' in action:
         # * trace for specific reference ID (like a flow) on a specific log file
 
         datainfo = DataInfo()
@@ -139,7 +126,7 @@ if __name__ == "__main__":
         trace_refid = trace_reference(datainfo,logid='57e41eac0b897e9a', refid='2c5fae67-cbc6-4a87-b987-70af14fd3ec7')
 
 
-    if False:
+    if 'save-trace' in action:
         trace_refid.save_analysis()
 
     stop_log_consumer()

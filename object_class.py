@@ -1915,6 +1915,10 @@ class Party:
         self.regex = re.compile(r"([CNSTLOU]{1,2}=[^\[\]^,]*)")
         self.attributes = self.extract_attributes()
 
+    def __post_deserialize__(self):
+        # Reconstruir el regex a partir del string original
+        self.regex = re.compile(r"([CNSTLOU]{1,2}=[^\[\]^,]*)")
+
     @staticmethod
     def assign_roles_manually(party_list):
         """
