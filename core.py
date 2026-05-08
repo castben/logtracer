@@ -24,6 +24,7 @@ class CoreApi:
         self.datainfo = datainfo
         self.log_file_path = None
         self.log_files = []
+        self.files_to_process = []
         self.what_to_collect = None
         self.references_id = None
         self.file_to_analyse = None
@@ -86,6 +87,7 @@ class CoreApi:
         """
 
         self.log_files.append(logfile)
+        #self.files_to_process.append(logfile)
 
         self.log_file_path = logfile
 
@@ -113,6 +115,47 @@ class CoreApi:
 
         return self.result
 
+    def load_files(self):
+        """
+        This method will pre-analyse each assigned file assigned to ticket and will produce a file data analysis
+        :return:
+        """
+
+        _payload = Payload()
+
+        # if not self.log_files:
+
+        if not self.log_files:
+            storage = YamlDataDriver()
+            storage.connect(datainfo=self.datainfo)
+            for each_id in self.ticket_details['log_files']:
+                self.log_files.append(self.ticket_details['log_files'][each_id]['log_file'])
+
+            pass
+
+
+        for each_file in self.log_files:
+            self.file_to_analyse = FileManagement(each_file, block_size_in_mb=15)
+
+            self.file_to_analyse.discover_file_format()
+            self.file_to_analyse.pre_analysis()
+
+            if not self.file_to_analyse.state:
+                write_log(f"Unable to to read given file due to: {self.file_to_analyse.state_message}")
+                return
+
+            _payload.add(f'{self.file_to_analyse.file_id}.log_file', self.file_to_analyse.filename)
+            _payload.add(f'{self.file_to_analyse.file_id}.file_status.error_analysis.status', 'pending')
+            _payload.add(f'{self.file_to_analyse.file_id}.file_status.error_analysis.processed_timestamp',None)
+            _payload.add(f'{self.file_to_analyse.file_id}.file_status.trace_analysis.status','pending')
+            _payload.add(f'{self.file_to_analyse.file_id}.file_status.trace_analysis.processed_timestamp',None)
+            _payload.add(f'{self.file_to_analyse.file_id}.summary.file_version_used', self.file_to_analyse.logfile_format)
+            _payload.add(f'{self.file_to_analyse.file_id}.summary.file_size', self.file_to_analyse.file_size)
+
+        return _payload.to_dict()
+
+
+
     def analyze_corda_log(self) -> dict:
         """
         Analiza un archivo de log de Corda y devuelve un diccionario con:
@@ -130,20 +173,13 @@ class CoreApi:
         _payload = Payload()
         _master_payload = Payload()
 
-        # master_payload = {'log_files': {}}
         file_index = {}
-        # payload = {
-        #     "summary":{},
-        #     "results": {}
-        # }
-
-        # if self.datainfo:
-        #     payload["summary"]["file_info"] = self.datainfo.get_all()
-
         KnownErrors.configs = Configs
         KnownErrors.initialize()
         data_dir = Configs.get_config_for('FILE_SETUP.CONFIG.data_dir')
 
+        if not self.log_files:
+            self.load_files()
         # 1. Configurar archivo
         # need to loop in all assigned files
         for each_file in self.log_files:
@@ -259,6 +295,27 @@ class CoreApi:
         self.result = _master_payload.to_dict()
         return self.result
 
+    def create_structure(self):
+        """
+        Create blank structure for subsequent file analysis
+        :return:
+        """
+
+
+        # Load files, this will scan files to gather some information and generate required file_id's
+        log_files = self.load_files()
+
+        _payload = Payload()
+        _details_payload = Payload(self.ticket_details)
+        _details_payload.add('log_files', log_files)
+        storage = YamlDataDriver()
+        for file_id in  log_files.keys():
+            _payload.add(f'analysis',log_files[file_id])
+            storage.connect(data_dir= f"./data/storage/",
+                            ticket_details=self.ticket_details, datainfo=self.datainfo, file_id=file_id)
+
+        storage.disconnect()
+
     def save_analysis(self, object_type=None, driver=None):
         """
         Store analysis.
@@ -297,8 +354,7 @@ class CoreApi:
                         "analysis": self.result['log_files'][file_id]["summary"]
                     }
                     storage.connect(data_dir= f"./data/storage/",
-                                    summary=summary,
-                                    ticket_details=self.result['ticket_details'],datainfo=self.datainfo, file_id=file_id)
+                                    summary=summary, datainfo=self.datainfo, file_id=file_id)
 
                     # TODO: Need to check why save->load->save is creating a different structure after is being saved, provoking errors when data is read back and try to save it again because
                     #  loaded data doesn't have same structure.
@@ -402,7 +458,7 @@ class CoreApi:
         if not ticket_details:
             write_log(f"Unable to open file id: {logfile_id} it doesn't exist", level='ERROR')
             return
-        file_check = FileManagement(ticket_details['log_files'][logfile_id])
+        file_check = FileManagement(ticket_details['log_files'][logfile_id]['log_file'])
         self.file_id = logfile_id
         file_check.pre_analysis()
         file_check.discover_file_format()

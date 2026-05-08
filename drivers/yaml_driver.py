@@ -6,6 +6,9 @@ import yaml
 import os
 from pathlib import Path, PosixPath
 from typing import Optional, List, Dict
+
+from numpy.distutils.fcompiler import none
+
 from data_interface import DataDriver
 from log_handler import write_log
 from object_class import CordaObject, Party
@@ -60,31 +63,38 @@ class YamlDataDriver(DataDriver):
             only_list = True
         else:
             only_list = False
-
-        self.datainfo = config.get('datainfo')
+        customer = None
+        ticket = None
+        self.datainfo = config.get('datainfo', None)
         self.file_id = config.get('file_id')
         self.data_dir = Path(config.get('data_dir', './data/storage'))
         self.summary = config.get("summary", None)
         self.ticket_details = config.get("ticket_details", None)
 
         if self.datainfo:
-            self.data_dir = f'./data/storage/{self.datainfo.get("customer")}/{self.datainfo.get("ticket")}'
+            only_list = False
+            ticket = self.datainfo.get('ticket')
+            customer = self.datainfo.get('customer')
+            # self.data_dir = f'./data/storage/{self.datainfo.get("customer")}/{self.datainfo.get("ticket")}'
 
-        if os.path.exists(f'{self.data_dir}/ticket_details.yaml'):
+        if customer and ticket and  os.path.exists(f'{self.data_dir}/{customer}/{ticket}/ticket_details.yaml'):
             # Verify if ticket details exist, if it does, then no dir creation is required
-            with open(f'{self.data_dir}/ticket_details.yaml', 'r') as fh_td:
+            with open(f'{self.data_dir}/{customer}/{ticket}/ticket_details.yaml', 'r') as fh_td:
                 self.ticket_details = yaml.safe_load(fh_td)
+        else:
+            if self.datainfo:
+                self.ticket_details = self.datainfo.get_all()
 
-        if self.file_id and os.path.exists(f'{self.data_dir}/{self.file_id}/summary.yaml'):
+        if self.file_id and ticket and customer and os.path.exists(f'{self.data_dir}/{customer}/{ticket}/{self.file_id}/summary.yaml'):
             self.configure_dirs(self.data_dir)
-            with open(f'{self.data_dir}/summary.yaml', 'r') as fh_sm:
+            with open(f'{self.data_dir}/{customer}/{ticket}/{self.file_id}/summary.yaml', 'r') as fh_sm:
                 self.summary = yaml.safe_load(fh_sm)
 
         if not only_list:
             # Crear directorios
-            self.configure_dirs(self.data_dir)
-            if self.file_id:
-                for dir_path in [self.entities_dir, self.parties_dir, self.blocks_dir, self.errors_dir, self.uml_steps_dir]:
+            if self.file_id and ticket and customer:
+                self.configure_dirs(f'{self.data_dir}/{customer}/{ticket}/{self.file_id}')
+                for dir_path in [self.entities_dir, self.parties_dir, self.blocks_dir, self.errors_dir]:
                     if not os.path.exists(dir_path):
                         dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -363,7 +373,7 @@ class YamlDataDriver(DataDriver):
         Save summary for received payload
         :return:
         """
-        with open(f"{self.data_dir}/summary.yaml", 'w', encoding='utf-8') as f:
+        with open(f"{self.data_dir}/{self.ticket_details.get('customer')}/{self.ticket_details.get('ticket')}/{self.file_id}/summary.yaml", 'w', encoding='utf-8') as f:
             yaml.dump(self.summary, f, allow_unicode=True, default_flow_style=False)
 
     def save_details(self):
@@ -371,7 +381,7 @@ class YamlDataDriver(DataDriver):
         Save ticket details for received payload
         :return:
         """
-        with open(f"{self.data_dir}/../ticket_details.yaml", 'w', encoding='utf-8') as f:
+        with open(f"{self.data_dir}/{self.datainfo.get('customer')}/{self.datainfo.get('ticket')}/ticket_details.yaml", 'w', encoding='utf-8') as f:
             yaml.dump(self.ticket_details, f, allow_unicode=True, default_flow_style=False)
 
     def save_block_item(self, block_item):
