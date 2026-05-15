@@ -79,11 +79,12 @@ def trace_reference(datainfo, logid, refid):
 if __name__ == "__main__":
     start_log_consumer(log_file="./api.log")
     analysis = None
+    trace_refid = None
     Configs.load_config()
     action = ['xcreate',
               'xanalysis',
               'xsave',
-              'list',
+              'xlist',
               'xload',
               'trace',
               'save-trace']
@@ -148,6 +149,7 @@ if __name__ == "__main__":
 
 
     if 'save-trace' in action:
-        trace_refid.save_analysis()
+        if trace_refid:
+            trace_refid.save_analysis(object_type=CordaObject.Type.FLOW_AND_TRANSACTIONS)
 
     stop_log_consumer()
