@@ -623,7 +623,7 @@ class YamlDataDriver(DataDriver):
         """Deserializa OrderedDict de UMLSteps"""
         uml_steps = OrderedDict()
         for line_num_str, steps_data in serialized.items():
-            line_num = int(line_num_str)
+            line_num = line_num_str
             uml_steps[line_num] = [self._deserialize_uml_step(step_data) for step_data in steps_data]
         return uml_steps
 
