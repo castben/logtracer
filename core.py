@@ -373,18 +373,21 @@ class CoreApi:
                                         #     each_item['reference_id'] = each_item['line_number']
 
                                         storage.save_error(each_item)
+                            write_log(f"{each_object.name}... list saved.")
 
                         # Serialise Party data
                         if each_object == CordaObject.Type.PARTY and each_object.value in self.result['log_files'][file_id]["results"]:
                             for each_party in self.result['log_files'][file_id]['results'][each_object.value]:
                                 party = self.result['log_files'][file_id]['results'][each_object.value][each_party]
                                 storage.save_party(party)
+                            write_log(f"{each_object.name}... list saved.")
 
                         # Serialise Flow and Transaction data
                         if each_object == CordaObject.Type.FLOW_AND_TRANSACTIONS and each_object.value in self.result['log_files'][file_id]["results"]:
                             object_list = self.result['log_files'][file_id]['results'][each_object.value]
                             for each_item in object_list:
                                 storage.save_corda_object(object_list[each_item])
+                            write_log(f"{each_object.name}... list saved.")
 
                         # Serialise SpecialBlocks
                         if each_object == CordaObject.Type.SPECIAL_BLOCKS and each_object.value in self.result['log_files'][file_id]["results"]:
@@ -392,6 +395,7 @@ class CoreApi:
                             for each_block_type in block_type_list:
                                 for each_block in block_type_list[each_block_type]:
                                     storage.save_block_item(block_type_list[each_block_type][each_block])
+                            write_log(f"{each_object.name}... list saved.")
 
                         # # Serialise UMLSteps
                         # if each_object == CordaObject.Type.UML_STEPS and each_object.value in self.result['log_files'][file_id]["results"]:
